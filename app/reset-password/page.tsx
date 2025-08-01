@@ -26,7 +26,7 @@ export default function ResetPassword() {
     try {
       const supabase = createSupabaseClient()
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/update-password`
+        redirectTo: `https://gestionhumana360.co/update-password`
       })
 
       if (error) throw error

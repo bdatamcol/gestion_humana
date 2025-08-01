@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle } from "lucide-react"
 import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -212,6 +212,15 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
     }
     // Aquí se pueden agregar más secciones en el futuro
   ]
+
+  // Item separado para reporte de fallas (más sutil)
+  const reporteFallasItem = {
+    name: "Reporte de Fallas",
+    href: "/perfil/reporte-fallas",
+    icon: AlertTriangle,
+    current: currentPath === "/perfil/reporte-fallas",
+    isSubtle: true // Flag para aplicar estilo más sutil
+  }
   
   // Inicializar el estado de expansión basado en la ruta actual
   React.useEffect(() => {
@@ -282,7 +291,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
             <div className="flex-shrink-0 flex items-center px-4">
             <img src="/logo-h-n.webp" alt="Logo" className="max-w-[150px]" />
             </div>
-            <nav className="mt-5 px-2 space-y-1">
+            <nav className="mt-5 px-2 space-y-1 flex-1">
               {menuItems.map((item) => (
                 <div key={item.name}>
                   {item.subItems ? (
@@ -357,6 +366,27 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                   )}
                 </div>
               ))}
+              
+              {/* Reporte de Fallas - Posicionado en la parte inferior */}
+              <div className="mt-auto pt-4">
+                <Link
+                  href={reporteFallasItem.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={cn(
+                    reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
+                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
+                  )}
+                >
+                  <reporteFallasItem.icon
+                    className={cn(
+                      reporteFallasItem.current ? "text-orange-600" : "text-gray-400 group-hover:text-gray-500",
+                      "mr-3 flex-shrink-0 h-4 w-4",
+                    )}
+                    aria-hidden="true"
+                  />
+                  {reporteFallasItem.name}
+                </Link>
+              </div>
           </nav>
         </div>
         <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
@@ -377,79 +407,101 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
           <div className="flex items-center justify-center flex-shrink-0 px-4">
             <img src="/logo-h-n.webp" alt="Logo" className="max-w-[150px]" />
           </div>
-          <nav className="mt-8 flex-1 px-2 space-y-1">
-            {menuItems.map((item) => (
-              <div key={item.name}>
-                {item.subItems ? (
-                  <>
-                    <button
-                      onClick={() => toggleMenu(menuItems.indexOf(item))}
+          <nav className="mt-8 flex-1 px-2 space-y-1 flex flex-col">
+            <div className="flex-1 space-y-1">
+              {menuItems.map((item) => (
+                <div key={item.name}>
+                  {item.subItems ? (
+                    <>
+                      <button
+                        onClick={() => toggleMenu(menuItems.indexOf(item))}
+                        className={cn(
+                          item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                          "group flex items-center justify-between w-full px-2 py-2 text-sm font-medium rounded-md",
+                        )}
+                      >
+                        <div className="flex items-center">
+                          <item.icon
+                            className={cn(
+                              item.current ? "text-primary" : "text-gray-400 group-hover:text-gray-500",
+                              "mr-3 flex-shrink-0 h-5 w-5",
+                            )}
+                            aria-hidden="true"
+                          />
+                          {item.name}
+                        </div>
+                        <ChevronDown
+                          className={cn(
+                            "h-5 w-5 text-gray-400 transition-transform duration-200",
+                            expandedMenus[menuItems.indexOf(item)] ? "transform rotate-180" : ""
+                          )}
+                        />
+                      </button>
+                      {expandedMenus[menuItems.indexOf(item)] && (
+                        <div className="pl-8 mt-1 space-y-1">
+                          {item.subItems.map((subItem) => (
+                            <Link
+                              key={subItem.name}
+                              href={subItem.href}
+                              className={cn(
+                                subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                                "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                              )}
+                            >
+                              <subItem.icon
+                                className={cn(
+                                  subItem.current ? "text-primary" : "text-gray-400 group-hover:text-gray-500",
+                                  "mr-3 flex-shrink-0 h-5 w-5",
+                                )}
+                                aria-hidden="true"
+                              />
+                              {subItem.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Link
+                      href={item.href || "#"}
                       className={cn(
                         item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                        "group flex items-center justify-between w-full px-2 py-2 text-sm font-medium rounded-md",
+                        "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
                       )}
                     >
-                      <div className="flex items-center">
-                        <item.icon
-                          className={cn(
-                            item.current ? "text-primary" : "text-gray-400 group-hover:text-gray-500",
-                            "mr-3 flex-shrink-0 h-5 w-5",
-                          )}
-                          aria-hidden="true"
-                        />
-                        {item.name}
-                      </div>
-                      <ChevronDown
+                      <item.icon
                         className={cn(
-                          "h-5 w-5 text-gray-400 transition-transform duration-200",
-                          expandedMenus[menuItems.indexOf(item)] ? "transform rotate-180" : ""
+                          item.current ? "text-primary" : "text-gray-400 group-hover:text-gray-500",
+                          "mr-3 flex-shrink-0 h-5 w-5",
                         )}
+                        aria-hidden="true"
                       />
-                    </button>
-                    {expandedMenus[menuItems.indexOf(item)] && (
-                      <div className="pl-8 mt-1 space-y-1">
-                        {item.subItems.map((subItem) => (
-                          <Link
-                            key={subItem.name}
-                            href={subItem.href}
-                            className={cn(
-                              subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                              "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                            )}
-                          >
-                            <subItem.icon
-                              className={cn(
-                                subItem.current ? "text-primary" : "text-gray-400 group-hover:text-gray-500",
-                                "mr-3 flex-shrink-0 h-5 w-5",
-                              )}
-                              aria-hidden="true"
-                            />
-                            {subItem.name}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Link
-                    href={item.href || "#"}
-                    className={cn(
-                      item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                    )}
-                  >
-                    <item.icon
-                      className={cn(
-                        item.current ? "text-primary" : "text-gray-400 group-hover:text-gray-500",
-                        "mr-3 flex-shrink-0 h-5 w-5",
-                      )}
-                      aria-hidden="true"
-                    />
-                    {item.name}
-                  </Link>
+                      {item.name}
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* Reporte de Fallas - Posicionado en la parte inferior */}
+            <div className="pt-4 border-t border-gray-100">
+              <Link
+                href={reporteFallasItem.href}
+                className={cn(
+                  reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
+                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
                 )}
-              </div>
-            ))}
+              >
+                <reporteFallasItem.icon
+                  className={cn(
+                    reporteFallasItem.current ? "text-orange-600" : "text-gray-400 group-hover:text-gray-500",
+                    "mr-3 flex-shrink-0 h-4 w-4",
+                  )}
+                  aria-hidden="true"
+                />
+                {reporteFallasItem.name}
+              </Link>
+            </div>
           </nav>
         </div>
         <div className="flex-shrink-0 flex border-t border-gray-200 p-4">

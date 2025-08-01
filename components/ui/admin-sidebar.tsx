@@ -3,7 +3,7 @@ import * as React from "react"
 import { useState, useEffect } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle } from "lucide-react"
 import { FaUser, FaBuilding, FaFileAlt, FaCalendarAlt, FaIdCard, FaChartPie, FaHeart, FaRunning, FaHardHat, FaBalanceScale } from 'react-icons/fa'
 import { useRouter } from "next/navigation"
 
@@ -259,9 +259,17 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
         name: "separator-2", 
         type: "separator" 
       });
+      
+      // 11. Reporte de Fallas
+      items.push({ 
+        name: "Reporte de Fallas", 
+        href: "/administracion/reporte-fallas", 
+        icon: AlertTriangle, 
+        current: currentPath === "/administracion/reporte-fallas" 
+      });
     }
     
-    // 11. Mis datos - Siempre incluir al final
+    // 12. Mis datos - Siempre incluir al final
     items.push({ 
       name: "Mis datos", 
       href: "/administracion/perfil", 

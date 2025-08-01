@@ -40,13 +40,15 @@ type SolicitudPermiso = {
   pdf_url: string | null;
   hora_inicio: string | null;
   hora_fin: string | null;
+  ciudad: string | null;
+  motivo: string | null;
+  compensacion: boolean | null;
   usuario?: {
     colaborador: string;
     cedula: string;
   };
 };
 
-// 1) Filas crudas de la tabla (sin la propiedad `usuario`)
 type PermisoRow = Omit<SolicitudPermiso, "usuario">;
 
 export default function AdminPermisosHistorico() {
@@ -56,7 +58,6 @@ export default function AdminPermisosHistorico() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEstado, setSelectedEstado] = useState("all");
 
@@ -67,7 +68,6 @@ export default function AdminPermisosHistorico() {
       try {
         const supabase = createSupabaseClient();
 
-        // 2) Traer solicitudes tipadas
         const solicitudesPromise = supabase
           .from("solicitudes_permisos")
           .select(`
@@ -81,7 +81,10 @@ export default function AdminPermisosHistorico() {
             fecha_resolucion,
             pdf_url,
             hora_inicio,
-            hora_fin
+            hora_fin,
+            ciudad,
+            motivo,
+            compensacion
           `)
           .order("fecha_solicitud", { ascending: false });
 
@@ -93,7 +96,6 @@ export default function AdminPermisosHistorico() {
           return;
         }
 
-        // 3) Traer colaboradores tipados en paralelo
         const userIds = Array.from(new Set(solData.map((s: any) => s.usuario_id)));
         const usersPromise = supabase
           .from("usuario_nomina")
@@ -103,7 +105,6 @@ export default function AdminPermisosHistorico() {
         const [{ data: usersData, error: usersError }] = await Promise.all([usersPromise]);
         if (usersError) throw usersError;
 
-        // 4) Combinar en SolicitudPermiso[]
         const combined: SolicitudPermiso[] = solData.map((s: any) => {
           const u = usersData?.find((u: any) => u.auth_user_id === s.usuario_id);
           return {
@@ -127,7 +128,6 @@ export default function AdminPermisosHistorico() {
     fetchData();
   }, []);
 
-  // aplicar filtros
   useEffect(() => {
     let result = solicitudes;
     if (searchTerm) {
@@ -272,8 +272,11 @@ export default function AdminPermisosHistorico() {
                         <TableHead>Colaborador</TableHead>
                         <TableHead>Cédula</TableHead>
                         <TableHead>Tipo</TableHead>
-                        <TableHead>Fecha Inicio</TableHead>
-                        <TableHead>Fecha Fin</TableHead>
+                        <TableHead>Ciudad</TableHead>
+                        <TableHead>Motivo</TableHead>
+                        <TableHead>Fecha y Hora Inicio</TableHead>
+                        <TableHead>Fecha y Hora Fin</TableHead>
+                        <TableHead>Compensación</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead className="text-right">
                           Acciones
@@ -287,6 +290,9 @@ export default function AdminPermisosHistorico() {
                             <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                             <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
@@ -295,7 +301,7 @@ export default function AdminPermisosHistorico() {
                         ))
                       ) : filteredSolicitudes.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-6">
+                          <TableCell colSpan={10} className="text-center py-6">
                             No se encontraron solicitudes.
                           </TableCell>
                         </TableRow>
@@ -312,10 +318,25 @@ export default function AdminPermisosHistorico() {
                               {humanType(s.tipo_permiso)}
                             </TableCell>
                             <TableCell>
-                              {formatDate(s.fecha_inicio)}
+                              {s.ciudad ?? "-"}
                             </TableCell>
                             <TableCell>
-                              {formatDate(s.fecha_fin)}
+                              {s.motivo ?? "-"}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div>{formatDate(s.fecha_inicio)}</div>
+                                <div className="text-sm text-gray-500">{s.hora_inicio || 'No especificada'}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div>{formatDate(s.fecha_fin)}</div>
+                                <div className="text-sm text-gray-500">{s.hora_fin || 'No especificada'}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {s.compensacion ? "Sí" : "No"}
                             </TableCell>
                             <TableCell>
                               <Badge

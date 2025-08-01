@@ -51,6 +51,7 @@ interface SolicitudPermiso {
   hora_fin?: string
   motivo?: string
   compensacion?: string
+  ciudad?: string
   estado: string
   fecha_solicitud: string
   fecha_resolucion?: string
@@ -175,7 +176,7 @@ export default function AdminSolicitudesPermisos() {
             .from('solicitudes_permisos')
             .select(`
               id, tipo_permiso, fecha_inicio, fecha_fin, hora_inicio, hora_fin, 
-              motivo, compensacion, estado, fecha_solicitud, fecha_resolucion, 
+              motivo, compensacion, ciudad, estado, fecha_solicitud, fecha_resolucion, 
               motivo_rechazo, pdf_url, usuario_id, admin_id
             `)
             .order('fecha_solicitud', { ascending: false })
@@ -495,7 +496,7 @@ export default function AdminSolicitudesPermisos() {
               <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                 <div>
                   <span style="font-weight: bold;">Ciudad: </span>
-                  <span>${solicitudData.ciudad || usuarioData.empresas?.ciudad || ''}</span>
+                  <span>${usuarioData.empresas?.ciudad || 'No especificada'}</span>
                 </div>
                 <div>
                   <span style="font-weight: bold;">Fecha: </span>
@@ -910,15 +911,18 @@ export default function AdminSolicitudesPermisos() {
                       </TableHead>
                       <TableHead>Cédula</TableHead>
                       <TableHead>Tipo</TableHead>
+                      <TableHead>Ciudad</TableHead>
+                      <TableHead>Motivo</TableHead>
+                      <TableHead>Compensación</TableHead>
                       <TableHead className="cursor-pointer" onClick={() => requestSort("fecha_inicio")}>
                         <div className="flex items-center">
-                          Fecha Inicio
+                          Fecha y Hora Inicio
                           {sortConfig?.key === "fecha_inicio" && (sortConfig.direction === "asc" ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />)}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer" onClick={() => requestSort("fecha_fin")}>
                         <div className="flex items-center">
-                          Fecha Fin
+                          Fecha y Hora Fin
                           {sortConfig?.key === "fecha_fin" && (sortConfig.direction === "asc" ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />)}
                         </div>
                       </TableHead>
@@ -929,7 +933,7 @@ export default function AdminSolicitudesPermisos() {
                   <TableBody>
                     {searchLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4">
+                        <TableCell colSpan={11} className="text-center py-4">
                           <div className="flex justify-center items-center">
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-800"></div>
                             <span className="ml-2">Buscando...</span>
@@ -938,7 +942,7 @@ export default function AdminSolicitudesPermisos() {
                       </TableRow>
                     ) : filteredSolicitudes.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4">
+                        <TableCell colSpan={11} className="text-center py-4">
                           No hay solicitudes que coincidan con los filtros.
                         </TableCell>
                       </TableRow>
@@ -955,8 +959,29 @@ export default function AdminSolicitudesPermisos() {
                               ? 'Remunerado'
                               : 'Actividad interna'}
                           </TableCell>
-                          <TableCell>{new Date(solicitud.fecha_inicio).toLocaleDateString()}</TableCell>
-                          <TableCell>{new Date(solicitud.fecha_fin).toLocaleDateString()}</TableCell>
+                          <TableCell>{solicitud.ciudad || 'No especificada'}</TableCell>
+                          <TableCell>
+                            <div className="max-w-xs truncate" title={solicitud.motivo}>
+                              {solicitud.motivo || 'No especificado'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-xs truncate" title={solicitud.compensacion}>
+                              {solicitud.compensacion || 'No especificada'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div>{new Date(solicitud.fecha_inicio).toLocaleDateString()}</div>
+                              <div className="text-sm text-gray-500">{solicitud.hora_inicio || 'No especificada'}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div>{new Date(solicitud.fecha_fin).toLocaleDateString()}</div>
+                              <div className="text-sm text-gray-500">{solicitud.hora_fin || 'No especificada'}</div>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge
                               className={

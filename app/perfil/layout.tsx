@@ -117,7 +117,9 @@ export default function PerfilLayout({
       {/* Sidebar - oculto en móvil */}
       <div className="hidden md:block w-64 bg-white shadow-sm border-r border-gray-200 flex-shrink-0">
         <Sidebar userName={userData?.colaborador || 'Usuario'} />
-        <OnlineUsersIndicator />
+        {(userData?.rol === 'administrador' || userData?.rol === 'moderador') && (
+          <OnlineUsersIndicator />
+        )}
       </div>
       
       {/* Contenido principal */}

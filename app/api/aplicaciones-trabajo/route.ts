@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+// @ts-ignore
 import nodemailer from 'nodemailer';
 
 // Función de debug
@@ -103,7 +104,6 @@ export async function POST(request: NextRequest) {
     const tipoDocumento = formData.get('tipo_documento') as string || 'CC';
     const fechaNacimiento = formData.get('fecha_nacimiento') as string;
     const direccion = formData.get('direccion') as string;
-    const cargoInteres = formData.get('cargo_interes') as string;
     const nivelEducacion = formData.get('nivel_educacion') as string;
     const ciudad = formData.get('ciudad') as string;
     const experienciaLaboral = formData.get('experiencia_laboral') as string;
@@ -115,12 +115,11 @@ export async function POST(request: NextRequest) {
       email,
       telefono,
       documento,
-      cargoInteres,
       hasFile: !!hojaVida
     });
 
     // Validaciones
-    if (!nombre || !apellido || !email || !telefono || !documento || !cargoInteres || !fechaNacimiento || !direccion) {
+    if (!nombre || !apellido || !email || !telefono || !documento || !fechaNacimiento || !direccion) {
       return NextResponse.json(
         { error: 'Todos los campos obligatorios deben ser completados' },
         { status: 400 }
@@ -147,7 +146,6 @@ export async function POST(request: NextRequest) {
         tipo_documento: tipoDocumento,
         fecha_nacimiento: fechaNacimiento,
         direccion: direccion,
-        cargo_interes: cargoInteres,
         nivel_educacion: nivelEducacion,
         ciudad: ciudad,
         experiencia_laboral: experienciaLaboral,
@@ -352,10 +350,6 @@ export async function POST(request: NextRequest) {
               ` : ''}
             </div>
 
-            <div class="position-highlight">
-              🎯 Cargo de Interés: ${cargoInteres}
-            </div>
-
             ${experienciaLaboral ? `
             <div class="experience-section">
               <h4>💼 Experiencia Laboral</h4>
@@ -501,8 +495,6 @@ export async function POST(request: NextRequest) {
             <div class="message">
               Hemos recibido exitosamente tu aplicación para la posición de:
             </div>
-            
-            <div class="position">${cargoInteres}</div>
             
             <div class="message">
               Gracias por tu interés en formar parte de nuestro equipo. Tu aplicación está siendo revisada por nuestro equipo de Recursos Humanos.

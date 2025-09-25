@@ -11,6 +11,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Upload, CheckCircle, AlertCircle, Briefcase, Users, Target, Award } from "lucide-react"
 import { createSupabaseClient } from "@/lib/supabase"
+import Header from "@/components/Header"
+import Footer from "@/components/Footer"
+import RecaptchaProvider from "@/components/recaptcha-provider"
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
 
 interface FormData {
   nombres: string
@@ -22,13 +26,21 @@ interface FormData {
   fecha_nacimiento: string
   direccion: string
   ciudad: string
-  cargo_interes: string
   experiencia_laboral: string
   nivel_educacion: string
   hoja_vida: File | null
 }
 
 export default function TrabajaConNosotros() {
+  return (
+    <RecaptchaProvider>
+      <TrabajaConNosotrosContent />
+    </RecaptchaProvider>
+  )
+}
+
+function TrabajaConNosotrosContent() {
+  const { executeRecaptcha } = useGoogleReCaptcha()
   const [formData, setFormData] = useState<FormData>({
     nombres: "",
     apellidos: "",
@@ -39,7 +51,6 @@ export default function TrabajaConNosotros() {
     fecha_nacimiento: "",
     direccion: "",
     ciudad: "",
-    cargo_interes: "",
     experiencia_laboral: "",
     nivel_educacion: "",
     hoja_vida: null,
@@ -100,7 +111,7 @@ export default function TrabajaConNosotros() {
   const validateForm = (): boolean => {
     const requiredFields = [
       'nombres', 'apellidos', 'email', 'telefono', 'documento_identidad',
-      'fecha_nacimiento', 'direccion', 'ciudad', 'cargo_interes', 'nivel_educacion'
+      'fecha_nacimiento', 'direccion', 'ciudad', 'nivel_educacion'
     ]
 
     for (const field of requiredFields) {
@@ -140,6 +151,29 @@ export default function TrabajaConNosotros() {
     setErrorMessage("")
 
     try {
+      // Ejecutar reCAPTCHA solo en producción
+      if (process.env.NODE_ENV === 'production' && executeRecaptcha) {
+        const token = await executeRecaptcha('job_application')
+        
+        // Validar el token en el servidor
+        const recaptchaResponse = await fetch('/api/verify-recaptcha', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token }),
+        })
+
+        if (!recaptchaResponse.ok) {
+          throw new Error('Error de verificación reCAPTCHA')
+        }
+
+        const recaptchaResult = await recaptchaResponse.json()
+        if (!recaptchaResult.success) {
+          throw new Error('Verificación reCAPTCHA fallida')
+        }
+      }
+
       // Crear FormData para enviar el archivo directamente al API
       const formDataToSend = new FormData()
       
@@ -153,7 +187,6 @@ export default function TrabajaConNosotros() {
       formDataToSend.append('fecha_nacimiento', formData.fecha_nacimiento)
       formDataToSend.append('direccion', formData.direccion)
       formDataToSend.append('ciudad', formData.ciudad)
-      formDataToSend.append('cargo_interes', formData.cargo_interes)
       formDataToSend.append('experiencia_laboral', formData.experiencia_laboral)
       formDataToSend.append('nivel_educacion', formData.nivel_educacion)
       
@@ -187,7 +220,6 @@ export default function TrabajaConNosotros() {
         fecha_nacimiento: "",
         direccion: "",
         ciudad: "",
-        cargo_interes: "",
         experiencia_laboral: "",
         nivel_educacion: "",
         hoja_vida: null,
@@ -204,28 +236,7 @@ export default function TrabajaConNosotros() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Gestión Humana 360</h1>
-                <p className="text-sm text-gray-600">Únete a nuestro equipo</p>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.href = '/'}
-              className="hidden sm:flex"
-            >
-              Volver al inicio
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
@@ -405,17 +416,6 @@ export default function TrabajaConNosotros() {
                 </h3>
 
                 <div>
-                  <Label htmlFor="cargo_interes">Cargo de Interés *</Label>
-                  <Input
-                    id="cargo_interes"
-                    value={formData.cargo_interes}
-                    onChange={(e) => handleInputChange('cargo_interes', e.target.value)}
-                    placeholder="Ej: Analista de Recursos Humanos"
-                    required
-                  />
-                </div>
-
-                <div>
                   <Label htmlFor="nivel_educacion">Nivel de Educación *</Label>
                   <Select value={formData.nivel_educacion} onValueChange={(value) => handleInputChange('nivel_educacion', value)}>
                     <SelectTrigger>
@@ -493,7 +493,7 @@ export default function TrabajaConNosotros() {
               <div className="pt-6">
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  className="w-full text-black bg-[#F2C36B] hover:bg-[#F2CF8D]"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Enviando aplicación...' : 'Enviar Aplicación'}
@@ -505,18 +505,7 @@ export default function TrabajaConNosotros() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <p className="text-gray-600">
-              © 2024 Gestión Humana 360. Todos los derechos reservados.
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              Creado por Bdatam
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Confirmation Modal */}
       <Dialog open={showConfirmationModal} onOpenChange={setShowConfirmationModal}>

@@ -14,7 +14,9 @@ export default function Header() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <img src="/logo-h-n.webp" alt="Portal de Gestión Humana" className="h-10 sm:h-12" />
+              <a href="/" aria-label="Portal de Gestión Humana">
+                <img src="/logo-h-n.webp" alt="Portal de Gestión Humana" className="h-10 sm:h-12" />
+              </a>
             </div>
 
             {/* Desktop Navigation */}

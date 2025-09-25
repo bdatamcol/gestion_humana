@@ -17,7 +17,7 @@ function getSMTPConfig() {
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false, // true para 465, false para otros puertos
     auth: {
-      user: process.env.SMTP_USER || 'holalexdesarrolla@gmail.com',
+      user: process.env.SMTP_USER || 'seleccionth@cbb.com.co',
       pass: process.env.SMTP_PASS || 'wnqh rnqy rnqy rnqy'
     },
     // Configuraciones adicionales para mejorar la confiabilidad

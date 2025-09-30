@@ -210,7 +210,8 @@ export default function AplicacionesTrabajoPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Candidato</TableHead>
-                    <TableHead>Cargo</TableHead>
+                    <TableHead>Teléfono</TableHead>
+                    <TableHead>Ciudad</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
@@ -225,7 +226,10 @@ export default function AplicacionesTrabajoPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{aplicacion.cargo_interes}</Badge>
+                        <p className="text-sm">{aplicacion.telefono}</p>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm">{aplicacion.ciudad || 'No especificada'}</p>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">

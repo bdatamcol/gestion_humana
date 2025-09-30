@@ -530,7 +530,7 @@ export async function POST(request: NextRequest) {
     // Configurar opciones de correo para RH
     const mailOptionsRH = {
       from: smtpConfig.auth.user,
-      to: 'holalexdesarrolla@gmail.com', // Email real de RH
+      to: 'seleccionth@cbb.com.co', // Email real de RH
       subject: `Nueva Aplicación de Empleo - ${nombre} ${apellido}`,
       html: htmlContentRH,
       attachments: attachments

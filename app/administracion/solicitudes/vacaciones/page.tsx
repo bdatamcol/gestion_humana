@@ -216,10 +216,24 @@ export default function AdminVacacionesPage() {
   }
 
   const calcularDiasVacaciones = (inicio: string, fin: string) => {
-    const start = new Date(inicio)
-    const end = new Date(fin)
-    const diffMs = end.getTime() - start.getTime()
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1
+    // Crear fechas en zona horaria local para evitar problemas de UTC
+    const start = new Date(inicio + 'T00:00:00')
+    const end = new Date(fin + 'T00:00:00')
+    
+    let diasVacaciones = 0
+    const fechaActual = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+    
+    // Iterar día por día desde la fecha de inicio hasta la fecha de fin
+    while (fechaActual <= end) {
+      // Solo contar si no es domingo (día 0)
+      if (fechaActual.getDay() !== 0) {
+        diasVacaciones++
+      }
+      // Avanzar al siguiente día
+      fechaActual.setDate(fechaActual.getDate() + 1)
+    }
+    
+    return diasVacaciones
   }
 
   const handleShowComments = (solicitudId: string) => {

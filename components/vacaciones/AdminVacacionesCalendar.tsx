@@ -643,7 +643,26 @@ export default function AdminVacacionesCalendar() {
                             {format(new Date(vacacion.fecha_inicio), "d MMM", { locale: es })} - {format(new Date(vacacion.fecha_fin), "d MMM", { locale: es })}
                           </p>
                           <p className="text-xs text-blue-600">
-                            {Math.ceil((new Date(vacacion.fecha_fin).getTime() - new Date(vacacion.fecha_inicio).getTime()) / (1000 * 60 * 60 * 24)) + 1} días
+                            {(() => {
+                              // Crear fechas en zona horaria local para evitar problemas de UTC
+                              const start = new Date(vacacion.fecha_inicio + 'T00:00:00')
+                              const end = new Date(vacacion.fecha_fin + 'T00:00:00')
+                              
+                              let diasVacaciones = 0
+                              const fechaActual = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+                              
+                              // Iterar día por día desde la fecha de inicio hasta la fecha de fin
+                              while (fechaActual <= end) {
+                                // Solo contar si no es domingo (día 0)
+                                if (fechaActual.getDay() !== 0) {
+                                  diasVacaciones++
+                                }
+                                // Avanzar al siguiente día
+                                fechaActual.setDate(fechaActual.getDate() + 1)
+                              }
+                              
+                              return diasVacaciones
+                            })()} días
                           </p>
                         </div>
                       </div>

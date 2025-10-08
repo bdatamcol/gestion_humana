@@ -209,6 +209,7 @@ export default function SolicitudVacaciones() {
           usuario_id: session.user.id,
           fecha_inicio: selectedRange.from.toISOString().slice(0, 10),
           fecha_fin: selectedRange.to.toISOString().slice(0, 10),
+          fecha_solicitud: new Date().toISOString(),
           estado: 'pendiente'
         }])
         .select()
@@ -216,7 +217,26 @@ export default function SolicitudVacaciones() {
 
       if (error) throw error
 
-      // Las notificaciones se crean automáticamente desde el servidor
+      // Enviar notificación por email
+      try {
+        const notificationResponse = await fetch('/api/notificaciones/solicitud-vacaciones', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            solicitudId: data.id,
+            usuarioId: session.user.id
+          }),
+        })
+
+        if (!notificationResponse.ok) {
+          console.error('Error al enviar notificación por correo:', await notificationResponse.text())
+        }
+      } catch (notificationError) {
+        console.error('Error al enviar notificación por correo:', notificationError)
+        // No interrumpir el flujo si falla la notificación
+      }
 
       // Actualizar la lista de solicitudes
       const { data: solicitudesData } = await supabase
@@ -238,11 +258,16 @@ export default function SolicitudVacaciones() {
   }
 
   const calcularDiasVacaciones = (fechaInicio: string | Date, fechaFin: string | Date) => {
-    const inicio = typeof fechaInicio === 'string' ? new Date(fechaInicio) : fechaInicio
-    const fin = typeof fechaFin === 'string' ? new Date(fechaFin) : fechaFin
+    // Crear fechas en zona horaria local para evitar problemas de UTC
+    const inicio = typeof fechaInicio === 'string' 
+      ? new Date(fechaInicio + 'T00:00:00') 
+      : new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), fechaInicio.getDate())
+    const fin = typeof fechaFin === 'string' 
+      ? new Date(fechaFin + 'T00:00:00') 
+      : new Date(fechaFin.getFullYear(), fechaFin.getMonth(), fechaFin.getDate())
     
     let diasVacaciones = 0
-    const fechaActual = new Date(inicio)
+    const fechaActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate())
     
     // Iterar día por día desde la fecha de inicio hasta la fecha de fin
     while (fechaActual <= fin) {

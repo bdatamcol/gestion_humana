@@ -3,7 +3,7 @@ import * as React from "react"
 import { useState, useEffect } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings } from "lucide-react"
 import { FaUser, FaBuilding, FaFileAlt, FaCalendarAlt, FaIdCard, FaChartPie, FaHeart, FaRunning, FaHardHat, FaBalanceScale } from 'react-icons/fa'
 import { useRouter } from "next/navigation"
 
@@ -260,7 +260,15 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
         type: "separator" 
       });
       
-      // 11. Trabaja con nosotros
+      // 12. Ajustes
+      items.push({ 
+        name: "Ajustes", 
+        href: "/administracion/ajustes", 
+        icon: Settings, 
+        current: currentPath === "/administracion/ajustes" 
+      });
+      
+      // 13. Trabaja con nosotros
       items.push({ 
         name: "Trabaja con nosotros", 
         href: "/administracion/aplicaciones-trabajo", 
@@ -268,7 +276,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
         current: currentPath === "/administracion/aplicaciones-trabajo" 
       });
       
-      // 12. Reporte de Fallas
+      // 14. Reporte de Fallas
       items.push({ 
         name: "Reporte de Fallas", 
         href: "/administracion/reporte-fallas", 
@@ -277,7 +285,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
       });
     }
     
-    // 13. Mis datos - Siempre incluir al final
+    // 15. Mis datos - Siempre incluir al final
     items.push({ 
       name: "Mis datos", 
       href: "/administracion/perfil", 

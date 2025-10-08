@@ -260,6 +260,7 @@ export default function SolicitudPermisos() {
           motivo: formData.motivo,
           compensacion: formData.compensacion || null,
           ciudad: formData.ciudad || null,
+          fecha_solicitud: new Date().toISOString(),
           estado: 'pendiente'
         }])
         .select()
@@ -267,7 +268,25 @@ export default function SolicitudPermisos() {
 
       if (error) throw error
 
-      // Las notificaciones se crean automáticamente desde el servidor
+      // Enviar notificación por email
+      try {
+        const notificationResponse = await fetch('/api/notificaciones/solicitud-permisos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            solicitudId: data.id,
+            usuarioId: session.user.id
+          })
+        })
+
+        if (!notificationResponse.ok) {
+          console.error('Error al enviar notificación por correo')
+        }
+      } catch (notificationError) {
+        console.error('Error al enviar notificación:', notificationError)
+      }
 
       // Actualizar la lista de solicitudes
       const { data: solicitudesData } = await supabase

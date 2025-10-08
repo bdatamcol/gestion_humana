@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase-server'
-import nodemailer from 'nodemailer'
+import * as nodemailer from 'nodemailer'
 
 export async function POST(request: NextRequest) {
   try {

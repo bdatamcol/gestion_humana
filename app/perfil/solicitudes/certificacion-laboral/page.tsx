@@ -180,6 +180,32 @@ export default function CertificacionLaboral() {
       
       if (insErr) throw insErr
 
+      // Enviar notificación por correo automáticamente
+      try {
+        const notificationResponse = await fetch('/api/notificaciones/certificacion-laboral', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            solicitudId: nuevaSolicitud.id,
+            usuarioId: session.user.id
+          })
+        })
+
+        if (!notificationResponse.ok) {
+          const errorData = await notificationResponse.json()
+          console.error('Error al enviar notificación por correo:', errorData)
+          // No interrumpimos el flujo si falla el correo, solo lo registramos
+        } else {
+          const successData = await notificationResponse.json()
+          console.log('Notificación por correo enviada exitosamente:', successData)
+        }
+      } catch (emailError) {
+        console.error('Error al procesar notificación por correo:', emailError)
+        // No interrumpimos el flujo si falla el correo
+      }
+
       // Las notificaciones se crean automáticamente desde el servidor
 
       // recarga lista

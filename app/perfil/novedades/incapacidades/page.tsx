@@ -18,10 +18,13 @@ import {
   Plus,
   Upload,
   MessageSquare,
+  Search,
+  Filter,
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ComentariosIncapacidades } from "@/components/incapacidades/comentarios-incapacidades"
 
 export default function IncapacidadesUsuario() {
@@ -32,6 +35,7 @@ export default function IncapacidadesUsuario() {
   const [userData, setUserData] = useState<any>(null) // perfil de usuario_nomina
   const [sessionUserId, setSessionUserId] = useState<string | null>(null) // auth user ID
   const [incapacidades, setIncapacidades] = useState<any[]>([])
+  const [filteredIncapacidades, setFilteredIncapacidades] = useState<any[]>([])
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState({
     fechaInicio: "",
@@ -42,13 +46,18 @@ export default function IncapacidadesUsuario() {
   const [success, setSuccess] = useState("")
   const [fileError, setFileError] = useState("")
 
+  // Estados para búsqueda y filtros
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedEstado, setSelectedEstado] = useState<string>("all")
+
   // Comentarios
   const [showCommentsModal, setShowCommentsModal] = useState(false)
   const [currentIncapacidadComent, setCurrentIncapacidadComent] = useState<string | null>(null)
   const [unseenCounts, setUnseenCounts] = useState<Record<string, number>>({})
 
   // Formatea fecha
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | null | undefined) => {
+    if (!date) return "No especificada"
     const options: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric" }
     return new Date(date + 'T00:00:00').toLocaleDateString("es-CO", options)
   }
@@ -90,16 +99,17 @@ export default function IncapacidadesUsuario() {
         setUserData(usuario)
       }
 
-      // Obtener incapacidades del usuario
+      // Obtener incapacidades del usuario - ahora incluyendo el campo estado
       const { data: incs, error: incError } = await supabase
         .from("incapacidades")
-        .select("*")
+        .select("*, estado, motivo_rechazo, fecha_resolucion")
         .eq("usuario_id", session.user.id)
         .order("fecha_subida", { ascending: false })
       if (incError) {
         console.error(incError)
       } else {
         setIncapacidades(incs || [])
+        setFilteredIncapacidades(incs || [])
         // Inicializar contador de no leídos
         incs?.forEach((inc) => {
           if (typeof inc.id === 'string') {
@@ -112,6 +122,27 @@ export default function IncapacidadesUsuario() {
     }
     init()
   }, [router, supabase])
+
+  // Efecto para filtrar incapacidades
+  useEffect(() => {
+    let filtered = incapacidades
+
+    // Filtrar por término de búsqueda (fechas)
+    if (searchTerm) {
+      filtered = filtered.filter(inc => 
+        formatDate(inc.fecha_inicio).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        formatDate(inc.fecha_fin).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        formatDate(inc.fecha_subida).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Filtrar por estado
+    if (selectedEstado !== "all") {
+      filtered = filtered.filter(inc => inc.estado === selectedEstado)
+    }
+
+    setFilteredIncapacidades(filtered)
+  }, [incapacidades, searchTerm, selectedEstado])
 
   // Realtime: actualizar contador cuando llega un nuevo comentario
   useEffect(() => {
@@ -221,7 +252,28 @@ export default function IncapacidadesUsuario() {
         .single()
       if (dbError) throw dbError
 
-      // Las notificaciones se crean automáticamente desde el servidor
+      // Enviar notificación por correo
+      try {
+        const notificationResponse = await fetch('/api/notificaciones/solicitud-incapacidades', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            incapacidadId: incapacidadData.id,
+            usuarioId: session.user.id
+          })
+        })
+
+        if (!notificationResponse.ok) {
+          console.error('Error al enviar notificación por correo:', await notificationResponse.text())
+        } else {
+          console.log('Notificación por correo enviada correctamente')
+        }
+      } catch (notificationError) {
+        console.error('Error al enviar notificación por correo:', notificationError)
+        // No interrumpir el flujo principal si falla la notificación
+      }
 
       // Refrescar lista y contadores
       const { data: incs } = await supabase
@@ -264,51 +316,50 @@ export default function IncapacidadesUsuario() {
 
   return (
     <>
-      {loading ? (
-        <div className="space-y-6">
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 shadow-sm">
-            <div className="flex justify-between items-center">
-              <div className="h-8 bg-gray-200/60 rounded animate-pulse w-48"></div>
-              <div className="h-10 bg-gray-200/40 rounded animate-pulse w-24"></div>
-            </div>
-          </div>
-          
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg border shadow-sm">
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="h-6 bg-gray-200/60 rounded animate-pulse w-32"></div>
-                <div className="h-4 bg-gray-200/40 rounded animate-pulse w-64"></div>
+      <div className="py-6 flex">
+        <div className="w-full mx-auto flex-1">
+          <div className="w-full bg-white rounded-lg shadow-sm p-6">
+            <div className="mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-0">
+                <div>
+                  <h1 className="text-2xl font-bold">Mis Incapacidades</h1>
+                  <p className="text-muted-foreground">
+                    Visualiza y gestiona tus incapacidades registradas.
+                  </p>
+                </div>
+                <Button onClick={() => setShowModal(true)} className="w-full sm:w-auto">
+                  <Plus className="mr-2 h-4 w-4" /> Nueva
+                </Button>
               </div>
             </div>
-            <div className="border-t">
-              <div className="p-4">
-                <div className="space-y-3">
-                  <div className="grid grid-cols-5 gap-4">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="h-4 bg-gray-200/60 rounded animate-pulse"></div>
-                    ))}
-                  </div>
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="grid grid-cols-5 gap-4">
-                      {[...Array(5)].map((_, j) => (
-                        <div key={j} className="h-4 bg-gray-200/40 rounded animate-pulse"></div>
+            <div className="space-y-6">
+              {loading ? (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="h-6 bg-gray-200/60 rounded animate-pulse w-32"></div>
+                  <div className="h-4 bg-gray-200/40 rounded animate-pulse w-64"></div>
+                </div>
+                <div className="border-t">
+                  <div className="p-4">
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-5 gap-4">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="h-4 bg-gray-200/60 rounded animate-pulse"></div>
+                        ))}
+                      </div>
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="grid grid-cols-5 gap-4">
+                          {[...Array(5)].map((_, j) => (
+                            <div key={j} className="h-4 bg-gray-200/40 rounded animate-pulse"></div>
+                          ))}
+                        </div>
                       ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0">
-                  <h1 className="text-2xl font-bold w-full sm:w-auto text-center sm:text-left">Mis Incapacidades</h1>
-                  <Button onClick={() => setShowModal(true)} className="w-full sm:w-auto">
-                    <Plus className="mr-2 h-4 w-4" /> Nueva
-                  </Button>
-                </div>
-
+            ) : (
+              <>
                 {error && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -316,47 +367,97 @@ export default function IncapacidadesUsuario() {
                   </Alert>
                 )}
                 {success && (
-                  <Alert className="bg-green-50 text-green-800 border-green-200">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <Alert className="bg-green-100 text-green-800 border-green-200">
+                    <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>{success}</AlertDescription>
                   </Alert>
                 )}
 
-                <Card className="bg-white/80 backdrop-blur-sm shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Historial</CardTitle>
-                    <CardDescription>Documentos de incapacidad</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Inicio</TableHead>
-                          <TableHead>Fin</TableHead>
-                          <TableHead>Registro</TableHead>
-                          <TableHead>Documento</TableHead>
-                          <TableHead>Comentarios</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                {/* Filtros */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                    <Input
+                      type="search"
+                      placeholder="Buscar por fechas..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <div className="w-full md:w-48">
+                    <Select value={selectedEstado} onValueChange={setSelectedEstado}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filtrar por estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los estados</SelectItem>
+                        <SelectItem value="en_revision">En revisión</SelectItem>
+                        <SelectItem value="aprobada">Aprobada</SelectItem>
+                        <SelectItem value="rechazada">Rechazada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="outline" className="w-full md:w-auto" onClick={() => {
+                    setSearchTerm("")
+                    setSelectedEstado("all")
+                  }}>
+                    <Filter className="mr-2 h-4 w-4" />
+                    Limpiar filtros
+                  </Button>
+                </div>
+
+                {/* Tabla */}
+                <div className="rounded-md border overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Inicio</TableHead>
+                        <TableHead>Fin</TableHead>
+                        <TableHead>Registro</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Documento</TableHead>
+                        <TableHead>Comentarios</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                         {loading ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8">
+                            <TableCell colSpan={6} className="text-center py-8">
                               <div className="animate-spin border-4 border-[#441404] border-t-transparent rounded-full w-10 h-10 mx-auto" />
                             </TableCell>
                           </TableRow>
-                        ) : incapacidades.length === 0 ? (
+                        ) : filteredIncapacidades.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8">
-                              No has registrado incapacidades.
+                            <TableCell colSpan={6} className="text-center py-8">
+                              {incapacidades.length === 0 
+                                ? "No has registrado incapacidades." 
+                                : "No se encontraron incapacidades con los filtros aplicados."
+                              }
                             </TableCell>
                           </TableRow>
                         ) : (
-                          incapacidades.map(inc => (
+                          filteredIncapacidades.map(inc => (
                             <TableRow key={inc.id}>
                               <TableCell>{formatDate(inc.fecha_inicio)}</TableCell>
                               <TableCell>{formatDate(inc.fecha_fin)}</TableCell>
                               <TableCell>{formatDate(inc.fecha_subida)}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={
+                                    inc.estado === 'aprobada'
+                                      ? 'bg-green-100 text-green-800'
+                                      : inc.estado === 'rechazada'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }
+                                >
+                                  {inc.estado === 'en_revision' ? 'En revisión' : 
+                                   inc.estado === 'aprobada' ? 'Aprobada' : 
+                                   inc.estado === 'rechazada' ? 'Rechazada' : 
+                                   inc.estado?.charAt(0).toUpperCase() + inc.estado?.slice(1) || 'En revisión'}
+                                </Badge>
+                              </TableCell>
                               <TableCell>
                                 <Button
                                   variant="outline"
@@ -387,10 +488,13 @@ export default function IncapacidadesUsuario() {
                         )}
                       </TableBody>
                     </Table>
-                  </CardContent>
-                </Card>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Modal registro */}
       <Dialog open={showModal} onOpenChange={setShowModal}>

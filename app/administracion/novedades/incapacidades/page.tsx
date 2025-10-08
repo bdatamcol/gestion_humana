@@ -7,6 +7,7 @@ import { createSupabaseClient } from "@/lib/supabase"
 // Card components removidos - usando contenedor transparente
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -14,6 +15,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertCircle,
   CheckCircle2,
@@ -26,6 +28,26 @@ import {
   MessageSquare,
 } from "lucide-react"
 import { ComentariosIncapacidades } from "@/components/incapacidades/comentarios-incapacidades"
+
+// Interfaz para incapacidad
+interface Incapacidad {
+  id: string
+  fecha_inicio: string
+  fecha_fin: string
+  fecha_subida: string
+  documento_url?: string
+  usuario_id: string
+  estado?: string
+  motivo_rechazo?: string
+  admin_id?: string
+  fecha_resolucion?: string
+  usuario?: {
+    colaborador?: string
+    cedula?: string
+    cargo?: string
+    empresa_nombre?: string
+  }
+}
 
 export default function AdminNovedadesIncapacidades() {
   const router = useRouter()
@@ -41,14 +63,21 @@ export default function AdminNovedadesIncapacidades() {
 
   // — Datos principales
   const [loading, setLoading] = useState(false)
-  const [incapacidades, setIncapacidades] = useState<any[]>([])
-  const [filteredIncapacidades, setFilteredIncapacidades] = useState<any[]>([])
+  const [incapacidades, setIncapacidades] = useState<Incapacidad[]>([])
+  const [filteredIncapacidades, setFilteredIncapacidades] = useState<Incapacidad[]>([])
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+
+  // — Estados para aprobación/rechazo
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [currentIncapacidadId, setCurrentIncapacidadId] = useState<string>("")
+  const [rejectReason, setRejectReason] = useState("")
+  const [actionLoading, setActionLoading] = useState(false)
 
   // — Filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("all")
+  const [selectedEstado, setSelectedEstado] = useState<string>("all")
   const [empresas, setEmpresas] = useState<string[]>([])
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null)
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
@@ -65,6 +94,117 @@ export default function AdminNovedadesIncapacidades() {
     return d.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
   }
 
+  // — Función para aprobar incapacidad
+  const aprobarIncapacidad = async (incapacidadId: string) => {
+    try {
+      setActionLoading(true)
+      setError("")
+      
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        router.push("/login")
+        return
+      }
+
+      const { error } = await supabase
+        .from('incapacidades')
+        .update({
+          estado: 'aprobada',
+          admin_id: session.user.id,
+          fecha_resolucion: new Date().toISOString()
+        })
+        .eq('id', incapacidadId)
+
+      if (error) throw error
+
+      setSuccess("Incapacidad aprobada correctamente.")
+      
+      // Actualizar el estado local
+      const updateIncapacidad = (inc: Incapacidad) => 
+        inc.id === incapacidadId ? {
+          ...inc,
+          estado: 'aprobada',
+          admin_id: session.user.id,
+          fecha_resolucion: new Date().toISOString()
+        } : inc
+
+      setIncapacidades(prev => prev.map(updateIncapacidad))
+      setFilteredIncapacidades(prev => prev.map(updateIncapacidad))
+      
+    } catch (err: any) {
+      console.error("Error al aprobar incapacidad:", err)
+      setError(err.message || "Error al procesar la solicitud")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // — Función para rechazar incapacidad
+  const rechazarIncapacidad = async () => {
+    if (!rejectReason.trim()) {
+      setError("Debe ingresar un motivo de rechazo")
+      return
+    }
+
+    try {
+      setActionLoading(true)
+      setError("")
+      
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        router.push("/login")
+        return
+      }
+
+      const { error } = await supabase
+        .from('incapacidades')
+        .update({
+          estado: 'rechazada',
+          admin_id: session.user.id,
+          fecha_resolucion: new Date().toISOString(),
+          motivo_rechazo: rejectReason.trim()
+        })
+        .eq('id', currentIncapacidadId)
+
+      if (error) throw error
+
+      setSuccess("Incapacidad rechazada correctamente.")
+      
+      // Actualizar el estado local
+      const updateIncapacidad = (inc: Incapacidad) => 
+        inc.id === currentIncapacidadId ? {
+          ...inc,
+          estado: 'rechazada',
+          admin_id: session.user.id,
+          fecha_resolucion: new Date().toISOString(),
+          motivo_rechazo: rejectReason.trim()
+        } : inc
+
+      setIncapacidades(prev => prev.map(updateIncapacidad))
+      setFilteredIncapacidades(prev => prev.map(updateIncapacidad))
+      
+      // Cerrar modal y limpiar
+      setShowRejectModal(false)
+      setCurrentIncapacidadId("")
+      setRejectReason("")
+      
+    } catch (err: any) {
+      console.error("Error al rechazar incapacidad:", err)
+      setError(err.message || "Error al procesar la solicitud")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // — Abrir modal de rechazo
+  const openRejectModal = (incapacidadId: string) => {
+    setCurrentIncapacidadId(incapacidadId)
+    setRejectReason("")
+    setShowRejectModal(true)
+  }
+
   // — Obtener incapacidades y empresas
   useEffect(() => {
     const fetchIncapacidades = async () => {
@@ -72,10 +212,10 @@ export default function AdminNovedadesIncapacidades() {
       try {
         // Ejecutar consultas en paralelo para mejor rendimiento
         const [incapacidadesResult, usuariosResult] = await Promise.all([
-          // 1) datos básicos de incapacidades
+          // 1) datos básicos de incapacidades - ahora incluyendo los nuevos campos
           supabase
             .from("incapacidades")
-            .select(`id, fecha_inicio, fecha_fin, fecha_subida, documento_url, usuario_id`)
+            .select(`id, fecha_inicio, fecha_fin, fecha_subida, documento_url, usuario_id, estado, motivo_rechazo, admin_id, fecha_resolucion`)
             .order("fecha_subida", { ascending: false }),
           // 2) datos de usuarios con relación a cargos
           supabase
@@ -228,6 +368,8 @@ export default function AdminNovedadesIncapacidades() {
         
           return {
             ...inc,
+            // Asegurar que el estado tenga un valor por defecto
+            estado: inc.estado || 'en_revision',
             usuario: {
               colaborador: usu?.colaborador  || "—",
               cedula:       usu?.cedula      || "—",
@@ -350,7 +492,7 @@ export default function AdminNovedadesIncapacidades() {
   }
 
   // — Filtrar y buscar
-  const applyFilters = (search: string, empresa: string, sort: typeof sortConfig) => {
+  const applyFilters = (search: string, empresa: string, estado: string, sort: typeof sortConfig) => {
     let res = [...incapacidades]
     if (search) {
       const term = search.toLowerCase()
@@ -364,6 +506,9 @@ export default function AdminNovedadesIncapacidades() {
     }
     if (empresa !== "all") {
       res = res.filter((i) => i.usuario?.empresa_nombre === empresa)
+    }
+    if (estado !== "all") {
+      res = res.filter((i) => i.estado === estado)
     }
     if (sort) {
       res.sort((a, b) => {
@@ -393,18 +538,19 @@ export default function AdminNovedadesIncapacidades() {
     setSearchTerm(v)
     setSearchLoading(true)
     if (searchTimeout.current) clearTimeout(searchTimeout.current)
-    searchTimeout.current = setTimeout(() => applyFilters(v, selectedEmpresa, sortConfig), 300)
+    searchTimeout.current = setTimeout(() => applyFilters(v, selectedEmpresa, selectedEstado, sortConfig), 300)
   }
 
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current)
     setSearchLoading(true)
-    searchTimeout.current = setTimeout(() => applyFilters(searchTerm, selectedEmpresa, sortConfig), 300)
-  }, [selectedEmpresa, sortConfig, incapacidades])
+    searchTimeout.current = setTimeout(() => applyFilters(searchTerm, selectedEmpresa, selectedEstado, sortConfig), 300)
+  }, [selectedEmpresa, selectedEstado, sortConfig, incapacidades])
 
   const clearFilters = () => {
     setSearchTerm("")
     setSelectedEmpresa("all")
+    setSelectedEstado("all")
     setSortConfig(null)
   }
 
@@ -464,6 +610,19 @@ export default function AdminNovedadesIncapacidades() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="w-full md:w-48">
+                <Select value={selectedEstado} onValueChange={setSelectedEstado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="en_revision">En revisión</SelectItem>
+                    <SelectItem value="aprobada">Aprobado</SelectItem>
+                    <SelectItem value="rechazada">Rechazado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button variant="outline" className="w-full md:w-auto" onClick={clearFilters}>
                 <X className="mr-2 h-4 w-4" />
                 Limpiar filtros
@@ -496,6 +655,7 @@ export default function AdminNovedadesIncapacidades() {
                         sortConfig.direction === "asc" ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />
                       )}
                     </TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Documento</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
@@ -524,6 +684,9 @@ export default function AdminNovedadesIncapacidades() {
                           <Skeleton className="h-4 w-[100px]" />
                         </TableCell>
                         <TableCell>
+                          <Skeleton className="h-6 w-[80px] rounded-full" />
+                        </TableCell>
+                        <TableCell>
                           <Skeleton className="h-8 w-[80px] rounded" />
                         </TableCell>
                         <TableCell>
@@ -533,7 +696,7 @@ export default function AdminNovedadesIncapacidades() {
                     ))
                   ) : filteredIncapacidades.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         No se encontraron incapacidades
                       </TableCell>
                     </TableRow>
@@ -546,6 +709,22 @@ export default function AdminNovedadesIncapacidades() {
                         <TableCell>{inc.fecha_inicio ? formatDate(inc.fecha_inicio) : "—"}</TableCell>
                         <TableCell>{inc.fecha_fin ? formatDate(inc.fecha_fin) : "—"}</TableCell>
                         <TableCell>{inc.fecha_subida ? formatDate(inc.fecha_subida) : "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              inc.estado === 'aprobada'
+                                ? 'bg-green-100 text-green-800'
+                                : inc.estado === 'rechazada'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }
+                          >
+                            {inc.estado === 'en_revision' ? 'En revisión' : 
+                             inc.estado === 'aprobada' ? 'Aprobado' : 
+                             inc.estado === 'rechazada' ? 'Rechazado' : 
+                             inc.estado?.charAt(0).toUpperCase() + inc.estado?.slice(1) || 'En revisión'}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           {inc.documento_url ? (
                             <Button
@@ -560,19 +739,53 @@ export default function AdminNovedadesIncapacidades() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="relative inline-block">
-                            {unseenCounts[inc.id] > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
-                                {unseenCounts[inc.id]}
-                              </span>
+                          <div className="flex space-x-2">
+                            {inc.estado === 'en_revision' ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openRejectModal(inc.id)}
+                                  disabled={actionLoading}
+                                >
+                                  Rechazar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => aprobarIncapacidad(inc.id)}
+                                  disabled={actionLoading}
+                                >
+                                  Aprobar
+                                </Button>
+                              </>
+                            ) : inc.estado === 'rechazada' ? (
+                              <div className="text-sm text-red-600">
+                                <div>Rechazado</div>
+                                {inc.motivo_rechazo && (
+                                  <div className="text-xs text-gray-500 max-w-xs truncate" title={inc.motivo_rechazo}>
+                                    {inc.motivo_rechazo}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-green-600">
+                                Aprobado
+                              </div>
                             )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openComments(inc.id, inc.usuario)}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </Button>
+                            <div className="relative inline-block">
+                              {unseenCounts[inc.id] > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
+                                  {unseenCounts[inc.id]}
+                                </span>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openComments(inc.id, inc.usuario)}
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -584,6 +797,48 @@ export default function AdminNovedadesIncapacidades() {
           </div>
         </div>
       </div>
+
+      {/* Modal de rechazo */}
+      <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rechazar Incapacidad</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="motivo">Motivo del rechazo *</Label>
+              <Textarea
+                id="motivo"
+                placeholder="Ingrese el motivo por el cual se rechaza la incapacidad..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="mt-1"
+                rows={4}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRejectModal(false)
+                  setRejectReason("")
+                  setCurrentIncapacidadId("")
+                }}
+                disabled={actionLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={rechazarIncapacidad}
+                disabled={actionLoading || !rejectReason.trim()}
+              >
+                {actionLoading ? "Procesando..." : "Rechazar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de comentarios */}
       {currentIncapacidadComent && (

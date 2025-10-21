@@ -26,6 +26,10 @@ import {
   ChevronDown,
   Download,
   MessageSquare,
+  FileSpreadsheet,
+  Plus,
+  Upload,
+  User,
 } from "lucide-react"
 import { ComentariosIncapacidades } from "@/components/incapacidades/comentarios-incapacidades"
 
@@ -88,10 +92,92 @@ export default function AdminNovedadesIncapacidades() {
   const [showCommentsModal, setShowCommentsModal] = useState(false)
   const [currentIncapacidadComent, setCurrentIncapacidadComent] = useState<{ id: string; usuario: any } | null>(null)
 
+  // — Estados para el modal de nueva incapacidad
+  const [showNewIncapacidadModal, setShowNewIncapacidadModal] = useState(false)
+  const [newIncapacidadForm, setNewIncapacidadForm] = useState({
+    usuario_id: "",
+    fecha_inicio: "",
+    fecha_fin: "",
+    documento: null as File | null
+  })
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [userSearchTerm, setUserSearchTerm] = useState("")
+  const [searchedUsers, setSearchedUsers] = useState<any[]>([])
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [userSearchLoading, setUserSearchLoading] = useState(false)
+  const userSearchTimeout = useRef<NodeJS.Timeout | null>(null)
+
   // Formatea fecha
   const formatDate = (date: Date | string) => {
     const d = new Date(date)
     return d.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+  }
+
+  // Calcula la cantidad de días entre dos fechas
+  const calculateDays = (fechaInicio: string, fechaFin: string) => {
+    if (!fechaInicio || !fechaFin) return 0
+    
+    const inicio = new Date(fechaInicio)
+    const fin = new Date(fechaFin)
+    
+    // Calcular la diferencia en milisegundos
+    const diffTime = Math.abs(fin.getTime() - inicio.getTime())
+    // Convertir a días (incluye el día de inicio)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+    
+    return diffDays
+  }
+
+  // Función para descargar Excel
+  const descargarExcel = async () => {
+    try {
+      setActionLoading(true)
+      
+      // Import xlsx dynamically
+      const XLSX = await import('xlsx')
+      
+      // Preparar datos para Excel
+      const datosExcel = filteredIncapacidades.map((inc) => ({
+        'Colaborador': inc.usuario?.colaborador || '—',
+        'Cédula': inc.usuario?.cedula || '—',
+        'Empresa': inc.usuario?.empresa_nombre || '—',
+        'Cargo': inc.usuario?.cargo || '—',
+        'Fecha Inicio': inc.fecha_inicio ? formatDate(inc.fecha_inicio) : '—',
+        'Fecha Fin': inc.fecha_fin ? formatDate(inc.fecha_fin) : '—',
+        'Cantidad de Días': calculateDays(inc.fecha_inicio, inc.fecha_fin),
+        'Fecha Subida': inc.fecha_subida ? formatDate(inc.fecha_subida) : '—',
+        'Estado': inc.estado === 'en_revision' ? 'En revisión' : 
+                 inc.estado === 'aprobada' ? 'Aprobado' : 
+                 inc.estado === 'rechazada' ? 'Rechazado' : 
+                 inc.estado?.charAt(0).toUpperCase() + inc.estado?.slice(1) || 'En revisión',
+        'Motivo Rechazo': inc.motivo_rechazo || '—',
+        'Fecha Resolución': inc.fecha_resolucion ? formatDate(inc.fecha_resolucion) : '—'
+      }))
+      
+      // Crear libro de trabajo
+      const workbook = XLSX.utils.book_new()
+      
+      // Crear hoja de trabajo
+      const worksheet = XLSX.utils.json_to_sheet(datosExcel)
+      
+      // Agregar hoja al libro
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Incapacidades')
+      
+      // Generar nombre del archivo con fecha actual
+      const fecha = new Date().toISOString().split('T')[0]
+      const nombreArchivo = `incapacidades_${fecha}.xlsx`
+      
+      // Descargar archivo
+      XLSX.writeFile(workbook, nombreArchivo)
+      
+      setSuccess("Archivo Excel descargado correctamente.")
+      
+    } catch (err: any) {
+      console.error("Error al generar Excel:", err)
+      setError("Error al generar el archivo Excel")
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   // — Función para aprobar incapacidad
@@ -554,6 +640,179 @@ export default function AdminNovedadesIncapacidades() {
     setSortConfig(null)
   }
 
+  // — Función para buscar usuarios
+  const searchUsers = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchedUsers([])
+      return
+    }
+
+    try {
+      setUserSearchLoading(true)
+      
+      const { data: usuarios, error } = await supabase
+        .from("usuario_nomina")
+        .select(`
+          auth_user_id,
+          colaborador,
+          cedula,
+          empresa_id,
+          cargos:cargo_id (
+            nombre
+          ),
+          empresas:empresa_id (
+            nombre
+          )
+        `)
+        .or(`colaborador.ilike.%${searchTerm}%,cedula.ilike.%${searchTerm}%`)
+        .limit(10)
+
+      if (error) throw error
+
+      setSearchedUsers(usuarios || [])
+    } catch (err: any) {
+      console.error("Error al buscar usuarios:", err)
+      setError("Error al buscar usuarios")
+    } finally {
+      setUserSearchLoading(false)
+    }
+  }
+
+  // — Handler para búsqueda de usuarios
+  const handleUserSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setUserSearchTerm(value)
+    
+    if (userSearchTimeout.current) clearTimeout(userSearchTimeout.current)
+    userSearchTimeout.current = setTimeout(() => searchUsers(value), 300)
+  }
+
+  // — Seleccionar usuario
+  const selectUser = (user: any) => {
+    setSelectedUser(user)
+    setNewIncapacidadForm(prev => ({ ...prev, usuario_id: user.auth_user_id }))
+    setUserSearchTerm(user.colaborador)
+    setSearchedUsers([])
+    // Limpiar error de usuario si existe
+    if (formErrors.usuario_id) {
+      setFormErrors(prev => ({ ...prev, usuario_id: "" }))
+    }
+  }
+
+  // — Validar formulario
+  const validateForm = () => {
+    const errors: Record<string, string> = {}
+
+    if (!newIncapacidadForm.usuario_id) {
+      errors.usuario_id = "Debe seleccionar un usuario"
+    }
+
+    if (!newIncapacidadForm.fecha_inicio) {
+      errors.fecha_inicio = "La fecha de inicio es requerida"
+    }
+
+    if (!newIncapacidadForm.fecha_fin) {
+      errors.fecha_fin = "La fecha de fin es requerida"
+    }
+
+    if (newIncapacidadForm.fecha_inicio && newIncapacidadForm.fecha_fin) {
+      const fechaInicio = new Date(newIncapacidadForm.fecha_inicio)
+      const fechaFin = new Date(newIncapacidadForm.fecha_fin)
+      
+      if (fechaFin < fechaInicio) {
+        errors.fecha_fin = "La fecha de fin no puede ser anterior a la fecha de inicio"
+      }
+    }
+
+    if (!newIncapacidadForm.documento) {
+      errors.documento = "Debe adjuntar el documento de la incapacidad"
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // — Subir documento a Supabase Storage
+  const uploadDocument = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+    const filePath = `incapacidades/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('documentos')
+      .upload(filePath, file)
+
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('documentos')
+      .getPublicUrl(filePath)
+
+    return publicUrl
+  }
+
+  // — Guardar nueva incapacidad
+  const saveNewIncapacidad = async () => {
+    if (!validateForm()) return
+
+    try {
+      setActionLoading(true)
+      setError("")
+
+      // Subir documento
+      const documentUrl = await uploadDocument(newIncapacidadForm.documento!)
+
+      // Crear registro de incapacidad
+      const { error: insertError } = await supabase
+        .from('incapacidades')
+        .insert({
+          usuario_id: newIncapacidadForm.usuario_id,
+          fecha_inicio: newIncapacidadForm.fecha_inicio,
+          fecha_fin: newIncapacidadForm.fecha_fin,
+          documento_url: documentUrl,
+          fecha_subida: new Date().toISOString(),
+          estado: 'en_revision'
+        })
+
+      if (insertError) throw insertError
+
+      setSuccess("Incapacidad registrada correctamente")
+      
+      // Cerrar modal y limpiar formulario
+      setShowNewIncapacidadModal(false)
+      resetForm()
+      
+      // Recargar datos
+      window.location.reload()
+
+    } catch (err: any) {
+      console.error("Error al guardar incapacidad:", err)
+      setError(err.message || "Error al guardar la incapacidad")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // — Resetear formulario
+  const resetForm = () => {
+    setNewIncapacidadForm({
+      usuario_id: "",
+      fecha_inicio: "",
+      fecha_fin: "",
+      documento: null
+    })
+    setFormErrors({})
+    setUserSearchTerm("")
+    setSearchedUsers([])
+    setSelectedUser(null)
+  }
+
+  // — Abrir modal de nueva incapacidad
+  const openNewIncapacidadModal = () => {
+    resetForm()
+    setShowNewIncapacidadModal(true)
+  }
+
   return (
     <div className="py-6 flex">
       <div className="w-full mx-auto flex-1">
@@ -627,6 +886,22 @@ export default function AdminNovedadesIncapacidades() {
                 <X className="mr-2 h-4 w-4" />
                 Limpiar filtros
               </Button>
+              <Button 
+                variant="outline" 
+                className="w-full md:w-auto bg-black hover:bg-slate-900 hover:text-white text-white border-black-200" 
+                onClick={descargarExcel}
+                disabled={actionLoading || filteredIncapacidades.length === 0}
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                {actionLoading ? "Generando..." : "Descargar Excel"}
+              </Button>
+              <Button 
+                className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white" 
+                onClick={openNewIncapacidadModal}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva Incapacidad
+              </Button>
             </div>
 
             {/* Tabla */}  
@@ -649,6 +924,7 @@ export default function AdminNovedadesIncapacidades() {
                         sortConfig.direction === "asc" ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />
                       )}
                     </TableHead>
+                    <TableHead className="text-center">Cantidad de Días</TableHead>
                     <TableHead onClick={() => requestSort("fecha_subida")} className="cursor-pointer">
                       Fecha Subida
                       {sortConfig?.key === "fecha_subida" && (
@@ -681,6 +957,9 @@ export default function AdminNovedadesIncapacidades() {
                           <Skeleton className="h-4 w-[100px]" />
                         </TableCell>
                         <TableCell>
+                          <Skeleton className="h-4 w-[60px]" />
+                        </TableCell>
+                        <TableCell>
                           <Skeleton className="h-4 w-[100px]" />
                         </TableCell>
                         <TableCell>
@@ -696,7 +975,7 @@ export default function AdminNovedadesIncapacidades() {
                     ))
                   ) : filteredIncapacidades.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
+                      <TableCell colSpan={10} className="text-center py-8">
                         No se encontraron incapacidades
                       </TableCell>
                     </TableRow>
@@ -708,6 +987,15 @@ export default function AdminNovedadesIncapacidades() {
                         <TableCell>{inc.usuario?.empresa_nombre || "—"}</TableCell>
                         <TableCell>{inc.fecha_inicio ? formatDate(inc.fecha_inicio) : "—"}</TableCell>
                         <TableCell>{inc.fecha_fin ? formatDate(inc.fecha_fin) : "—"}</TableCell>
+                        <TableCell className="text-center font-medium">
+                          {inc.fecha_inicio && inc.fecha_fin ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                              {calculateDays(inc.fecha_inicio, inc.fecha_fin)} días
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
                         <TableCell>{inc.fecha_subida ? formatDate(inc.fecha_subida) : "—"}</TableCell>
                         <TableCell>
                           <Badge
@@ -859,6 +1147,206 @@ export default function AdminNovedadesIncapacidades() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Modal de nueva incapacidad */}
+      <Dialog open={showNewIncapacidadModal} onOpenChange={setShowNewIncapacidadModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Registrar Nueva Incapacidad
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Búsqueda de usuario */}
+            <div className="space-y-2">
+              <Label htmlFor="user-search">Usuario *</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  id="user-search"
+                  type="text"
+                  placeholder="Buscar por nombre o cédula..."
+                  className="pl-10"
+                  value={userSearchTerm}
+                  onChange={handleUserSearchChange}
+                />
+                {userSearchLoading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Resultados de búsqueda */}
+              {searchedUsers.length > 0 && (
+                <div className="border rounded-lg max-h-40 overflow-y-auto">
+                  {searchedUsers.map((user) => (
+                    <div
+                      key={user.auth_user_id}
+                      className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                      onClick={() => selectUser(user)}
+                    >
+                      <div className="font-medium">{user.colaborador}</div>
+                      <div className="text-sm text-gray-500">
+                        {user.cedula} - {user.empresas?.nombre} - {user.cargos?.nombre}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Usuario seleccionado */}
+              {selectedUser && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="font-medium text-blue-900">{selectedUser.colaborador}</div>
+                  <div className="text-sm text-blue-700">
+                    {selectedUser.cedula} - {selectedUser.empresas?.nombre}
+                  </div>
+                </div>
+              )}
+              
+              {formErrors.usuario_id && (
+                <p className="text-sm text-red-600">{formErrors.usuario_id}</p>
+              )}
+            </div>
+
+            {/* Fechas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fecha-inicio">Fecha de Inicio *</Label>
+                <Input
+                  id="fecha-inicio"
+                  type="date"
+                  value={newIncapacidadForm.fecha_inicio}
+                  onChange={(e) => {
+                    setNewIncapacidadForm(prev => ({ ...prev, fecha_inicio: e.target.value }))
+                    if (formErrors.fecha_inicio) {
+                      setFormErrors(prev => ({ ...prev, fecha_inicio: "" }))
+                    }
+                  }}
+                />
+                {formErrors.fecha_inicio && (
+                  <p className="text-sm text-red-600">{formErrors.fecha_inicio}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="fecha-fin">Fecha de Fin *</Label>
+                <Input
+                  id="fecha-fin"
+                  type="date"
+                  value={newIncapacidadForm.fecha_fin}
+                  onChange={(e) => {
+                    setNewIncapacidadForm(prev => ({ ...prev, fecha_fin: e.target.value }))
+                    if (formErrors.fecha_fin) {
+                      setFormErrors(prev => ({ ...prev, fecha_fin: "" }))
+                    }
+                  }}
+                />
+                {formErrors.fecha_fin && (
+                  <p className="text-sm text-red-600">{formErrors.fecha_fin}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Mostrar días calculados */}
+            {newIncapacidadForm.fecha_inicio && newIncapacidadForm.fecha_fin && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-sm text-green-700">
+                  <strong>Días de incapacidad:</strong> {calculateDays(newIncapacidadForm.fecha_inicio, newIncapacidadForm.fecha_fin)} días
+                </div>
+              </div>
+            )}
+
+            {/* Documento */}
+            <div className="space-y-2">
+              <Label htmlFor="documento">Documento de Incapacidad *</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                <div className="mt-4">
+                  <label htmlFor="documento" className="cursor-pointer">
+                    <span className="mt-2 block text-sm font-medium text-gray-900">
+                      Seleccionar archivo
+                    </span>
+                    <span className="mt-1 block text-xs text-gray-500">
+                      PDF, JPG, PNG hasta 10MB
+                    </span>
+                  </label>
+                  <input
+                    id="documento"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        setNewIncapacidadForm(prev => ({ ...prev, documento: file }))
+                        if (formErrors.documento) {
+                          setFormErrors(prev => ({ ...prev, documento: "" }))
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {newIncapacidadForm.documento && (
+                <div className="p-3 bg-gray-50 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium">{newIncapacidadForm.documento.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewIncapacidadForm(prev => ({ ...prev, documento: null }))
+                        const input = document.getElementById('documento') as HTMLInputElement
+                        if (input) input.value = ''
+                      }}
+                      className="ml-auto text-red-600 hover:text-red-800"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {formErrors.documento && (
+                <p className="text-sm text-red-600">{formErrors.documento}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setShowNewIncapacidadModal(false)}
+              disabled={actionLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={saveNewIncapacidad}
+              disabled={actionLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {actionLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Guardar Incapacidad
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

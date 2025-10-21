@@ -25,3 +25,45 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+logs/
+
+# temp
+*.tmp
+*.temp
+/cache/
+/tmp/
+/temp/
+
+# uploads / media (if any)
+/uploads/
+/public/uploads/
+
+# Supabase storage
+/supabase/storage/
+
+# lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# build artifacts
+/dist/
+/.cache/
+/.parcel-cache/
+
+# coverage
+/coverage/
+.nyc_output/
+
+# misc
+*.pid
+*.seed
+*.pid.lock

@@ -64,6 +64,26 @@ export async function POST(request: NextRequest) {
 
     const correoDestino = configData.valor
 
+    // Función para validar formato de correo
+    const validarEmail = (email: string): boolean => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(email.trim())
+    }
+
+    // Procesar múltiples correos destinatarios
+    const correosDestino = correoDestino
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email.length > 0 && validarEmail(email))
+
+    if (correosDestino.length === 0) {
+      console.error('No se encontraron correos válidos en la configuración')
+      return NextResponse.json(
+        { error: 'No hay correos de destino válidos configurados' },
+        { status: 500 }
+      )
+    }
+
     // Crear transporter de nodemailer usando configuración del entorno
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -238,21 +258,43 @@ Este es un correo automático del Sistema de Gestión Humana.
 Por favor, no responda a este correo.
     `
 
-    // Enviar correo
-    const info = await transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to: correoDestino,
-      subject: asunto,
-      text: contenidoTexto,
-      html: contenidoHTML,
-    })
+    // Enviar el email a múltiples destinatarios
+    const resultadosEnvio = []
+    let enviosExitosos = 0
+    let enviosFallidos = 0
 
-    console.log('Correo de notificación de incapacidad enviado:', info.messageId)
+    for (const email of correosDestino) {
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: email,
+          subject: asunto,
+          html: contenidoHTML,
+          text: contenidoTexto,
+        })
+        resultadosEnvio.push({ email, status: 'enviado' })
+        enviosExitosos++
+      } catch (emailError) {
+        console.error(`Error enviando correo a ${email}:`, emailError)
+        resultadosEnvio.push({ email, status: 'error', error: emailError.message })
+        enviosFallidos++
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Notificación de incapacidad enviada correctamente',
-      messageId: info.messageId
+      message: `Notificación de solicitud de incapacidades procesada. ${enviosExitosos} correo(s) enviado(s), ${enviosFallidos} fallo(s)`,
+      data: {
+        incapacidadId,
+        colaborador: userData.colaborador,
+        correosEnviados: correosDestino,
+        resultadosEnvio,
+        estadisticas: {
+          total: correosDestino.length,
+          exitosos: enviosExitosos,
+          fallidos: enviosFallidos
+        }
+      }
     })
 
   } catch (error) {

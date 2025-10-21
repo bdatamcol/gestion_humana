@@ -71,10 +71,22 @@ export async function POST(request: NextRequest) {
 
     const correoDestino = configData.valor
 
-    // Validar formato del correo
-    if (!isValidEmail(correoDestino)) {
+    // Función para validar formato de correo
+    const isValidEmail = (email: string): boolean => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(email.trim())
+    }
+
+    // Procesar múltiples correos destinatarios
+    const correosDestino = correoDestino
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email.length > 0 && isValidEmail(email))
+
+    if (correosDestino.length === 0) {
+      console.error('No se encontraron correos válidos en la configuración')
       return NextResponse.json(
-        { error: 'El correo de notificaciones configurado no tiene un formato válido' },
+        { error: 'No hay correos de destino válidos configurados' },
         { status: 500 }
       )
     }
@@ -285,48 +297,57 @@ Este es un correo automático generado por el Sistema de Gestión Humana.
 Por favor, no responda a este correo electrónico.
     `
 
-    // 6. Configurar opciones del correo
-    const mailOptions = {
-      from: {
-        name: 'Sistema de Gestión Humana',
-        address: smtpConfig.auth.user
-      },
-      to: correoDestino,
-      subject: `Nueva Solicitud de Certificación Laboral - ${userData.colaborador}`,
-      html: htmlContent,
-      text: textContent
-    }
+    // 6. Enviar el email a múltiples destinatarios
+    const resultadosEnvio = []
+    let enviosExitosos = 0
+    let enviosFallidos = 0
 
-    // 7. Enviar el correo con reintentos
-    try {
-      const result = await sendEmailWithRetry(transporter, mailOptions)
-      
-      // Cerrar el transporter
-      transporter.close()
-
-      return NextResponse.json({
-        success: true,
-        message: 'Notificación por correo enviada exitosamente',
-        details: {
-          destinatario: correoDestino,
-          solicitante: userData.colaborador,
-          fechaEnvio: new Date().toISOString(),
-          intentos: result.attempt
+    for (const email of correosDestino) {
+      try {
+        const mailOptions = {
+          from: {
+            name: 'Sistema de Gestión Humana',
+            address: smtpConfig.auth.user
+          },
+          to: email,
+          subject: `Nueva Solicitud de Certificación Laboral - ${userData.colaborador}`,
+          html: htmlContent,
+          text: textContent
         }
-      })
 
-    } catch (emailError) {
-      console.error('Error enviando correo:', emailError)
-      transporter.close()
-      
-      return NextResponse.json(
-        { 
-          error: 'Error al enviar la notificación por correo',
-          details: emailError instanceof Error ? emailError.message : 'Error desconocido'
-        },
-        { status: 500 }
-      )
+        const result = await sendEmailWithRetry(transporter, mailOptions)
+        resultadosEnvio.push({ email, status: 'enviado', intentos: result.attempt })
+        enviosExitosos++
+      } catch (emailError) {
+        console.error(`Error enviando correo a ${email}:`, emailError)
+        resultadosEnvio.push({ 
+          email, 
+          status: 'error', 
+          error: emailError instanceof Error ? emailError.message : 'Error desconocido'
+        })
+        enviosFallidos++
+      }
     }
+
+    // Cerrar el transporter
+    transporter.close()
+
+    return NextResponse.json({
+      success: true,
+      message: `Notificación de certificación laboral procesada. ${enviosExitosos} correo(s) enviado(s), ${enviosFallidos} fallo(s)`,
+      data: {
+        solicitudId,
+        colaborador: userData.colaborador,
+        correosEnviados: correosDestino,
+        resultadosEnvio,
+        estadisticas: {
+          total: correosDestino.length,
+          exitosos: enviosExitosos,
+          fallidos: enviosFallidos
+        },
+        fechaEnvio: new Date().toISOString()
+      }
+    })
 
   } catch (error) {
     console.error('Error en POST notificaciones/certificacion-laboral:', error)

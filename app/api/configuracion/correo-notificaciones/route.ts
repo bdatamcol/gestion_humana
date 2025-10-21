@@ -6,9 +6,11 @@ export async function GET() {
   try {
     const supabase = createAdminSupabaseClient()
 
+    // Usar select('*') para obtener todos los datos correctamente
+    // Nota: select('valor') tiene un comportamiento inconsistente con campos de texto largos
     const { data, error } = await supabase
       .from('configuracion_sistema')
-      .select('valor')
+      .select('*')
       .eq('clave', 'correo_notificaciones')
       .single()
 
@@ -43,11 +45,42 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Validar formato de correo básico
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(correo)) {
+    // Función para validar formato de correo
+    const validarEmail = (email: string): boolean => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      return emailRegex.test(email.trim())
+    }
+
+    // Función para validar múltiples correos
+    const validarMultiplesCorreos = (correos: string): { validos: string[], errores: string[] } => {
+      const emails = correos.split(',').map(email => email.trim()).filter(email => email.length > 0)
+      const validos: string[] = []
+      const errores: string[] = []
+
+      emails.forEach((email, index) => {
+        if (validarEmail(email)) {
+          validos.push(email)
+        } else {
+          errores.push(`Correo ${index + 1}: "${email}" no es válido`)
+        }
+      })
+
+      return { validos, errores }
+    }
+
+    // Validar múltiples correos
+    const { validos, errores } = validarMultiplesCorreos(correo)
+    
+    if (errores.length > 0) {
       return NextResponse.json(
-        { error: 'El formato del correo no es válido' },
+        { error: `Se encontraron correos con formato inválido: ${errores.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    if (validos.length === 0) {
+      return NextResponse.json(
+        { error: 'No se encontraron correos válidos' },
         { status: 400 }
       )
     }
@@ -58,7 +91,7 @@ export async function PUT(request: NextRequest) {
     const { data: updateData, error: updateError } = await supabase
       .from('configuracion_sistema')
       .update({ 
-        valor: correo,
+        valor: validos.join(', '),
         fecha_actualizacion: new Date().toISOString()
       })
       .eq('clave', 'correo_notificaciones')
@@ -70,7 +103,7 @@ export async function PUT(request: NextRequest) {
         .from('configuracion_sistema')
         .insert({
           clave: 'correo_notificaciones',
-          valor: correo,
+          valor: validos.join(', '),
           descripcion: 'Correo electrónico para recibir notificaciones del sistema',
           tipo: 'string'
         })
@@ -85,14 +118,16 @@ export async function PUT(request: NextRequest) {
       }
 
       return NextResponse.json({ 
-        message: 'Correo de notificaciones guardado correctamente',
-        correo: correo
+        message: `Correos de notificaciones guardados correctamente. ${validos.length} correo(s) configurado(s).`,
+        correo: validos.join(', '),
+        count: validos.length
       })
     }
 
     return NextResponse.json({ 
-      message: 'Correo de notificaciones actualizado correctamente',
-      correo: correo
+      message: `Correos de notificaciones actualizados correctamente. ${validos.length} correo(s) configurado(s).`,
+      correo: validos.join(', '),
+      count: validos.length
     })
   } catch (error) {
     console.error('Error en PUT correo-notificaciones:', error)

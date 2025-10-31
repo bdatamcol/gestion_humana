@@ -1,0 +1,230 @@
+[VISTA DE USUARIO]
+
+1. Módulo: Login
+   - Funcionalidad: Autenticación de usuarios
+   - Flujo: Validación de credenciales (email/cédula + contraseña) → Redirección a perfil
+   - Características: Login con cédula o email, validación de estado activo, redirección según rol
+
+2. Módulo: Perfil de Usuario
+   - Funcionalidad: Visualización de datos personales completos
+   - Funcionalidad: Visualización de información laboral (cargo, empresa, sede)
+   - Funcionalidad: Visualización de datos de afiliación (EPS, AFP, cesantías, caja de compensación)
+   - Funcionalidad: Indicador de estado de vacaciones (sin vacaciones, pendientes, en vacaciones, ya tomó)
+   - Funcionalidad: Gestión de avatar personalizado
+
+3. Módulo: Solicitudes
+   3.1 Submódulo: Certificación Laboral
+   - Funcionalidad: Solicitud de certificados laborales
+   - Funcionalidad: Visualización de historial de solicitudes
+   - Funcionalidad: Descarga de certificados aprobados
+   
+   3.2 Submódulo: Vacaciones
+   - Funcionalidad: Solicitud de vacaciones con selección de fechas
+   - Funcionalidad: Visualización de disponibilidad de vacaciones
+   - Funcionalidad: Historial de solicitudes de vacaciones
+   - Funcionalidad: Estado de solicitudes (pendiente, aprobado, rechazado)
+   
+   3.3 Submódulo: Permisos
+   - Funcionalidad: Solicitud de permisos laborales
+   - Funcionalidad: Especificación de tipo de permiso, fechas y motivo
+   - Funcionalidad: Carga de archivos de respaldo cuando sea necesario
+   - Funcionalidad: Seguimiento del estado de solicitudes
+
+4. Módulo: Novedades
+   4.1 Submódulo: Incapacidades
+   - Funcionalidad: Registro de incapacidades médicas
+   - Funcionalidad: Carga de archivos de incapacidad
+   - Funcionalidad: Seguimiento de incapacidades registradas
+   - Funcionalidad: Visualización de comentarios en incapacidades
+
+5. Módulo: Comunicados
+   - Funcionalidad: Visualización de comunicados corporativos
+   - Funcionalidad: Filtrado por categorías
+   - Funcionalidad: Sistema de comentarios en comunicados
+   - Funcionalidad: Marcado de comunicados como leídos
+   - Funcionalidad: Notificaciones de nuevos comunicados
+
+6. Módulo: Reporte de Fallas
+   - Funcionalidad: Creación de tickets de soporte técnico
+   - Funcionalidad: Categorización de tipos de fallas
+   - Funcionalidad: Carga de capturas de pantalla como evidencia
+   - Funcionalidad: Seguimiento del estado de reportes
+   - Funcionalidad: Historial personal de reportes
+
+7. Módulo: Publicaciones y Contenido
+   - Funcionalidad: Visualización de publicaciones de bienestar
+   - Funcionalidad: Acceso a actividades corporativas
+   - Funcionalidad: Consulta de normatividad y SST
+   - Funcionalidad: Visualización de cumpleañeros de la semana
+   - Funcionalidad: Publicación destacada del momento
+
+8. Módulo: Notificaciones
+   - Funcionalidad: Sistema de notificaciones en tiempo real
+   - Funcionalidad: Notificaciones de estado de solicitudes
+   - Funcionalidad: Notificaciones de comunicados importantes
+   - Funcionalidad: Indicador visual de notificaciones no leídas
+   - Funcionalidad: Marcado de notificaciones como leídas
+
+[VISTA DE ADMINISTRACIÓN]
+
+1. Módulo: Login Admin
+   - Funcionalidad: Autenticación de administradores
+   - Flujo: Validación de credenciales → Redirección a panel de administración
+   - Características: Validación de rol administrador/moderador
+
+2. Módulo: Panel de Control (Dashboard)
+   - Funcionalidad: Estadísticas generales del sistema
+   - Funcionalidad: Contadores de usuarios activos/inactivos
+   - Funcionalidad: Visualización de usuarios en vacaciones
+   - Funcionalidad: Resumen de solicitudes pendientes
+   - Funcionalidad: Indicadores de empresas registradas
+
+3. Módulo: Gestión de Usuarios
+   - Funcionalidad: Listado completo de usuarios del sistema
+   - Funcionalidad: Creación de nuevos usuarios
+   - Funcionalidad: Edición de información de usuarios
+   - Funcionalidad: Activación/desactivación de usuarios
+   - Funcionalidad: Asignación de cargos y empresas
+   - Funcionalidad: Importación masiva de usuarios desde Excel
+   - Funcionalidad: Gestión de cargos del sistema
+
+4. Módulo: Solicitudes (Administración)
+   4.1 Submódulo: Certificación Laboral
+   - Funcionalidad: Visualización de todas las solicitudes
+   - Funcionalidad: Aprobación/rechazo de solicitudes
+   - Funcionalidad: Generación de certificados en PDF
+   - Funcionalidad: Gestión de plantillas de certificados
+   - Funcionalidad: Historial completo de solicitudes
+   
+   4.2 Submódulo: Vacaciones
+   - Funcionalidad: Visualización de calendario de vacaciones
+   - Funcionalidad: Aprobación/rechazo de solicitudes de vacaciones
+   - Funcionalidad: Gestión de disponibilidad de vacaciones por empresa
+   - Funcionalidad: Configuración de períodos vacacionales
+   - Funcionalidad: Reportes de vacaciones por período
+   
+   4.3 Submódulo: Permisos
+   - Funcionalidad: Revisión y aprobación de permisos laborales
+   - Funcionalidad: Configuración de tipos de permisos
+   - Funcionalidad: Establecimiento de límites y políticas
+   - Funcionalidad: Reportes de permisos por usuario y período
+
+5. Módulo: Comunicados (Administración)
+   - Funcionalidad: Creación de comunicados corporativos
+   - Funcionalidad: Editor de texto enriquecido con formateo
+   - Funcionalidad: Carga de imágenes y archivos adjuntos
+   - Funcionalidad: Sistema de programación de publicación
+   - Funcionalidad: Segmentación por empresas, cargos y usuarios específicos
+   - Funcionalidad: Envío de notificaciones por email masivo
+   - Funcionalidad: Gestión de categorías de comunicados
+   - Funcionalidad: Seguimiento de lectura de comunicados
+   - Funcionalidad: Moderación de comentarios
+
+6. Módulo: Publicaciones de Contenido
+   6.1 Submódulo: Bienestar
+   - Funcionalidad: Creación de publicaciones de bienestar laboral
+   - Funcionalidad: Gestión de galería de imágenes
+   - Funcionalidad: Programación de publicaciones
+   - Funcionalidad: Categorización de contenido
+   
+   6.2 Submódulo: Actividades
+   - Funcionalidad: Publicación de actividades corporativas
+   - Funcionalidad: Gestión de eventos y celebraciones
+   - Funcionalidad: Sistema de inscripción a actividades
+   
+   6.3 Submódulo: SST (Seguridad y Salud en el Trabajo)
+   - Funcionalidad: Publicación de normas y procedimientos de seguridad
+   - Funcionalidad: Gestión de documentación SST
+   - Funcionalidad: Programación de capacitaciones
+   
+   6.4 Submódulo: Normatividad
+   - Funcionalidad: Gestión de documentos normativos
+   - Funcionalidad: Actualización de políticas corporativas
+   - Funcionalidad: Sistema de versionado de documentos
+
+7. Módulo: Novedades (Administración)
+   - Funcionalidad: Visualización de todas las incapacidades registradas
+   - Funcionalidad: Seguimiento y aprobación de incapacidades
+   - Funcionalidad: Gestión de comentarios en incapacidades
+   - Funcionalidad: Reportes de incapacidades por período
+   - Funcionalidad: Configuración de políticas de incapacidades
+
+8. Módulo: Reporte de Fallas (Administración)
+   - Funcionalidad: Visualización de todos los reportes de fallas
+   - Funcionalidad: Gestión de estados de reportes (pendiente, en proceso, resuelto)
+   - Funcionalidad: Asignación de reportes a personal de soporte
+   - Funcionalidad: Sistema de comentarios y seguimiento
+   - Funcionalidad: Generación de reportes de fallas por período
+   - Funcionalidad: Métricas de tiempo de resolución
+
+9. Módulo: Trabaja con Nosotros (Administración)
+   - Funcionalidad: Visualización de aplicaciones de empleo recibidas
+   - Funcionalidad: Filtrado y búsqueda de candidatos
+   - Funcionalidad: Descarga de hojas de vida y documentos
+   - Funcionalidad: Gestión de estados de aplicación
+   - Funcionalidad: Envío de confirmaciones por email automático
+   - Funcionalidad: Base de datos de candidatos
+
+10. Módulo: Estadísticas y Reportes
+   - Funcionalidad: Dashboard con métricas generales
+   - Funcionalidad: Reportes de uso del sistema
+   - Funcionalidad: Estadísticas de solicitudes por tipo
+   - Funcionalidad: Análisis de vacaciones y permisos
+   - Funcionalidad: Reportes de usuarios por empresa
+   - Funcionalidad: Exportación de datos a formatos CSV/Excel
+
+11. Módulo: Notificaciones (Administración)
+   - Funcionalidad: Panel de notificaciones completo
+   - Funcionalidad: Envío de notificaciones personalizadas
+   - Funcionalidad: Gestión de plantillas de notificación
+   - Funcionalidad: Programación de notificaciones
+   - Funcionalidad: Segmentación de destinatarios
+
+12. Módulo: Configuración del Sistema
+   - Funcionalidad: Gestión de empresas del sistema
+   - Funcionalidad: Configuración de sedes por empresa
+   - Funcionalidad: Gestión de EPS, AFP, cajas de compensación
+   - Funcionalidad: Configuración de permisos y roles
+   - Funcionalidad: Personalización de la interfaz
+
+[NOTAS ADICIONALES]
+
+1. Funcionalidades Transversales:
+   - Sistema de autenticación basado en Supabase
+   - Control de acceso basado en roles (usuario, moderador, administrador)
+   - Sistema de notificaciones en tiempo real
+   - Interfaz responsive para dispositivos móviles
+   - Sistema de carga y gestión de archivos en Supabase Storage
+   - Integración con servicios de email (SMTP)
+   - Sistema de reCAPTCHA para seguridad
+   - Logs de auditoría para acciones importantes
+
+2. Seguridad y Privacidad:
+   - Políticas de seguridad a nivel de base de datos (RLS)
+   - Encriptación de contraseñas
+   - Validación de entrada de datos
+   - Control de acceso granular por usuario y rol
+   - Protección contra acceso no autorizado
+
+3. Integraciones:
+   - Supabase (base de datos, autenticación, almacenamiento)
+   - Servicios de email para notificaciones
+   - Google reCAPTCHA para validación de formularios
+   - Sistema de archivos para documentos y certificados
+
+4. Relaciones entre Módulos:
+   - Los usuarios están vinculados a empresas y cargos
+   - Las solicitudes están relacionadas con usuarios específicos
+   - Los comunicados pueden ser segmentados por empresas/cargos
+   - Las vacaciones dependen de la empresa del usuario
+   - Los permisos están sujetos a políticas corporativas
+   - Las notificaciones se envían según el rol y pertenencia empresarial
+
+5. Características Especiales:
+   - Sistema de vacaciones con verificación de disponibilidad por empresa
+   - Calendario de cumpleaños semanal
+   - Publicación destacada automática
+   - Sistema de comentarios jerárquico
+   - Notificaciones por email masivas segmentadas
+   - Importación masiva de usuarios
+   - Generación automática de certificados laborales

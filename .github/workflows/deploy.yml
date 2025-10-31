@@ -1,0 +1,33 @@
+name: deploy
+on:
+  workflow_run:
+    workflows: ["build"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Create Deployment VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /srv/stacks/gestionhumana360
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
+
+      - name: Notify Deployment Success
+        if: ${{ steps.deploy.outcome == 'success' }}
+        run: echo "Deployment to production environment was successful by @ronaldo071515."

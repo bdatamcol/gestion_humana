@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Colaboradores - Tu Empresa</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>/* Reset y Variables CSS */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Colores principales */
+  --primary-color: #10b981;
+  --primary-dark: #059669;
+  --secondary-color: #f59e0b;
+  --accent-color: #8b5cf6;
+
+  /* Colores neutros */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+
+  /* Tipografía */
+  --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+
+  /* Espaciado */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Bordes */
+  --border-radius-sm: 0.375rem;
+  --border-radius-md: 0.5rem;
+  --border-radius-lg: 0.75rem;
+  --border-radius-xl: 1rem;
+}
+
+/* Estilos base */
+body {
+  font-family: var(--font-family);
+  line-height: 1.6;
+  color: var(--gray-800);
+  background-color: var(--gray-50);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+/* Header */
+.header {
+  background: white;
+  border-bottom: 1px solid var(--gray-200);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg) 0;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--gray-900);
+  line-height: 1.2;
+}
+
+.company-name {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+  font-weight: 400;
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+.nav-link {
+  color: var(--gray-600);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--primary-color);
+}
+
+/* Hero Section */
+.hero {
+  background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+  padding: var(--spacing-3xl) 0;
+}
+
+.hero-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-3xl);
+  align-items: center;
+}
+
+.welcome-section {
+  padding-right: var(--spacing-xl);
+}
+
+.hero-title {
+  font-size: var(--font-size-4xl);
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.1;
+}
+
+.hero-description {
+  font-size: var(--font-size-lg);
+  color: var(--gray-600);
+  margin-bottom: var(--spacing-2xl);
+  line-height: 1.7;
+}
+
+.hero-features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.feature-icon {
+  font-size: var(--font-size-xl);
+}
+
+/* Login Section */
+.login-section {
+  display: flex;
+  justify-content: center;
+}
+
+.login-card {
+  background: white;
+  padding: var(--spacing-2xl);
+  border-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid var(--gray-200);
+}
+
+.login-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--gray-700);
+  font-size: var(--font-size-sm);
+}
+
+.form-group input {
+  padding: var(--spacing-md);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  color: var(--gray-600);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.forgot-password {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+.login-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.login-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+}
+
+/* Feed Section */
+.feed {
+  padding: var(--spacing-3xl) 0;
+}
+
+.feed-header {
+  text-align: center;
+  margin-bottom: var(--spacing-3xl);
+}
+
+.feed-title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-md);
+}
+
+.feed-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--gray-600);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Feed Layout Reorganizado */
+.feed-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+.cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+}
+
+/* Cards Grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: var(--spacing-xl);
+}
+
+.card {
+  background: white;
+  border-radius: var(--border-radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid var(--gray-200);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.card-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.card:hover .card-image img {
+  transform: scale(1.05);
+}
+
+.card-content {
+  padding: var(--spacing-xl);
+}
+
+.card-category {
+  display: inline-block;
+  background: var(--primary-color);
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-md);
+}
+
+.card-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.3;
+}
+
+.card-description {
+  color: var(--gray-600);
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.6;
+}
+
+.card-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  transition: color 0.2s ease;
+}
+
+.card-link:hover {
+  color: var(--primary-dark);
+}
+
+.card-button {
+  display: inline-block;
+  background: var(--primary-color);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.card-button:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+/* Estilos específicos para cada tipo de tarjeta */
+.activity-list {
+  list-style: none;
+  margin-bottom: var(--spacing-lg);
+}
+
+.activity-list li {
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--gray-200);
+  color: var(--gray-700);
+}
+
+.activity-list li:last-child {
+  border-bottom: none;
+}
+
+.birthday-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.birthday-person {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--gray-50);
+  border-radius: var(--border-radius-md);
+}
+
+.birthday-name {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.birthday-date {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+  background: var(--secondary-color);
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+}
+
+.weekly-message {
+  font-style: italic;
+  font-size: var(--font-size-lg);
+  color: var(--gray-700);
+  border-left: 4px solid var(--primary-color);
+  padding-left: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.6;
+}
+
+.message-author {
+  font-weight: 600;
+  color: var(--gray-800);
+  margin-bottom: var(--spacing-lg);
+  text-align: right;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+}
+
+.read-time,
+.publish-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.sst-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--gray-200);
+  margin-bottom: var(--spacing-lg);
+}
+
+.tab {
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--gray-600);
+  transition: all 0.2s ease;
+}
+
+.tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.tab:hover {
+  color: var(--primary-color);
+}
+
+.sst-list {
+  list-style: none;
+}
+
+.sst-list li {
+  padding: var(--spacing-sm) 0;
+  color: var(--gray-700);
+  position: relative;
+  padding-left: var(--spacing-lg);
+}
+
+.sst-list li::before {
+  content: "•";
+  color: var(--primary-color);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.resource-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-lg);
+  background: var(--gray-50);
+  border-radius: var(--border-radius-md);
+  text-decoration: none;
+  color: var(--gray-700);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid var(--gray-200);
+}
+
+.resource-item:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.resource-icon {
+  font-size: var(--font-size-xl);
+}
+
+/* Footer */
+.footer {
+  background: var(--gray-900);
+  color: var(--gray-300);
+  padding: var(--spacing-3xl) 0 var(--spacing-xl);
+  margin-top: var(--spacing-3xl);
+}
+
+.footer-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-2xl);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.footer-section h4 {
+  color: white;
+  font-weight: 600;
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-lg);
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  font-weight: 600;
+  font-size: var(--font-size-lg);
+  color: white;
+}
+
+.footer-description {
+  line-height: 1.6;
+  color: var(--gray-400);
+}
+
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.footer-links a {
+  color: var(--gray-400);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+  color: var(--primary-color);
+}
+
+.contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.contact-info p {
+  color: var(--gray-400);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.footer-bottom {
+  border-top: 1px solid var(--gray-700);
+  padding-top: var(--spacing-xl);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--gray-500);
+  font-size: var(--font-size-sm);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 var(--spacing-lg);
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    text-align: center;
+  }
+
+  .nav-links {
+    justify-content: center;
+  }
+
+  .hero {
+    padding: var(--spacing-2xl) 0;
+  }
+
+  .hero-content {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-2xl);
+  }
+
+  .welcome-section {
+    padding-right: 0;
+    text-align: center;
+  }
+
+  .hero-title {
+    font-size: var(--font-size-3xl);
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  .resources-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-content {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: var(--spacing-lg);
+  }
+
+  .card-content {
+    padding: var(--spacing-lg);
+  }
+
+  .hero-features {
+    align-items: center;
+  }
+
+  .birthday-person {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    text-align: center;
+  }
+
+  .card-meta {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    align-items: flex-start;
+  }
+
+  .sst-tabs {
+    flex-wrap: wrap;
+  }
+}
+
+/* Animaciones y transiciones adicionales */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+.card:nth-child(5) {
+  animation-delay: 0.5s;
+}
+.card:nth-child(6) {
+  animation-delay: 0.6s;
+}
+
+/* Estados de focus para accesibilidad */
+.login-btn:focus,
+.card-button:focus,
+.nav-link:focus,
+.card-link:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Mejoras de contraste para accesibilidad */
+.tab.active {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.resource-item:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Sección Destacada - Mensaje de la Semana */
+.featured-message {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  border-radius: var(--border-radius-xl);
+  padding: var(--spacing-3xl);
+  margin-bottom: var(--spacing-3xl);
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-3xl);
+  align-items: center;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.featured-message::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
+    repeat;
+  pointer-events: none;
+}
+
+.featured-content {
+  position: relative;
+  z-index: 2;
+}
+
+.featured-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-lg);
+  backdrop-filter: blur(10px);
+}
+
+.featured-title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--spacing-lg);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.featured-description {
+  font-size: var(--font-size-lg);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-xl);
+  opacity: 0.95;
+}
+
+.featured-meta {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+
+.featured-cta {
+  display: inline-block;
+  background: white;
+  color: var(--primary-color);
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--border-radius-md);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.featured-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.featured-visual {
+  position: relative;
+  z-index: 2;
+}
+
+.featured-visual img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Estilos para las tarjetas de blog */
+.blog-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card-header {
+  padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-md);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.card-header .card-title {
+  margin-bottom: 0;
+  font-size: var(--font-size-lg);
+}
+
+.blog-feed {
+  flex: 1;
+  padding: var(--spacing-md) var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.blog-post {
+  display: flex;
+  gap: var(--spacing-md);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.blog-post:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.post-image {
+  flex-shrink: 0;
+  width: 120px;
+  height: 80px;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+}
+
+.post-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.blog-post:hover .post-image img {
+  transform: scale(1.05);
+}
+
+.post-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.post-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--gray-900);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.post-excerpt {
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.post-meta {
+  display: flex;
+  gap: var(--spacing-md);
+  font-size: var(--font-size-xs);
+  color: var(--gray-500);
+  margin-top: auto;
+}
+
+.post-date,
+.post-read-time,
+.post-location,
+.post-priority,
+.post-type,
+.post-celebration {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* Categorías específicas */
+.card-category.bienestar {
+  background: var(--primary-color);
+}
+
+.card-category.actividades {
+  background: var(--secondary-color);
+}
+
+.card-category.sst {
+  background: #ef4444;
+}
+
+.card-category.normatividad {
+  background: var(--accent-color);
+}
+
+.card-category.cumpleanos {
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+}
+
+/* Estilos específicos para cumpleaños */
+.birthday-card {
+  background: linear-gradient(135deg, #fff5f5 0%, #fef7ff 100%);
+  border: 2px solid #ffe4e6;
+}
+
+.birthday-post {
+  background: rgba(255, 182, 193, 0.1);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  border-bottom: 1px solid #ffe4e6 !important;
+}
+
+.birthday-list-mini {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+}
+
+.birthday-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.birthday-name {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.birthday-date {
+  background: var(--secondary-color);
+  color: white;
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+/* Indicadores de prioridad */
+.post-priority {
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  font-size: var(--font-size-xs);
+}
+
+.post-priority.high {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.post-priority.medium {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.post-type {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  font-size: var(--font-size-xs);
+}
+
+.post-celebration {
+  background: #fecaca;
+  color: #dc2626;
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  font-size: var(--font-size-xs);
+}
+
+/* Sección Destacada de Cumpleaños */
+.featured-birthday {
+  background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+  border-radius: var(--border-radius-xl);
+  padding: var(--spacing-3xl);
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-3xl);
+  align-items: center;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  margin-top: var(--spacing-xl);
+}
+
+.featured-birthday::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.08'%3E%3Cpath d='M30 30c0-5.5 4.5-10 10-10s10 4.5 10 10-4.5 10-10 10-10-4.5-10-10z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
+    repeat;
+  pointer-events: none;
+}
+
+.birthday-content {
+  position: relative;
+  z-index: 2;
+}
+
+.birthday-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.25);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-lg);
+  backdrop-filter: blur(10px);
+}
+
+.birthday-title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--spacing-lg);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.birthday-description {
+  font-size: var(--font-size-lg);
+  line-height: 1.6;
+  margin-bottom: var(--spacing-2xl);
+  opacity: 0.95;
+}
+
+.birthday-featured-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.birthday-featured-person {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.15);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-lg);
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s ease;
+}
+
+.birthday-featured-person:hover {
+  transform: translateX(10px);
+}
+
+.birthday-avatar {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.birthday-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.birthday-info {
+  flex: 1;
+}
+
+.birthday-person-name {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  color: white;
+}
+
+.birthday-person-role {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+  margin-bottom: var(--spacing-xs);
+}
+
+.birthday-person-date {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  opacity: 0.95;
+}
+
+.birthday-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.birthday-cta {
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--border-radius-md);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: var(--font-size-base);
+}
+
+.birthday-cta.primary {
+  background: white;
+  color: #ff6b6b;
+}
+
+.birthday-cta.secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.birthday-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.birthday-visual {
+  position: relative;
+  z-index: 2;
+}
+
+.birthday-visual img {
+  width: 100%;
+  height: 350px;
+  object-fit: cover;
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive Design para el nuevo layout */
+@media (max-width: 768px) {
+  .cards-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+
+  .featured-birthday {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-xl);
+    text-align: center;
+  }
+
+  .birthday-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .birthday-featured-list {
+    gap: var(--spacing-md);
+  }
+
+  .birthday-featured-person {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-md);
+  }
+
+  .birthday-actions {
+    justify-content: center;
+  }
+
+  .birthday-cta {
+    flex: 1;
+    text-align: center;
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .featured-birthday {
+    padding: var(--spacing-lg);
+  }
+
+  .birthday-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .birthday-actions {
+    flex-direction: column;
+  }
+
+  .birthday-cta {
+    width: 100%;
+  }
+}
+
+</style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                            <rect width="40" height="40" rx="8" fill="#10B981"/>
+                            <path d="M20 12L28 20L20 28L12 20L20 12Z" fill="white"/>
+                        </svg>
+                    </div>
+                    <div class="brand-info">
+                        <h1 class="portal-title">Portal de Colaboradores</h1>
+                        <span class="company-name">Tu Empresa</span>
+                    </div>
+                </div>
+                <nav class="nav-links">
+                    <a href="#" class="nav-link">Sitio Web Principal</a>
+                    <a href="#" class="nav-link">Soporte</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <!-- Columna Izquierda - Mensaje de Bienvenida -->
+                <div class="welcome-section">
+                    <h2 class="hero-title">Bienvenido a nuestro espacio</h2>
+                    <p class="hero-description">
+                        Aquí encontrarás las últimas novedades, recursos de bienestar, 
+                        y podrás acceder a tus herramientas de trabajo. Mantente conectado 
+                        con todo lo que sucede en nuestra empresa.
+                    </p>
+                    <div class="hero-features">
+                        <div class="feature">
+                            <span class="feature-icon">📅</span>
+                            <span>Cronograma de actividades</span>
+                        </div>
+                        <div class="feature">
+                            <span class="feature-icon">🎉</span>
+                            <span>Celebraciones y eventos</span>
+                        </div>
+                        <div class="feature">
+                            <span class="feature-icon">💡</span>
+                            <span>Recursos de bienestar</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha - Formulario de Login -->
+                <div class="login-section">
+                    <div class="login-card">
+                        <h3 class="login-title">Inicia Sesión</h3>
+                        <form class="login-form">
+                            <div class="form-group">
+                                <label for="email">Correo Electrónico</label>
+                                <input type="email" id="email" name="email" placeholder="tu.email@empresa.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">Contraseña</label>
+                                <input type="password" id="password" name="password" placeholder="••••••••" required>
+                            </div>
+                            <div class="form-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="remember">
+                                    <span class="checkmark"></span>
+                                    Recordarme
+                                </label>
+                                <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
+                            </div>
+                            <button type="submit" class="login-btn">Ingresar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feed de Novedades -->
+<section class="feed">
+    <div class="container">
+        <div class="feed-header">
+            <h2 class="feed-title">Novedades para ti</h2>
+            <p class="feed-subtitle">Mantente al día con todo lo que sucede en nuestra empresa</p>
+        </div>
+
+        <!-- Mensaje de la Semana - Sección Destacada -->
+        <div class="featured-message">
+            <div class="featured-content">
+                <div class="featured-badge">Mensaje de la Semana</div>
+                <h2 class="featured-title">"El éxito no es la clave de la felicidad. La felicidad es la clave del éxito"</h2>
+                <p class="featured-description">
+                    Esta semana reflexionamos sobre la importancia de encontrar alegría en nuestro trabajo diario. 
+                    Cuando amamos lo que hacemos, no solo somos más productivos, sino que también inspiramos a quienes nos rodean.
+                </p>
+                <div class="featured-meta">
+                    <span class="featured-author">Por: Dirección General</span>
+                    <span class="featured-date">Publicado el 20 de Enero, 2025</span>
+                </div>
+                <a href="#" class="featured-cta">Leer reflexión completa</a>
+            </div>
+            <div class="featured-visual">
+                <img src="/placeholder.svg?height=300&width=400" alt="Mensaje Inspiracional">
+            </div>
+        </div>
+
+        <div class="feed-layout">
+    <!-- Primera fila: Bienestar y Cronograma -->
+    <div class="cards-row">
+        <!-- Blog de Bienestar -->
+        <article class="card blog-card">
+            <div class="card-header">
+                <div class="card-category bienestar">Bienestar</div>
+                <h3 class="card-title">Últimos artículos de bienestar</h3>
+            </div>
+            <div class="blog-feed">
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Mindfulness en el trabajo">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">5 Técnicas de Mindfulness para el Trabajo</h4>
+                        <p class="post-excerpt">Descubre cómo incorporar técnicas de atención plena en tu rutina laboral...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 2 días</span>
+                            <span class="post-read-time">5 min</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Alimentación saludable">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Snacks Saludables para la Oficina</h4>
+                        <p class="post-excerpt">Ideas nutritivas para mantener tu energía durante el día laboral...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 5 días</span>
+                            <span class="post-read-time">3 min</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Balance vida-trabajo">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Equilibrio Vida-Trabajo: Consejos Prácticos</h4>
+                        <p class="post-excerpt">Estrategias para mantener un balance saludable entre tu vida personal y profesional...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 1 semana</span>
+                            <span class="post-read-time">7 min</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+            <a href="#" class="card-link">Ver todos los artículos de bienestar →</a>
+        </article>
+
+        <!-- Blog de Cronograma de Actividades -->
+        <article class="card blog-card">
+            <div class="card-header">
+                <div class="card-category actividades">Cronograma de Actividades</div>
+                <h3 class="card-title">Próximas actividades</h3>
+            </div>
+            <div class="blog-feed">
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Reunión de equipo">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Reunión General de Enero</h4>
+                        <p class="post-excerpt">Revisaremos los objetivos del trimestre y presentaremos los nuevos proyectos...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Lunes 22 - 9:00 AM</span>
+                            <span class="post-location">Sala Principal</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Taller de bienestar">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Taller de Yoga y Relajación</h4>
+                        <p class="post-excerpt">Sesión de yoga guiada para reducir el estrés y mejorar la concentración...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Miércoles 24 - 2:00 PM</span>
+                            <span class="post-location">Terraza</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Integración de equipo">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Tarde de Integración</h4>
+                        <p class="post-excerpt">Actividades recreativas para fortalecer los lazos entre compañeros...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Viernes 26 - 4:00 PM</span>
+                            <span class="post-location">Área Social</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+            <a href="#" class="card-link">Ver calendario completo →</a>
+        </article>
+    </div>
+
+    <!-- Segunda fila: SST y Normatividad -->
+    <div class="cards-row">
+        <!-- Blog de SST -->
+        <article class="card blog-card">
+            <div class="card-header">
+                <div class="card-category sst">SST</div>
+                <h3 class="card-title">Seguridad y Salud en el Trabajo</h3>
+            </div>
+            <div class="blog-feed">
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Equipos de seguridad">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Nueva Política de Trabajo Remoto</h4>
+                        <p class="post-excerpt">Actualizaciones importantes sobre las medidas de seguridad para el trabajo desde casa...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 1 día</span>
+                            <span class="post-priority high">Alta prioridad</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Procedimientos de emergencia">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Actualización del Protocolo de Emergencias</h4>
+                        <p class="post-excerpt">Nuevos procedimientos de evacuación y puntos de encuentro actualizados...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 3 días</span>
+                            <span class="post-priority medium">Media prioridad</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Capacitación de seguridad">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Capacitación Obligatoria de Seguridad</h4>
+                        <p class="post-excerpt">Recordatorio sobre la capacitación anual de seguridad industrial...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 1 semana</span>
+                            <span class="post-priority medium">Media prioridad</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+            <a href="#" class="card-link">Ver todas las publicaciones de SST →</a>
+        </article>
+
+        <!-- Blog de Normatividad -->
+        <article class="card blog-card">
+            <div class="card-header">
+                <div class="card-category normatividad">Normatividad</div>
+                <h3 class="card-title">Actualizaciones Normativas</h3>
+            </div>
+            <div class="blog-feed">
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Documentos legales">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Cambios en la Ley Laboral 2025</h4>
+                        <p class="post-excerpt">Resumen de las modificaciones más importantes que afectan nuestras operaciones...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 2 días</span>
+                            <span class="post-type">Ley Laboral</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Protección de datos">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Actualización de Política de Privacidad</h4>
+                        <p class="post-excerpt">Nuevas medidas de protección de datos personales y información confidencial...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 1 semana</span>
+                            <span class="post-type">Privacidad</span>
+                        </div>
+                    </div>
+                </article>
+                
+                <article class="blog-post">
+                    <div class="post-image">
+                        <img src="/placeholder.svg?height=80&width=120" alt="Auditoría de cumplimiento">
+                    </div>
+                    <div class="post-content">
+                        <h4 class="post-title">Preparación para Auditoría Anual</h4>
+                        <p class="post-excerpt">Lista de verificación y documentos necesarios para la próxima auditoría...</p>
+                        <div class="post-meta">
+                            <span class="post-date">Hace 2 semanas</span>
+                            <span class="post-type">Auditoría</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+            <a href="#" class="card-link">Ver todas las actualizaciones normativas →</a>
+        </article>
+    </div>
+
+    <!-- Tercera fila: Cumpleaños - Sección Destacada -->
+    <div class="featured-birthday">
+        <div class="birthday-content">
+            <div class="birthday-badge">¡Celebremos Juntos!</div>
+            <h2 class="birthday-title">Cumpleañeros de la Semana 🎉</h2>
+            <p class="birthday-description">
+                Esta semana tenemos el honor de celebrar a nuestros queridos compañeros que están de cumpleaños. 
+                ¡Únete a nosotros para desearles lo mejor en su día especial!
+            </p>
+            
+            <div class="birthday-featured-list">
+                <div class="birthday-featured-person">
+                    <div class="birthday-avatar">
+                        <img src="/placeholder.svg?height=80&width=80" alt="María González">
+                    </div>
+                    <div class="birthday-info">
+                        <h4 class="birthday-person-name">María González</h4>
+                        <p class="birthday-person-role">Gerente de Recursos Humanos</p>
+                        <p class="birthday-person-date">🎂 Lunes 20 de Enero</p>
+                    </div>
+                </div>
+                
+                <div class="birthday-featured-person">
+                    <div class="birthday-avatar">
+                        <img src="/placeholder.svg?height=80&width=80" alt="Carlos Rodríguez">
+                    </div>
+                    <div class="birthday-info">
+                        <h4 class="birthday-person-name">Carlos Rodríguez</h4>
+                        <p class="birthday-person-role">Desarrollador Senior</p>
+                        <p class="birthday-person-date">🎂 Jueves 23 de Enero</p>
+                    </div>
+                </div>
+                
+                <div class="birthday-featured-person">
+                    <div class="birthday-avatar">
+                        <img src="/placeholder.svg?height=80&width=80" alt="Ana Martínez">
+                    </div>
+                    <div class="birthday-info">
+                        <h4 class="birthday-person-name">Ana Martínez</h4>
+                        <p class="birthday-person-role">Diseñadora UX/UI</p>
+                        <p class="birthday-person-date">🎂 Sábado 25 de Enero</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="birthday-actions">
+                <a href="#" class="birthday-cta primary">Enviar Felicitaciones</a>
+                <a href="#" class="birthday-cta secondary">Ver Todas las Celebraciones</a>
+            </div>
+        </div>
+        
+        <div class="birthday-visual">
+            <img src="/placeholder.svg?height=350&width=500" alt="Celebración de cumpleaños">
+        </div>
+    </div>
+</div>
+    </div>
+</section>
+
+
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="footer-logo">
+                        <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
+                            <rect width="40" height="40" rx="8" fill="#10B981"/>
+                            <path d="M20 12L28 20L20 28L12 20L20 12Z" fill="white"/>
+                        </svg>
+                        <span>Tu Empresa</span>
+                    </div>
+                    <p class="footer-description">
+                        Portal de Colaboradores - Conectando a nuestro equipo con información 
+                        relevante y herramientas de trabajo.
+                    </p>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Enlaces de Interés</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Política de Privacidad</a></li>
+                        <li><a href="#">Términos de Uso</a></li>
+                        <li><a href="#">Soporte Técnico</a></li>
+                        <li><a href="#">Manual de Usuario</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Contacto</h4>
+                    <div class="contact-info">
+                        <p>📧 soporte@tuempresa.com</p>
+                        <p>📞 +1 (555) 123-4567</p>
+                        <p>🏢 Recursos Humanos - Ext. 101</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 Tu Empresa. Todos los derechos reservados.</p>
+                <p>Desarrollado con ❤️ para nuestros colaboradores</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

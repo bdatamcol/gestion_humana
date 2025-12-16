@@ -10,13 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AlertCircle, CheckCircle2, Search, X, ChevronDown, ChevronUp, MessageSquare } from "lucide-react"
+import { AlertCircle, CheckCircle2, Search, X, ChevronDown, ChevronUp, MessageSquare, Eye, Clock, XCircle, CheckCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FileDown } from "lucide-react";
 import { jsPDF } from "jspdf"
 import html2canvas from "html2canvas"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
 
@@ -60,6 +60,17 @@ interface SolicitudPermiso {
   usuario_id: string
   admin_id?: string
   usuario?: Usuario | null
+  aprobaciones?: {
+    total: number
+    aprobadas: number
+    rechazadas: number
+    pendientes: number
+    detalles?: Array<{
+      jefe_id: string
+      jefe_nombre: string
+      estado: string
+    }>
+  }
 }
 
 export default function AdminSolicitudesPermisos() {
@@ -70,8 +81,8 @@ export default function AdminSolicitudesPermisos() {
   const [filteredSolicitudes, setFilteredSolicitudes] = useState<SolicitudPermiso[]>([])
   const [error, setError] = useState<string>("")
   const [success, setSuccess] = useState<string>("")
-  const [showModal, setShowModal] = useState<boolean>(false)
-  const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<{id: string, usuario: Usuario | null} | null>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false)
+  const [selectedDetailsSolicitud, setSelectedDetailsSolicitud] = useState<SolicitudPermiso | null>(null)
   const [motivoRechazo, setMotivoRechazo] = useState<string>("")
   const [showComentariosModal, setShowComentariosModal] = useState<boolean>(false)
   const [solicitudComentariosId, setSolicitudComentariosId] = useState<string | undefined>(undefined)
@@ -192,9 +203,10 @@ export default function AdminSolicitudesPermisos() {
         if (solicitudesResult.data && solicitudesResult.data.length > 0) {
           // Obtener IDs únicos de usuarios
           const userIds = [...new Set(solicitudesResult.data.map(item => item.usuario_id))]
+          const solIds = [...new Set(solicitudesResult.data.map(item => item.id))]
           
           // Obtener datos de usuarios en paralelo
-          const [usuariosResult] = await Promise.all([
+          const [usuariosResult, aprobacionesAgg] = await Promise.all([
             supabase
               .from('usuario_nomina')
               .select(`
@@ -208,6 +220,15 @@ export default function AdminSolicitudesPermisos() {
                 cargos:cargo_id(nombre)
               `)
               .in('auth_user_id', userIds)
+            ,
+            supabase
+              .from('permisos_aprobaciones')
+              .select(`
+                solicitud_id, 
+                estado, 
+                jefe_id
+              `)
+              .in('solicitud_id', solIds)
           ])
           
           if (usuariosResult.error) {
@@ -215,13 +236,119 @@ export default function AdminSolicitudesPermisos() {
             setError('Error al cargar datos de usuarios: ' + usuariosResult.error.message)
             return
           }
+
+          // Obtener nombres de jefes para las aprobaciones
+          const jefesIds = [...new Set(aprobacionesAgg.data?.map(a => a.jefe_id) || [])]
+          let jefesMap: Record<string, string> = {}
+          
+          if (jefesIds.length > 0) {
+            const { data: jefesData } = await supabase
+              .from('usuario_nomina')
+              .select('auth_user_id, colaborador')
+              .in('auth_user_id', jefesIds)
+            
+            if (jefesData) {
+              jefesMap = jefesData.reduce((acc, curr) => {
+                acc[curr.auth_user_id] = curr.colaborador
+                return acc
+              }, {} as Record<string, string>)
+            }
+          }
+          
+          // Construir resumen de aprobaciones por solicitud
+          const aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number; detalles: any[] }> = {}
+          const aprobacionesData = aprobacionesAgg.data || []
+          solIds.forEach(id => {
+            aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
+          })
+          
+          for (const ap of aprobacionesData as any[]) {
+            const key = ap.solicitud_id
+            if (!aprobacionesMap[key]) {
+              aprobacionesMap[key] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
+            }
+            aprobacionesMap[key].total += 1
+            if (ap.estado === 'aprobado') aprobacionesMap[key].aprobadas += 1
+            else if (ap.estado === 'rechazado') aprobacionesMap[key].rechazadas += 1
+            else aprobacionesMap[key].pendientes += 1
+
+            // Agregar detalle del jefe
+            const jefeNombre = jefesMap[ap.jefe_id] || 'Desconocido'
+            aprobacionesMap[key].detalles.push({
+              jefe_id: ap.jefe_id,
+              jefe_nombre: jefeNombre,
+              estado: ap.estado
+            })
+          }
+
+          // Si hay solicitudes sin aprobaciones (antiguas), buscar jefes actuales y simular estado pendiente
+          const solicitudesSinAprobaciones = solIds.filter(id => !aprobacionesMap[id] || aprobacionesMap[id].total === 0)
+          
+          if (solicitudesSinAprobaciones.length > 0) {
+            // Obtener jefes actuales de los usuarios de estas solicitudes
+            const usuariosSinAprobaciones = [...new Set(solicitudesResult.data
+              .filter(s => solicitudesSinAprobaciones.includes(s.id))
+              .map(s => s.usuario_id))]
+              
+            const { data: jefesActuales, error: errorJefes } = await supabase
+              .from('usuario_jefes')
+              .select(`
+                usuario_id,
+                jefe_id
+              `)
+              .in('usuario_id', usuariosSinAprobaciones)
+              
+            if (!errorJefes && jefesActuales) {
+              // Obtener nombres para estos jefes si no están en el mapa
+              const nuevosJefesIds = [...new Set(jefesActuales.map((j: any) => j.jefe_id))].filter(id => !jefesMap[id])
+              
+              if (nuevosJefesIds.length > 0) {
+                const { data: nuevosJefesData } = await supabase
+                  .from('usuario_nomina')
+                  .select('auth_user_id, colaborador')
+                  .in('auth_user_id', nuevosJefesIds)
+                
+                if (nuevosJefesData) {
+                  nuevosJefesData.forEach(j => {
+                    jefesMap[j.auth_user_id] = j.colaborador
+                  })
+                }
+              }
+
+              jefesActuales.forEach((rel: any) => {
+                // Encontrar solicitudes de este usuario que no tienen aprobaciones
+                const solicitudesUsuario = solicitudesResult.data
+                  .filter(s => s.usuario_id === rel.usuario_id && solicitudesSinAprobaciones.includes(s.id))
+                
+                solicitudesUsuario.forEach(s => {
+                  const key = s.id
+                  if (!aprobacionesMap[key]) {
+                    aprobacionesMap[key] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
+                  }
+                  
+                  // Verificar si ya existe este jefe en los detalles (por si acaso)
+                  const existe = aprobacionesMap[key].detalles.some(d => d.jefe_id === rel.jefe_id)
+                  if (!existe) {
+                    aprobacionesMap[key].total += 1
+                    aprobacionesMap[key].pendientes += 1
+                    aprobacionesMap[key].detalles.push({
+                      jefe_id: rel.jefe_id,
+                      jefe_nombre: jefesMap[rel.jefe_id] || 'Desconocido',
+                      estado: 'pendiente' // Asumimos pendiente para visualización
+                    })
+                  }
+                })
+              })
+            }
+          }
           
           // Combinar los datos
           const solicitudesCompletas = solicitudesResult.data.map(solicitud => {
             const usuario = usuariosResult.data?.find(u => u.auth_user_id === solicitud.usuario_id)
             return {
               ...solicitud,
-              usuario: usuario || null
+              usuario: usuario || null,
+              aprobaciones: aprobacionesMap[solicitud.id] || undefined
             }
           })
           
@@ -909,24 +1036,21 @@ export default function AdminSolicitudesPermisos() {
                           {sortConfig?.key === "colaborador" && (sortConfig.direction === "asc" ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />)}
                         </div>
                       </TableHead>
-                      <TableHead>Cédula</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Ciudad</TableHead>
-                      <TableHead>Motivo</TableHead>
-                      <TableHead>Compensación</TableHead>
                       <TableHead className="cursor-pointer" onClick={() => requestSort("fecha_inicio")}>
                         <div className="flex items-center">
-                          Fecha y Hora Inicio
+                          Fecha Inicio
                           {sortConfig?.key === "fecha_inicio" && (sortConfig.direction === "asc" ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />)}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer" onClick={() => requestSort("fecha_fin")}>
                         <div className="flex items-center">
-                          Fecha y Hora Fin
+                          Fecha Fin
                           {sortConfig?.key === "fecha_fin" && (sortConfig.direction === "asc" ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />)}
                         </div>
                       </TableHead>
                       <TableHead>Estado</TableHead>
+                      <TableHead>Aprobaciones jefes</TableHead>
                       <TableHead>Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -950,8 +1074,12 @@ export default function AdminSolicitudesPermisos() {
                       filteredSolicitudes.map((solicitud) => (
                         <TableRow key={solicitud.id}>
                           <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
-                          <TableCell>{solicitud.usuario?.colaborador}</TableCell>
-                          <TableCell>{solicitud.usuario?.cedula}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{solicitud.usuario?.colaborador}</span>
+                              <span className="text-xs text-muted-foreground">{solicitud.usuario?.cedula}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             {solicitud.tipo_permiso === 'no_remunerado'
                               ? 'No remunerado'
@@ -959,27 +1087,16 @@ export default function AdminSolicitudesPermisos() {
                               ? 'Remunerado'
                               : 'Actividad interna'}
                           </TableCell>
-                          <TableCell>{solicitud.ciudad || 'No especificada'}</TableCell>
-                          <TableCell>
-                            <div className="max-w-xs truncate" title={solicitud.motivo}>
-                              {solicitud.motivo || 'No especificado'}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-xs truncate" title={solicitud.compensacion}>
-                              {solicitud.compensacion || 'No especificada'}
-                            </div>
-                          </TableCell>
                           <TableCell>
                             <div>
                               <div>{new Date(solicitud.fecha_inicio).toLocaleDateString()}</div>
-                              <div className="text-sm text-gray-500">{solicitud.hora_inicio || 'No especificada'}</div>
+                              {solicitud.hora_inicio && <div className="text-xs text-gray-500">{solicitud.hora_inicio}</div>}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div>
                               <div>{new Date(solicitud.fecha_fin).toLocaleDateString()}</div>
-                              <div className="text-sm text-gray-500">{solicitud.hora_fin || 'No especificada'}</div>
+                              {solicitud.hora_fin && <div className="text-xs text-gray-500">{solicitud.hora_fin}</div>}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -994,6 +1111,29 @@ export default function AdminSolicitudesPermisos() {
                             >
                               {solicitud.estado.charAt(0).toUpperCase() + solicitud.estado.slice(1)}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {solicitud.aprobaciones ? (
+                              <div className="flex flex-col gap-1">
+                                {solicitud.aprobaciones.detalles?.map((detalle, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 text-xs" title={`${detalle.jefe_nombre}: ${detalle.estado}`}>
+                                    {detalle.estado === 'aprobado' ? (
+                                      <CheckCircle className="h-3 w-3 text-green-600" />
+                                    ) : detalle.estado === 'rechazado' ? (
+                                      <XCircle className="h-3 w-3 text-red-600" />
+                                    ) : (
+                                      <Clock className="h-3 w-3 text-yellow-600" />
+                                    )}
+                                    <span className="truncate max-w-[150px]">{detalle.jefe_nombre}</span>
+                                  </div>
+                                ))}
+                                {(!solicitud.aprobaciones.detalles || solicitud.aprobaciones.detalles.length === 0) && (
+                                  <span className="text-xs text-muted-foreground">Sin detalles</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-500">Sin jefes asignados</div>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
@@ -1011,7 +1151,25 @@ export default function AdminSolicitudesPermisos() {
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => aprobarSolicitud(solicitud.id, solicitud.usuario)}
+                                    onClick={async () => {
+                                      // Verificar aprobaciones de jefes antes de aprobar
+                                      const supabase = createSupabaseClient()
+                                      const { data: approvals } = await supabase
+                                        .from('permisos_aprobaciones')
+                                        .select('estado')
+                                        .eq('solicitud_id', solicitud.id)
+                                      const tienePendientes = approvals?.some(a => a.estado === 'pendiente')
+                                      const algunRechazo = approvals?.some(a => a.estado === 'rechazado')
+                                      if (algunRechazo) {
+                                        setError('Esta solicitud tiene un rechazo por parte de un jefe.')
+                                        return
+                                      }
+                                      if (tienePendientes) {
+                                        setError('Aún hay aprobaciones de jefes pendientes.')
+                                        return
+                                      }
+                                      aprobarSolicitud(solicitud.id, solicitud.usuario)
+                                    }}
                                   >
                                     Aprobar
                                   </Button>
@@ -1044,6 +1202,17 @@ export default function AdminSolicitudesPermisos() {
                                 >
                                   <MessageSquare className="h-4 w-4" />
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedDetailsSolicitud(solicitud)
+                                    setShowDetailsModal(true)
+                                  }}
+                                  title="Ver detalles completos"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
                               </div>
                             </div>
                           </TableCell>
@@ -1065,6 +1234,151 @@ export default function AdminSolicitudesPermisos() {
             <DialogTitle>Comentarios de la solicitud</DialogTitle>
           </DialogHeader>
           <ComentariosPermisos solicitudId={solicitudComentariosId} isAdmin={true} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Detalles Completos */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalles de la Solicitud</DialogTitle>
+            <DialogDescription>
+              Información completa de la solicitud de permiso.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedDetailsSolicitud && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Colaborador</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.colaborador}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Cédula</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.cedula}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Cargo</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.cargos?.nombre || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Empresa</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.empresas?.nombre || 'No disponible'}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Tipo de Permiso</h4>
+                    <p className="capitalize">{selectedDetailsSolicitud.tipo_permiso.replace('_', ' ')}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Estado Actual</h4>
+                    <Badge
+                      className={
+                        selectedDetailsSolicitud.estado === 'aprobado'
+                          ? 'bg-green-100 text-green-800'
+                          : selectedDetailsSolicitud.estado === 'rechazado'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }
+                    >
+                      {selectedDetailsSolicitud.estado.charAt(0).toUpperCase() + selectedDetailsSolicitud.estado.slice(1)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Fecha Solicitud</h4>
+                    <p>{new Date(selectedDetailsSolicitud.fecha_solicitud).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Ciudad</h4>
+                    <p>{selectedDetailsSolicitud.ciudad || 'No especificada'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3">Detalle del Tiempo</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-muted/30 p-3 rounded-md">
+                    <span className="text-sm font-medium block mb-1">Inicio</span>
+                    <p>{new Date(selectedDetailsSolicitud.fecha_inicio).toLocaleDateString()} {selectedDetailsSolicitud.hora_inicio || ''}</p>
+                  </div>
+                  <div className="bg-muted/30 p-3 rounded-md">
+                    <span className="text-sm font-medium block mb-1">Fin</span>
+                    <p>{new Date(selectedDetailsSolicitud.fecha_fin).toLocaleDateString()} {selectedDetailsSolicitud.hora_fin || ''}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-2">Motivo</h4>
+                <div className="bg-muted/30 p-4 rounded-md">
+                  <p className="text-sm whitespace-pre-wrap">{selectedDetailsSolicitud.motivo || 'No especificado'}</p>
+                </div>
+              </div>
+
+              {selectedDetailsSolicitud.compensacion && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2">Compensación</h4>
+                  <div className="bg-muted/30 p-4 rounded-md">
+                    <p className="text-sm whitespace-pre-wrap">{selectedDetailsSolicitud.compensacion}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedDetailsSolicitud.aprobaciones && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">Aprobaciones de Jefes</h4>
+                  <div className="space-y-2">
+                    {selectedDetailsSolicitud.aprobaciones.detalles?.map((detalle, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white border p-3 rounded-md shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${
+                            detalle.estado === 'aprobado' ? 'bg-green-100' : 
+                            detalle.estado === 'rechazado' ? 'bg-red-100' : 'bg-yellow-100'
+                          }`}>
+                            {detalle.estado === 'aprobado' ? (
+                              <CheckCircle className={`h-4 w-4 ${
+                                detalle.estado === 'aprobado' ? 'text-green-600' : 
+                                detalle.estado === 'rechazado' ? 'text-red-600' : 'text-yellow-600'
+                              }`} />
+                            ) : detalle.estado === 'rechazado' ? (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-yellow-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{detalle.jefe_nombre}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{detalle.estado}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {(!selectedDetailsSolicitud.aprobaciones.detalles || selectedDetailsSolicitud.aprobaciones.detalles.length === 0) && (
+                      <p className="text-sm text-muted-foreground italic">No hay jefes asignados para aprobación.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedDetailsSolicitud.motivo_rechazo && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2 text-red-600">Motivo de Rechazo</h4>
+                  <div className="bg-red-50 p-4 rounded-md border border-red-100">
+                    <p className="text-sm text-red-800">{selectedDetailsSolicitud.motivo_rechazo}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetailsModal(false)}>Cerrar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

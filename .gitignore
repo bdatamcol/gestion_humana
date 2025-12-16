@@ -2,7 +2,6 @@
 
 # dependencies
 /node_modules
-/.vscode/
 
 # next.js
 /.next/
@@ -51,6 +50,7 @@ logs/
 /supabase/storage/
 
 # lock files
+package-lock.json
 yarn.lock
 pnpm-lock.yaml
 

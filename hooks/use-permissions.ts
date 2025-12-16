@@ -8,7 +8,7 @@ const supabase = createClient(
 
 interface UserData {
   id: string
-  rol: 'usuario' | 'administrador'
+  rol: 'usuario' | 'jefe' | 'administrador'
   estado: 'activo' | 'inactivo'
 }
 
@@ -67,7 +67,7 @@ export function usePermissions() {
     // Los administradores pueden acceder a todo
     if (userData.rol === 'administrador') return true
     
-    // Los usuarios regulares pueden acceder a rutas básicas
+    // Usuarios y jefes acceden a rutas básicas de perfil
     const rutasUsuario = ['/perfil', '/perfil/solicitudes', '/perfil/comunicados', '/perfil/novedades']
     return rutasUsuario.includes(ruta)
   }
@@ -83,7 +83,11 @@ export function usePermissions() {
     const rutasUsuario = ['/perfil', '/perfil/solicitudes', '/perfil/comunicados', '/perfil/novedades']
     if (!rutasUsuario.includes(moduloRuta)) return false
     
-    // Los usuarios pueden ver y crear, pero no editar ni eliminar
+    // Jefes pueden editar en solicitudes (para aprobar/rechazar)
+    if (userData.rol === 'jefe' && moduloRuta === '/perfil/solicitudes') {
+      return accion === 'ver' || accion === 'crear' || accion === 'editar'
+    }
+    // Usuarios pueden ver y crear, pero no editar ni eliminar
     return accion === 'ver' || accion === 'crear'
   }
 
@@ -95,6 +99,11 @@ export function usePermissions() {
   // Función para verificar si es administrador
   const isAdmin = (): boolean => {
     return userData?.rol === 'administrador'
+  }
+
+  // Función para verificar si es jefe
+  const isBoss = (): boolean => {
+    return userData?.rol === 'jefe'
   }
 
   // Función para refrescar datos
@@ -110,6 +119,7 @@ export function usePermissions() {
     hasPermission,
     isAdministrator,
     isAdmin,
+    isBoss,
     refreshPermissions
   }
 }

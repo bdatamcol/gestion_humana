@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { PermissionsManager } from "@/components/ui/permissions-manager"
@@ -78,6 +79,8 @@ export default function Usuarios() {
   const [editUserError, setEditUserError] = useState('')
   const [editUserSuccess, setEditUserSuccess] = useState(false)
   const [editUserLoading, setEditUserLoading] = useState(false)
+  const [availableBosses, setAvailableBosses] = useState<any[]>([])
+  const [selectedBossIds, setSelectedBossIds] = useState<string[]>([])
   
   // Estados para importación
   const [importProgress, setImportProgress] = useState(0)
@@ -443,6 +446,28 @@ export default function Usuarios() {
         .eq("estado", "aprobado")
         .order("fecha_inicio", { ascending: false })
 
+      // Obtener el jefe asignado
+      const { data: relacionesJefes } = await supabase
+        .from("usuario_jefes")
+        .select("jefe_id")
+        .eq("usuario_id", user.auth_user_id)
+      
+      let jefeNombre = "No asignado"
+      
+      if (relacionesJefes && relacionesJefes.length > 0) {
+        const jefeIds = relacionesJefes.map((r: any) => r.jefe_id)
+        
+        // Consultar nombres en usuario_nomina
+        const { data: jefesData } = await supabase
+          .from("usuario_nomina")
+          .select("colaborador")
+          .in("auth_user_id", jefeIds)
+          
+        if (jefesData && jefesData.length > 0) {
+          jefeNombre = jefesData.map((j: any) => j.colaborador).join(", ")
+        }
+      }
+
       let estadoVacaciones = "sin_vacaciones"
       let rangoVacaciones = null
       
@@ -490,7 +515,8 @@ export default function Usuarios() {
       const userDataWithVacaciones = {
         ...user,
         estadoVacaciones,
-        rangoVacaciones
+        rangoVacaciones,
+        jefeNombre // Agregamos el nombre del jefe
       }
 
       setSelectedUser(userDataWithVacaciones)
@@ -1002,7 +1028,17 @@ const handleEditUser = (user: any) => {
   })
   setIsEditUserModalOpen(true)
   setEditUserError('')
-  setEditUserSuccess(false)
+  setEditUserSuccess(false);
+  // Cargar jefes disponibles y asignaciones actuales
+  (async () => {
+    const supabase = createSupabaseClient()
+    const [{ data: bosses }, { data: asignaciones }] = await Promise.all([
+      supabase.from('usuario_nomina').select('auth_user_id, colaborador').eq('rol', 'jefe').eq('estado', 'activo'),
+      supabase.from('usuario_jefes').select('jefe_id').eq('usuario_id', user.auth_user_id)
+    ])
+    setAvailableBosses(bosses || [])
+    setSelectedBossIds((asignaciones || []).map((a: any) => a.jefe_id))
+  })()
 }
 
 const fetchUsers = async () => {
@@ -1229,18 +1265,41 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
         fecha_retiro: editUserData.estado === 'inactivo' ? (editUserData.fecha_retiro || null) : null
       }
 
-      const { error: dbError } = await supabase
-        .from('usuario_nomina')
-        .update(updateData)
-        .eq('id', editUserData.id)
+    const { error: dbError } = await supabase
+      .from('usuario_nomina')
+      .update(updateData)
+      .eq('id', editUserData.id)
 
-      if (dbError) throw dbError
-      
-      // Sistema simplificado: solo roles básicos (usuario/administrador)
-      
-      setEditUserSuccess(true)
-      setEditUserData(null)
-      setUserPermissions([])
+    if (dbError) throw dbError
+    
+    // Persistir asignaciones de jefes
+    if (editUserData?.auth_user_id) {
+      // Obtener asignaciones actuales
+      const { data: actuales } = await supabase
+        .from('usuario_jefes')
+        .select('jefe_id')
+        .eq('usuario_id', editUserData.auth_user_id)
+      const actualesIds = new Set((actuales || []).map((a: any) => a.jefe_id))
+      const nuevasIds = new Set(selectedBossIds)
+
+      // Calcular inserciones y eliminaciones
+      const aInsertar = Array.from(nuevasIds).filter(id => !actualesIds.has(id))
+      const aEliminar = Array.from(actualesIds).filter(id => !nuevasIds.has(id))
+
+      if (aInsertar.length > 0) {
+        const filas = aInsertar.map(jefe_id => ({ usuario_id: editUserData.auth_user_id, jefe_id }))
+        await supabase.from('usuario_jefes').insert(filas)
+      }
+      if (aEliminar.length > 0) {
+        for (const jefe_id of aEliminar) {
+          await supabase.from('usuario_jefes').delete().eq('usuario_id', editUserData.auth_user_id).eq('jefe_id', jefe_id)
+        }
+      }
+    }
+    
+    setEditUserSuccess(true)
+    setEditUserData(null)
+    setUserPermissions([])
       
       // Recargar la lista de usuarios
       await fetchUsers()
@@ -1410,6 +1469,32 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                         <Skeleton className="h-4 w-20" />
                         <Skeleton className="h-8 w-16" />
                       </div>
+                    </div>
+                  </div>
+                  {/* Asignación de jefes */}
+                  <div className="mt-6">
+                    <h4 className="text-md font-medium mb-2">Jefes asignados</h4>
+                    <div className="space-y-2">
+                      {availableBosses.length > 0 ? (
+                        availableBosses.map((boss) => (
+                          <label key={`boss-${boss.auth_user_id}`} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedBossIds.includes(boss.auth_user_id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked
+                                setSelectedBossIds(prev => {
+                                  if (checked) return Array.from(new Set([...prev, boss.auth_user_id]))
+                                  return prev.filter(id => id !== boss.auth_user_id)
+                                })
+                              }}
+                            />
+                            <span>{boss.colaborador}</span>
+                          </label>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-500">No hay usuarios con rol Jefe activos</div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1895,7 +1980,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="usuario">Usuario</SelectItem>
-
+                      <SelectItem value="jefe">Jefe</SelectItem>
                       <SelectItem value="administrador">Administrador</SelectItem>
                     </SelectContent>
                   </Select>
@@ -2235,7 +2320,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="usuario">Usuario</SelectItem>
-
+                        <SelectItem value="jefe">Jefe</SelectItem>
                         <SelectItem value="administrador">Administrador</SelectItem>
                       </SelectContent>
                     </Select>
@@ -2510,6 +2595,44 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                             ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+
+                  {/* Asignación de Jefes */}
+                  <div className="border-t pt-6 mt-6">
+                    <h3 className="text-lg font-medium mb-4">Jefes Asignados</h3>
+                    <div className="space-y-4">
+                      <Label>Seleccionar jefes (aprobadores de permisos)</Label>
+                      <div className="border rounded-md p-4 max-h-[200px] overflow-y-auto space-y-2">
+                        {availableBosses.length > 0 ? (
+                          availableBosses.map((boss) => (
+                            <div key={boss.auth_user_id} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`boss-${boss.auth_user_id}`} 
+                                checked={selectedBossIds.includes(boss.auth_user_id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedBossIds([...selectedBossIds, boss.auth_user_id])
+                                  } else {
+                                    setSelectedBossIds(selectedBossIds.filter(id => id !== boss.auth_user_id))
+                                  }
+                                }}
+                              />
+                              <Label 
+                                htmlFor={`boss-${boss.auth_user_id}`}
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                {boss.colaborador}
+                              </Label>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No hay usuarios con rol 'Jefe' disponibles.</p>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Los usuarios seleccionados deberán aprobar las solicitudes de permisos de este usuario.
+                      </p>
                     </div>
                   </div>
 

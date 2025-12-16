@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-// Sidebar removido - ya está en el layout
 import { createSupabaseClient } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,7 +15,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
-// import { crearNotificacionNuevaSolicitud } from "@/lib/notificaciones" // Removido - se maneja desde el servidor
 
 export default function SolicitudPermisos() {
   const [showReasonModal, setShowReasonModal] = useState(false)
@@ -35,6 +33,8 @@ export default function SolicitudPermisos() {
   const [loading, setLoading] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [solicitudes, setSolicitudes] = useState<any[]>([])
+  const [solicitudesEquipo, setSolicitudesEquipo] = useState<any[]>([])
+  const [esJefe, setEsJefe] = useState<boolean>(false)
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState({
     tipoPermiso: "no_remunerado",
@@ -169,7 +169,7 @@ export default function SolicitudPermisos() {
         .from("usuario_nomina")
         .select(`
           *,
-          empresas:empresa_id(nombre, razon_social, nit)
+          empresas:empresa_id(nombre, razon_social, nit),
           sedes:sede_id(nombre)
         `)
         .eq("auth_user_id", session.user.id)
@@ -192,11 +192,76 @@ export default function SolicitudPermisos() {
         console.error("Error al obtener solicitudes:", solicitudesError)
       } else {
         const sols = solicitudesData || []
-        setSolicitudes(sols)
-        sols.forEach(s => typeof s.id === 'string' && fetchUnseenCount(s.id))
+        // Enriquecer con resumen de aprobaciones de jefes
+        const solIds = sols.map(s => s.id)
+        let aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number }> = {}
+        if (solIds.length > 0) {
+          const { data: approvals } = await supabase
+            .from('permisos_aprobaciones')
+            .select('solicitud_id, estado')
+            .in('solicitud_id', solIds)
+          aprobacionesMap = {}
+          solIds.forEach(id => {
+            aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }
+          })
+          approvals?.forEach(ap => {
+            const key = (ap as any).solicitud_id
+            if (!aprobacionesMap[key]) aprobacionesMap[key] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }
+            aprobacionesMap[key].total += 1
+            if ((ap as any).estado === 'aprobado') aprobacionesMap[key].aprobadas += 1
+            else if ((ap as any).estado === 'rechazado') aprobacionesMap[key].rechazadas += 1
+            else aprobacionesMap[key].pendientes += 1
+          })
+        }
+        const enriched = sols.map(s => ({ ...s, aprobaciones: aprobacionesMap[s.id] }))
+        setSolicitudes(enriched)
+        enriched.forEach(s => typeof s.id === 'string' && fetchUnseenCount(s.id))
       }
 
       setUserData(userData)
+      setEsJefe(userData?.rol === 'jefe')
+
+      // Si es jefe, cargar solicitudes del equipo
+      if (userData?.rol === 'jefe') {
+        const { data: subordinates } = await supabase
+          .from('usuario_jefes')
+          .select('usuario_id')
+          .eq('jefe_id', session.user.id)
+        const ids = (subordinates || []).map(s => s.usuario_id)
+        if (ids.length > 0) {
+          const { data: teamSolicitudes } = await supabase
+            .from('solicitudes_permisos')
+            .select('*')
+            .in('usuario_id', ids)
+            .order('fecha_solicitud', { ascending: false })
+          // Enriquecer con nombre del colaborador y estado de mi aprobación
+          const { data: usuariosN } = await supabase
+            .from('usuario_nomina')
+            .select('auth_user_id, colaborador')
+            .in('auth_user_id', ids)
+          const enrichedTeam = (teamSolicitudes || []).map(s => {
+            const u = usuariosN?.find((x: any) => x.auth_user_id === s.usuario_id)
+            return { 
+              ...s, 
+              colaborador: u?.colaborador,
+            }
+          })
+          // Obtener mi estado de aprobación para cada solicitud
+          const solIdsEquipo = enrichedTeam.map(s => s.id)
+          const { data: misAprobaciones } = await supabase
+            .from('permisos_aprobaciones')
+            .select('solicitud_id, estado')
+            .in('solicitud_id', solIdsEquipo)
+            .eq('jefe_id', session.user.id)
+          const estadoPorSol: Record<string, string> = {}
+          misAprobaciones?.forEach(ap => estadoPorSol[(ap as any).solicitud_id] = (ap as any).estado)
+          setSolicitudesEquipo(
+            enrichedTeam.map(s => ({ ...s, estado_aprobacion_jefe: estadoPorSol[s.id] || 'pendiente' }))
+          )
+        } else {
+          setSolicitudesEquipo([])
+        }
+      }
       setLoading(false)
     }
 
@@ -206,6 +271,58 @@ export default function SolicitudPermisos() {
   const formatDate = (date: string | Date) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
     return new Date(date).toLocaleDateString('es-CO', options)
+  }
+
+  const aprobarComoJefe = async (solicitudId: string) => {
+    try {
+      setLoading(true)
+      const supabase = createSupabaseClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+      const { error } = await supabase
+        .from('permisos_aprobaciones')
+        .update({ estado: 'aprobado', fecha_resolucion: new Date().toISOString() })
+        .eq('solicitud_id', solicitudId)
+        .eq('jefe_id', session.user.id)
+      if (error) throw error
+      setSolicitudesEquipo(prev => prev.map(s => s.id === solicitudId ? { ...s, estado_aprobacion_jefe: 'aprobado' } : s))
+      setSuccess('Aprobación registrada.')
+    } catch (e) {
+      console.error(e)
+      setError('Error al aprobar la solicitud.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const rechazarComoJefe = async (solicitudId: string) => {
+    const motivo = prompt('Motivo del rechazo:')
+    if (!motivo) return
+    try {
+      setLoading(true)
+      const supabase = createSupabaseClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+      const { error } = await supabase
+        .from('permisos_aprobaciones')
+        .update({ estado: 'rechazado', fecha_resolucion: new Date().toISOString(), motivo_rechazo: motivo })
+        .eq('solicitud_id', solicitudId)
+        .eq('jefe_id', session.user.id)
+      if (error) throw error
+      setSolicitudesEquipo(prev => prev.map(s => s.id === solicitudId ? { ...s, estado_aprobacion_jefe: 'rechazado' } : s))
+      setSuccess('Rechazo registrado.')
+    } catch (e) {
+      console.error(e)
+      setError('Error al rechazar la solicitud.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const enviarSolicitud = async () => {
@@ -385,255 +502,334 @@ export default function SolicitudPermisos() {
       </Dialog>
 
       <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                  <h1 className="text-2xl font-bold tracking-tight w-full sm:w-auto">Solicitudes de Permisos</h1>
-                  <Button onClick={() => setShowModal(true)} className="flex items-center gap-2 w-full sm:w-auto justify-center">
-                    <Plus className="h-4 w-4" /> Solicitar Permiso
-                  </Button>
-                </div>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <h1 className="text-2xl font-bold tracking-tight w-full sm:w-auto">Solicitudes de Permisos</h1>
+          <Button onClick={() => setShowModal(true)} className="flex items-center gap-2 w-full sm:w-auto justify-center">
+            <Plus className="h-4 w-4" /> Solicitar Permiso
+          </Button>
+        </div>
 
-                {/* Mensajes de error y éxito */}
-                {error && (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+        {/* Mensajes de error y éxito */}
+        {error && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-                {success && (
-                  <Alert className="mt-4 bg-green-50 text-green-800 border-green-200">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertDescription>{success}</AlertDescription>
-                  </Alert>
-                )}
+        {success && (
+          <Alert className="mt-4 bg-green-50 text-green-800 border-green-200">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertDescription>{success}</AlertDescription>
+          </Alert>
+        )}
 
-                {/* Modal de solicitud */}
-                <Dialog open={showModal} onOpenChange={setShowModal}>
-                  <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>Solicitar Permiso</DialogTitle>
-                      <DialogDescription>
-                        Complete el formulario para solicitar un permiso laboral.
-                      </DialogDescription>
-                    </DialogHeader>
+        {/* Modal de solicitud */}
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Solicitar Permiso</DialogTitle>
+              <DialogDescription>
+                Complete el formulario para solicitar un permiso laboral.
+              </DialogDescription>
+            </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="tipoPermiso" className="text-right">
-                          Tipo de Permiso
-                        </Label>
-                        <select
-                          id="tipoPermiso"
-                          className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          value={formData.tipoPermiso}
-                          onChange={(e) => setFormData({ ...formData, tipoPermiso: e.target.value })}
-                        >
-                          <option value="no_remunerado">Permiso No Remunerado</option>
-                          <option value="remunerado">Permiso Remunerado</option>
-                          <option value="actividad_interna">Actividad Interna</option>
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="fechaInicio" className="text-right">
-                          Fecha Inicio
-                        </Label>
-                        <Input
-                          id="fechaInicio"
-                          type="date"
-                          className="col-span-3"
-                          value={formData.fechaInicio}
-                          onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="fechaFin" className="text-right">
-                          Fecha Fin
-                        </Label>
-                        <Input
-                          id="fechaFin"
-                          type="date"
-                          className="col-span-3"
-                          value={formData.fechaFin}
-                          onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="horaInicio" className="text-right">
-                          Hora Inicio
-                        </Label>
-                        <Input
-                          id="horaInicio"
-                          type="time"
-                          className="col-span-3"
-                          value={formData.horaInicio}
-                          onChange={(e) => setFormData({ ...formData, horaInicio: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="horaFin" className="text-right">
-                          Hora Fin
-                        </Label>
-                        <Input
-                          id="horaFin"
-                          type="time"
-                          className="col-span-3"
-                          value={formData.horaFin}
-                          onChange={(e) => setFormData({ ...formData, horaFin: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="ciudad" className="text-right">
-                          Ciudad
-                        </Label>
-                        <Input
-                          id="ciudad"
-                          className="col-span-3"
-                          placeholder="Ingrese la ciudad"
-                          value={formData.ciudad}
-                          onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="motivo" className="text-right">
-                          Motivo
-                        </Label>
-                        <Textarea
-                          id="motivo"
-                          className="col-span-3"
-                          value={formData.motivo}
-                          onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-                        />
-                      </div>
-
-                      {formData.tipoPermiso === "remunerado" && (
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="compensacion" className="text-right">
-                            Compensación
-                          </Label>
-                          <Textarea
-                            id="compensacion"
-                            className="col-span-3"
-                            placeholder="Indique cómo compensará el tiempo"
-                            value={formData.compensacion}
-                            onChange={(e) => setFormData({ ...formData, compensacion: e.target.value })}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex justify-end gap-3">
-                      <Button variant="outline" onClick={() => setShowModal(false)}>
-                        Cancelar
-                      </Button>
-                      <Button onClick={enviarSolicitud} disabled={loading}>
-                        {loading ? "Enviando..." : "Enviar Solicitud"}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                {/* Tabla de solicitudes */}
-                <div className="mt-6 w-full">
-                  <Card className="bg-white/80 backdrop-blur-sm w-full">
-                    <CardHeader>
-                      <CardTitle>Mis Solicitudes de Permisos</CardTitle>
-                      <CardDescription>
-                        Historial de solicitudes de permisos realizadas
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Fecha Solicitud</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Fecha Inicio</TableHead>
-                            <TableHead>Fecha Fin</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead>Acciones</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {solicitudes.length > 0 ? (
-                            solicitudes.map((solicitud) => (
-                              <TableRow key={solicitud.id}>
-                                <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
-                                <TableCell>
-                                  {solicitud.tipo_permiso === 'no_remunerado' ? 'No remunerado' :
-                                   solicitud.tipo_permiso === 'remunerado' ? 'Remunerado' :
-                                   'Actividad interna'}
-                                </TableCell>
-                                <TableCell>{new Date(solicitud.fecha_inicio).toLocaleDateString()}</TableCell>
-                                <TableCell>{new Date(solicitud.fecha_fin).toLocaleDateString()}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={solicitud.estado === 'aprobado' ? 'secondary' :
-                                            solicitud.estado === 'rechazado' ? 'destructive' :
-                                            'default'}
-                                  >
-                                    {solicitud.estado.charAt(0).toUpperCase() + solicitud.estado.slice(1)}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {solicitud.estado === 'rechazado' && solicitud.motivo_rechazo && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleShowReason(solicitud.motivo_rechazo)}
-                                    >
-                                      Ver motivo
-                                    </Button>
-                                  )}
-                                  {solicitud.estado === 'aprobado' && solicitud.pdf_url && (
-                                    <div className="flex gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => markReadAndOpen(solicitud.id)}
-                                        className="relative"
-                                      >
-                                        <MessageSquare className="h-4 w-4" />
-                                        {unseenCounts[solicitud.id] > 0 && (
-                                          <Badge
-                                            variant="destructive"
-                                            className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                                          >
-                                            {unseenCounts[solicitud.id]}
-                                          </Badge>
-                                        )}
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => descargarPermiso(solicitud.pdf_url)}
-                                      >
-                                        <Download className="h-4 w-4 mr-1" />
-                                        Descargar
-                                      </Button>
-                                    </div>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center py-4">
-                                No hay solicitudes registradas
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </div>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="tipoPermiso" className="text-right">
+                  Tipo de Permiso
+                </Label>
+                <select
+                  id="tipoPermiso"
+                  className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={formData.tipoPermiso}
+                  onChange={(e) => setFormData({ ...formData, tipoPermiso: e.target.value })}
+                >
+                  <option value="no_remunerado">Permiso No Remunerado</option>
+                  <option value="remunerado">Permiso Remunerado</option>
+                  <option value="actividad_interna">Actividad Interna</option>
+                </select>
               </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="fechaInicio" className="text-right">
+                  Fecha Inicio
+                </Label>
+                <Input
+                  id="fechaInicio"
+                  type="date"
+                  className="col-span-3"
+                  value={formData.fechaInicio}
+                  onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="fechaFin" className="text-right">
+                  Fecha Fin
+                </Label>
+                <Input
+                  id="fechaFin"
+                  type="date"
+                  className="col-span-3"
+                  value={formData.fechaFin}
+                  onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="horaInicio" className="text-right">
+                  Hora Inicio
+                </Label>
+                <Input
+                  id="horaInicio"
+                  type="time"
+                  className="col-span-3"
+                  value={formData.horaInicio}
+                  onChange={(e) => setFormData({ ...formData, horaInicio: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="horaFin" className="text-right">
+                  Hora Fin
+                </Label>
+                <Input
+                  id="horaFin"
+                  type="time"
+                  className="col-span-3"
+                  value={formData.horaFin}
+                  onChange={(e) => setFormData({ ...formData, horaFin: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="ciudad" className="text-right">
+                  Ciudad
+                </Label>
+                <Input
+                  id="ciudad"
+                  className="col-span-3"
+                  placeholder="Ingrese la ciudad"
+                  value={formData.ciudad}
+                  onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="motivo" className="text-right">
+                  Motivo
+                </Label>
+                <Textarea
+                  id="motivo"
+                  className="col-span-3"
+                  value={formData.motivo}
+                  onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
+                />
+              </div>
+
+              {formData.tipoPermiso === "remunerado" && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="compensacion" className="text-right">
+                    Compensación
+                  </Label>
+                  <Textarea
+                    id="compensacion"
+                    className="col-span-3"
+                    placeholder="Indique cómo compensará el tiempo"
+                    value={formData.compensacion}
+                    onChange={(e) => setFormData({ ...formData, compensacion: e.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={enviarSolicitud} disabled={loading}>
+                {loading ? "Enviando..." : "Enviar Solicitud"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Sección de aprobaciones como jefe */}
+        {esJefe && (
+          <div className="mt-6 w-full">
+            <Card className="bg-white/80 backdrop-blur-sm w-full">
+              <CardHeader>
+                <CardTitle>Solicitudes de mi equipo</CardTitle>
+                <CardDescription>Aprueba o rechaza las solicitudes de tus colaboradores</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Colaborador</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Fecha Inicio</TableHead>
+                      <TableHead>Fecha Fin</TableHead>
+                      <TableHead>Mi aprobación</TableHead>
+                      <TableHead>Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {solicitudesEquipo.length > 0 ? (
+                      solicitudesEquipo.map((s) => (
+                        <TableRow key={`equipo-${s.id}`}>
+                          <TableCell>{s.colaborador}</TableCell>
+                          <TableCell>
+                            {s.tipo_permiso === 'no_remunerado' ? 'No remunerado' :
+                             s.tipo_permiso === 'remunerado' ? 'Remunerado' :
+                             'Actividad interna'}
+                          </TableCell>
+                          <TableCell>{new Date(s.fecha_inicio).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(s.fecha_fin).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              s.estado_aprobacion_jefe === 'aprobado' ? 'secondary' :
+                              s.estado_aprobacion_jefe === 'rechazado' ? 'destructive' :
+                              'default'
+                            }>
+                              {s.estado_aprobacion_jefe.charAt(0).toUpperCase() + s.estado_aprobacion_jefe.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {s.estado_aprobacion_jefe === 'pendiente' && (
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => aprobarComoJefe(s.id)}>Aprobar</Button>
+                                <Button size="sm" variant="outline" onClick={() => rechazarComoJefe(s.id)}>Rechazar</Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4">
+                          No hay solicitudes de tu equipo
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Tabla de solicitudes */}
+        <div className="mt-6 w-full">
+          <Card className="bg-white/80 backdrop-blur-sm w-full">
+            <CardHeader>
+              <CardTitle>Mis Solicitudes de Permisos</CardTitle>
+              <CardDescription>
+                Historial de solicitudes de permisos realizadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha Solicitud</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Fecha Inicio</TableHead>
+                    <TableHead>Fecha Fin</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Aprobaciones jefes</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {solicitudes.length > 0 ? (
+                    solicitudes.map((solicitud) => (
+                      <TableRow key={solicitud.id}>
+                        <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {solicitud.tipo_permiso === 'no_remunerado' ? 'No remunerado' :
+                           solicitud.tipo_permiso === 'remunerado' ? 'Remunerado' :
+                           'Actividad interna'}
+                        </TableCell>
+                        <TableCell>{new Date(solicitud.fecha_inicio).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(solicitud.fecha_fin).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={solicitud.estado === 'aprobado' ? 'secondary' :
+                                    solicitud.estado === 'rechazado' ? 'destructive' :
+                                    'default'}
+                          >
+                            {solicitud.estado.charAt(0).toUpperCase() + solicitud.estado.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {solicitud.aprobaciones && solicitud.aprobaciones.total > 0 ? (
+                            <div className="text-xs">
+                              <div>Total: {solicitud.aprobaciones.total}</div>
+                              <div className="text-green-700">Aprobadas: {solicitud.aprobaciones.aprobadas}</div>
+                              <div className="text-yellow-700">Pendientes: {solicitud.aprobaciones.pendientes}</div>
+                              <div className="text-red-700">Rechazadas: {solicitud.aprobaciones.rechazadas}</div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500">Sin jefes asignados</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {solicitud.estado === 'rechazado' && solicitud.motivo_rechazo && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleShowReason(solicitud.motivo_rechazo)}
+                            >
+                              Ver motivo
+                            </Button>
+                          )}
+                          {solicitud.estado === 'aprobado' && solicitud.pdf_url && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => markReadAndOpen(solicitud.id)}
+                                className="relative"
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                                {unseenCounts[solicitud.id] > 0 && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                                  >
+                                    {unseenCounts[solicitud.id]}
+                                  </Badge>
+                                )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => descargarPermiso(solicitud.pdf_url)}
+                              >
+                                <Download className="h-4 w-4 mr-1" />
+                                Descargar
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        No hay solicitudes registradas
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       {/* Modal de comentarios */}
       <Dialog open={showComentariosModal} onOpenChange={setShowComentariosModal}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">

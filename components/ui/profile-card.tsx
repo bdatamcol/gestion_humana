@@ -435,6 +435,14 @@ export function ProfileCard({ userData }: ProfileCardProps) {
               </div>
 
               <div className="flex items-start gap-3">
+                <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Jefe Inmediato</p>
+                  <p className="text-sm font-medium">{userData?.jefeNombre || "No asignado"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
                 <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Estado de Vacaciones</p>

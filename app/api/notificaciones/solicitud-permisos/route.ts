@@ -130,7 +130,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Crear contenido del correo
+    // Notificar en la aplicación a los jefes asignados del usuario
+    const { data: jefesAsignados } = await supabase
+      .from('usuario_jefes')
+      .select('jefe_id')
+      .eq('usuario_id', usuarioId)
+
+    if (jefesAsignados && jefesAsignados.length > 0) {
+      const tituloJefe = 'Solicitud de permiso pendiente de aprobación'
+      const mensajeJefe = `El colaborador ${userData.colaborador} ha solicitado un permiso. Revisa y aprueba/rechaza.`
+      const notifs = jefesAsignados.map((j: any) => ({
+        usuario_id: j.jefe_id,
+        tipo: 'permisos',
+        titulo: tituloJefe,
+        mensaje: mensajeJefe,
+        solicitud_id: solicitudId
+      }))
+      await supabase.from('notificaciones').insert(notifs)
+    }
+
+    // Crear contenido del correo para administración
     const asunto = `Nueva Solicitud de Permiso - ${userData.colaborador}`
     
     const contenidoHTML = `

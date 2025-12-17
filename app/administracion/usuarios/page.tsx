@@ -628,14 +628,11 @@ const importUsersFromData = async (usuariosData: any[]) => {
     ])
     
     // Create maps for quick conversion
-    const empresasMap = new Map((empresasRef.data || []).map((e: { nombre: unknown; id: unknown }) => [
-      String(e.nombre).toLowerCase(),
-      String(e.id)
-    ]))
-    const cargosMap = new Map((cargosRef.data || []).map((c: any) => [String(c.nombre).toLowerCase(), c.id]))
-    const sedesMap = new Map((sedesRef.data || []).map((s: any) => [String(s.nombre).toLowerCase(), String(s.id)]))
-    const epsMap = new Map((epsRef.data || []).map((e: any) => [String(e.nombre).toLowerCase(), String(e.id)]))
-    const afpMap = new Map(afpRef.data?.map((a: { id: unknown; nombre: unknown }) => [String(a.nombre).toLowerCase(), a.id]) || [])
+    const empresasMap = new Map(empresasRef.data?.map((e: { nombre: unknown; id: unknown }) => [String(e.nombre).toLowerCase(), String(e.id)]) || [])
+    const cargosMap = new Map(cargosRef.data?.map((c: { nombre: unknown; id: unknown }) => [String(c.nombre).toLowerCase(), String(c.id)]) || [])
+    const sedesMap = new Map(sedesRef.data?.map((s: { nombre: unknown; id: unknown }) => [String(s.nombre).toLowerCase(), String(s.id)]) || [])
+    const epsMap = new Map(epsRef.data?.map((e: { nombre: unknown; id: unknown }) => [String(e.nombre).toLowerCase(), String(e.id)]) || [])
+    const afpMap = new Map(afpRef.data?.map((a: { id: unknown; nombre: unknown }) => [String(a.nombre).toLowerCase(), String(a.id)]) || [])
     const cesantiasMap = new Map(cesantiasRef.data?.map(c => [(c as {nombre: string}).nombre.toLowerCase(), (c as {id: string}).id]) || [])
     const cajasMap = new Map(cajasRef.data?.map(c => [(c as {nombre: string}).nombre.toLowerCase(), (c as {id: string}).id]) || [])
     

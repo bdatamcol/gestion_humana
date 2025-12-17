@@ -185,7 +185,7 @@ export default function Usuarios() {
               caja_de_compensacion:caja_de_compensacion_id(id, nombre),
               cargos:cargo_id(id, nombre)
             `)
-            .eq("rol", "usuario"),
+            .in("rol", ["usuario", "jefe"]),
           // Empresas
           supabase
             .from("empresas")
@@ -1066,7 +1066,7 @@ const fetchUsers = async () => {
           caja_de_compensacion:caja_de_compensacion_id(id, nombre),
           cargos:cargo_id(id, nombre)
         `)
-        .eq("rol", "usuario"),
+        .in("rol", ["usuario", "jefe"]),
       supabase
         .from("solicitudes_vacaciones")
         .select("usuario_id")
@@ -1617,7 +1617,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                           <SelectContent>
                             <SelectItem value="all">Todos los roles</SelectItem>
                             <SelectItem value="usuario">Usuario</SelectItem>
-
+                            <SelectItem value="jefe">Jefe</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1654,7 +1654,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                         )}
                         {selectedRol && selectedRol !== "all" && (
                           <Badge variant="outline" className="flex items-center gap-1">
-                            Rol: Usuario
+                            Rol: {selectedRol.charAt(0).toUpperCase() + selectedRol.slice(1)}
                           </Badge>
                         )}
                         {sortConfig && (

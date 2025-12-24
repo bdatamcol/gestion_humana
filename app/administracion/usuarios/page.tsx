@@ -81,6 +81,7 @@ export default function Usuarios() {
   const [editUserLoading, setEditUserLoading] = useState(false)
   const [availableBosses, setAvailableBosses] = useState<any[]>([])
   const [selectedBossIds, setSelectedBossIds] = useState<string[]>([])
+  const [bossSearchTerm, setBossSearchTerm] = useState('')
   
   // Estados para importación
   const [importProgress, setImportProgress] = useState(0)
@@ -1033,11 +1034,26 @@ const handleEditUser = (user: any) => {
   (async () => {
     const supabase = createSupabaseClient()
     const [{ data: bosses }, { data: asignaciones }] = await Promise.all([
-      supabase.from('usuario_nomina').select('auth_user_id, colaborador').eq('rol', 'jefe').eq('estado', 'activo'),
+      supabase.from('usuario_nomina').select('id, auth_user_id, colaborador, rol').in('rol', ['jefe', 'administrador']).eq('estado', 'activo'),
       supabase.from('usuario_jefes').select('jefe_id').eq('usuario_id', user.auth_user_id)
     ])
-    setAvailableBosses(bosses || [])
+    
+    // Deduplicate bosses by auth_user_id to prevent multi-selection issues
+    const uniqueBossesMap = new Map();
+    bosses?.forEach((boss: any) => {
+      if (boss.auth_user_id) {
+        if (!uniqueBossesMap.has(boss.auth_user_id)) {
+            uniqueBossesMap.set(boss.auth_user_id, boss);
+        }
+      } else {
+        // For those without auth_user_id, we use their DB id to keep them distinct
+        uniqueBossesMap.set(`no-auth-${boss.id}`, boss);
+      }
+    });
+    
+    setAvailableBosses(Array.from(uniqueBossesMap.values()));
     setSelectedBossIds((asignaciones || []).map((a: any) => a.jefe_id))
+    setBossSearchTerm('')
   })()
 }
 
@@ -2603,29 +2619,50 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                     <h3 className="text-lg font-medium mb-4">Jefes Asignados</h3>
                     <div className="space-y-4">
                       <Label>Seleccionar jefes (aprobadores de permisos)</Label>
+                      
+                      {/* Buscador de jefes */}
+                      <Input
+                        type="text"
+                        placeholder="Buscar jefe por nombre..."
+                        value={bossSearchTerm}
+                        onChange={(e) => setBossSearchTerm(e.target.value)}
+                        className="mb-2"
+                      />
+
                       <div className="border rounded-md p-4 max-h-[200px] overflow-y-auto space-y-2">
                         {availableBosses.length > 0 ? (
-                          availableBosses.map((boss) => (
-                            <div key={boss.auth_user_id} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`boss-${boss.auth_user_id}`} 
-                                checked={selectedBossIds.includes(boss.auth_user_id)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedBossIds([...selectedBossIds, boss.auth_user_id])
-                                  } else {
-                                    setSelectedBossIds(selectedBossIds.filter(id => id !== boss.auth_user_id))
-                                  }
-                                }}
-                              />
-                              <Label 
-                                htmlFor={`boss-${boss.auth_user_id}`}
-                                className="text-sm font-normal cursor-pointer"
-                              >
-                                {boss.colaborador}
-                              </Label>
-                            </div>
-                          ))
+                          availableBosses
+                            .filter(boss => 
+                              boss.colaborador.toLowerCase().includes(bossSearchTerm.toLowerCase())
+                            )
+                            .map((boss) => {
+                              const isSelectable = !!boss.auth_user_id;
+                              return (
+                                <div key={boss.id || boss.auth_user_id || Math.random()} className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`boss-${boss.id || boss.auth_user_id || boss.colaborador}`} 
+                                    checked={isSelectable && selectedBossIds.includes(boss.auth_user_id)}
+                                    disabled={!isSelectable}
+                                    onCheckedChange={(checked) => {
+                                      if (!isSelectable) return;
+                                      if (checked) {
+                                        setSelectedBossIds([...selectedBossIds, boss.auth_user_id])
+                                      } else {
+                                        setSelectedBossIds(selectedBossIds.filter(id => id !== boss.auth_user_id))
+                                      }
+                                    }}
+                                  />
+                                  <Label 
+                                    htmlFor={`boss-${boss.id || boss.auth_user_id || boss.colaborador}`}
+                                    className={`text-sm font-normal cursor-pointer ${!isSelectable ? 'text-gray-400 italic' : ''}`}
+                                  >
+                                    {boss.colaborador} 
+                                    {boss.rol === 'administrador' && <span className="text-xs text-blue-500 ml-2">(Admin)</span>}
+                                    {!isSelectable && <span className="text-xs text-red-400 ml-2">(Sin usuario activo)</span>}
+                                  </Label>
+                                </div>
+                              )
+                            })
                         ) : (
                           <p className="text-sm text-muted-foreground">No hay usuarios con rol 'Jefe' disponibles.</p>
                         )}

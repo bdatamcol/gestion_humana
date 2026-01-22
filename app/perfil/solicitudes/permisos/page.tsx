@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle2, Calendar, Download, Plus, MessageSquare } from "lucide-react"
+import { AlertCircle, CheckCircle2, Calendar, Download, Plus, MessageSquare, Eye, XCircle, Clock } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
@@ -23,6 +23,8 @@ export default function SolicitudPermisos() {
   const [solicitudComentariosId, setSolicitudComentariosId] = useState<string | undefined>(undefined)
   const [unseenCounts, setUnseenCounts] = useState<Record<string, number>>({})
   const [userId, setUserId] = useState<string | null>(null)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [selectedDetailsSolicitud, setSelectedDetailsSolicitud] = useState<any>(null)
 
   const handleShowReason = (reason: string) => {
     setRejectionReason(reason)
@@ -237,26 +239,67 @@ export default function SolicitudPermisos() {
           // Enriquecer con nombre del colaborador y estado de mi aprobación
           const { data: usuariosN } = await supabase
             .from('usuario_nomina')
-            .select('auth_user_id, colaborador')
+            .select(`
+              auth_user_id,
+              colaborador,
+              cedula,
+              empresas:empresa_id(nombre),
+              cargos:cargo_id(nombre)
+            `)
             .in('auth_user_id', ids)
           const enrichedTeam = (teamSolicitudes || []).map(s => {
             const u = usuariosN?.find((x: any) => x.auth_user_id === s.usuario_id)
             return { 
               ...s, 
               colaborador: u?.colaborador,
+              usuario: u // Guardar objeto completo del usuario
             }
           })
-          // Obtener mi estado de aprobación para cada solicitud
+          // Obtener aprobaciones para las solicitudes del equipo
           const solIdsEquipo = enrichedTeam.map(s => s.id)
-          const { data: misAprobaciones } = await supabase
+          const { data: todasAprobaciones } = await supabase
             .from('permisos_aprobaciones')
-            .select('solicitud_id, estado')
+            .select('solicitud_id, estado, jefe_id')
             .in('solicitud_id', solIdsEquipo)
-            .eq('jefe_id', session.user.id)
-          const estadoPorSol: Record<string, string> = {}
-          misAprobaciones?.forEach(ap => estadoPorSol[(ap as any).solicitud_id] = (ap as any).estado)
+
+          // Obtener nombres de los jefes
+          const jefesIds = [...new Set(todasAprobaciones?.map((a: any) => a.jefe_id) || [])]
+          let jefesMap: Record<string, string> = {}
+          if (jefesIds.length > 0) {
+            const { data: jefesData } = await supabase
+              .from('usuario_nomina')
+              .select('auth_user_id, colaborador')
+              .in('auth_user_id', jefesIds)
+            if (jefesData) {
+              jefesMap = jefesData.reduce((acc: any, curr: any) => {
+                acc[curr.auth_user_id] = curr.colaborador
+                return acc
+              }, {})
+            }
+          }
+
+          // Agrupar aprobaciones por solicitud
+          const aprobacionesPorSol: Record<string, any[]> = {}
+          todasAprobaciones?.forEach((ap: any) => {
+             if (!aprobacionesPorSol[ap.solicitud_id]) aprobacionesPorSol[ap.solicitud_id] = []
+             aprobacionesPorSol[ap.solicitud_id].push({
+                jefe_id: ap.jefe_id,
+                estado: ap.estado,
+                jefe_nombre: jefesMap[ap.jefe_id] || 'Desconocido'
+             })
+          })
+
           setSolicitudesEquipo(
-            enrichedTeam.map(s => ({ ...s, estado_aprobacion_jefe: estadoPorSol[s.id] || 'pendiente' }))
+            enrichedTeam.map(s => {
+                const miAprobacion = todasAprobaciones?.find((a: any) => a.solicitud_id === s.id && a.jefe_id === session.user.id)
+                return { 
+                    ...s, 
+                    estado_aprobacion_jefe: miAprobacion?.estado || 'pendiente',
+                    aprobaciones: {
+                        detalles: aprobacionesPorSol[s.id] || []
+                    }
+                }
+            })
           )
         } else {
           setSolicitudesEquipo([])
@@ -697,12 +740,25 @@ export default function SolicitudPermisos() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {s.estado_aprobacion_jefe === 'pendiente' && (
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={() => aprobarComoJefe(s.id)}>Aprobar</Button>
-                                <Button size="sm" variant="outline" onClick={() => rechazarComoJefe(s.id)}>Rechazar</Button>
-                              </div>
-                            )}
+                            <div className="flex gap-2 items-center">
+                              {s.estado_aprobacion_jefe === 'pendiente' && (
+                                <>
+                                  <Button size="sm" onClick={() => aprobarComoJefe(s.id)}>Aprobar</Button>
+                                  <Button size="sm" variant="outline" onClick={() => rechazarComoJefe(s.id)}>Rechazar</Button>
+                                </>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedDetailsSolicitud(s)
+                                  setShowDetailsModal(true)
+                                }}
+                                title="Ver detalles completos"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -842,6 +898,151 @@ export default function SolicitudPermisos() {
               isAdmin={false}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Detalles Completos */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalles de la Solicitud</DialogTitle>
+            <DialogDescription>
+              Información completa de la solicitud de permiso.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedDetailsSolicitud && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Colaborador</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.colaborador || selectedDetailsSolicitud.colaborador}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Cédula</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.cedula || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Cargo</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.cargos?.nombre || 'No disponible'}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Empresa</h4>
+                    <p>{selectedDetailsSolicitud.usuario?.empresas?.nombre || 'No disponible'}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Tipo de Permiso</h4>
+                    <p className="capitalize">{selectedDetailsSolicitud.tipo_permiso.replace('_', ' ')}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Estado Actual</h4>
+                    <Badge
+                      className={
+                        selectedDetailsSolicitud.estado === 'aprobado'
+                          ? 'bg-green-100 text-green-800'
+                          : selectedDetailsSolicitud.estado === 'rechazado'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }
+                    >
+                      {selectedDetailsSolicitud.estado.charAt(0).toUpperCase() + selectedDetailsSolicitud.estado.slice(1)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Fecha Solicitud</h4>
+                    <p>{new Date(selectedDetailsSolicitud.fecha_solicitud).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground">Ciudad</h4>
+                    <p>{selectedDetailsSolicitud.ciudad || 'No especificada'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3">Detalle del Tiempo</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-muted/30 p-3 rounded-md">
+                    <span className="text-sm font-medium block mb-1">Inicio</span>
+                    <p>{new Date(selectedDetailsSolicitud.fecha_inicio).toLocaleDateString()} {selectedDetailsSolicitud.hora_inicio || ''}</p>
+                  </div>
+                  <div className="bg-muted/30 p-3 rounded-md">
+                    <span className="text-sm font-medium block mb-1">Fin</span>
+                    <p>{new Date(selectedDetailsSolicitud.fecha_fin).toLocaleDateString()} {selectedDetailsSolicitud.hora_fin || ''}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-2">Motivo</h4>
+                <div className="bg-muted/30 p-4 rounded-md">
+                  <p className="text-sm whitespace-pre-wrap">{selectedDetailsSolicitud.motivo || 'No especificado'}</p>
+                </div>
+              </div>
+
+              {selectedDetailsSolicitud.compensacion && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2">Compensación</h4>
+                  <div className="bg-muted/30 p-4 rounded-md">
+                    <p className="text-sm whitespace-pre-wrap">{selectedDetailsSolicitud.compensacion}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedDetailsSolicitud.aprobaciones && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3">Aprobaciones de Jefes</h4>
+                  <div className="space-y-2">
+                    {selectedDetailsSolicitud.aprobaciones.detalles?.map((detalle: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between bg-white border p-3 rounded-md shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${
+                            detalle.estado === 'aprobado' ? 'bg-green-100' : 
+                            detalle.estado === 'rechazado' ? 'bg-red-100' : 'bg-yellow-100'
+                          }`}>
+                            {detalle.estado === 'aprobado' ? (
+                              <CheckCircle2 className={`h-4 w-4 ${
+                                detalle.estado === 'aprobado' ? 'text-green-600' : 
+                                detalle.estado === 'rechazado' ? 'text-red-600' : 'text-yellow-600'
+                              }`} />
+                            ) : detalle.estado === 'rechazado' ? (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-yellow-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{detalle.jefe_nombre}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{detalle.estado}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {(!selectedDetailsSolicitud.aprobaciones.detalles || selectedDetailsSolicitud.aprobaciones.detalles.length === 0) && (
+                      <p className="text-sm text-muted-foreground italic">No hay jefes asignados para aprobación.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedDetailsSolicitud.motivo_rechazo && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2 text-red-600">Motivo de Rechazo</h4>
+                  <div className="bg-red-50 p-4 rounded-md border border-red-100">
+                    <p className="text-sm text-red-800">{selectedDetailsSolicitud.motivo_rechazo}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDetailsModal(false)}>Cerrar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

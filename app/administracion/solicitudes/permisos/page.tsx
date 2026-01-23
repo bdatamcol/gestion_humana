@@ -249,7 +249,7 @@ export default function AdminSolicitudesPermisos() {
             
             if (jefesData) {
               jefesMap = jefesData.reduce((acc, curr) => {
-                acc[curr.auth_user_id] = curr.colaborador
+                acc[curr.auth_user_id as string] = curr.colaborador as string
                 return acc
               }, {} as Record<string, string>)
             }
@@ -259,7 +259,7 @@ export default function AdminSolicitudesPermisos() {
           const aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number; detalles: any[] }> = {}
           const aprobacionesData = aprobacionesAgg.data || []
           solIds.forEach(id => {
-            aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
+            aprobacionesMap[id as string] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
           })
           
           for (const ap of aprobacionesData as any[]) {
@@ -282,7 +282,7 @@ export default function AdminSolicitudesPermisos() {
           }
 
           // Si hay solicitudes sin aprobaciones (antiguas), buscar jefes actuales y simular estado pendiente
-          const solicitudesSinAprobaciones = solIds.filter(id => !aprobacionesMap[id] || aprobacionesMap[id].total === 0)
+          const solicitudesSinAprobaciones = solIds.filter(id => !aprobacionesMap[id as string] || aprobacionesMap[id as string].total === 0)
           
           if (solicitudesSinAprobaciones.length > 0) {
             // Obtener jefes actuales de los usuarios de estas solicitudes
@@ -310,7 +310,7 @@ export default function AdminSolicitudesPermisos() {
                 
                 if (nuevosJefesData) {
                   nuevosJefesData.forEach(j => {
-                    jefesMap[j.auth_user_id] = j.colaborador
+                    jefesMap[j.auth_user_id as string] = j.colaborador as string
                   })
                 }
               }
@@ -322,16 +322,16 @@ export default function AdminSolicitudesPermisos() {
                 
                 solicitudesUsuario.forEach(s => {
                   const key = s.id
-                  if (!aprobacionesMap[key]) {
-                    aprobacionesMap[key] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
+                  if (!aprobacionesMap[key as string]) {
+                    aprobacionesMap[key as string] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
                   }
                   
                   // Verificar si ya existe este jefe en los detalles (por si acaso)
-                  const existe = aprobacionesMap[key].detalles.some(d => d.jefe_id === rel.jefe_id)
+                  const existe = aprobacionesMap[key as string].detalles.some(d => d.jefe_id === rel.jefe_id)
                   if (!existe) {
-                    aprobacionesMap[key].total += 1
-                    aprobacionesMap[key].pendientes += 1
-                    aprobacionesMap[key].detalles.push({
+                    aprobacionesMap[key as string].total += 1
+                    aprobacionesMap[key as string].pendientes += 1
+                    aprobacionesMap[key as string].detalles.push({
                       jefe_id: rel.jefe_id,
                       jefe_nombre: jefesMap[rel.jefe_id] || 'Desconocido',
                       estado: 'pendiente' // Asumimos pendiente para visualización
@@ -348,7 +348,7 @@ export default function AdminSolicitudesPermisos() {
             return {
               ...solicitud,
               usuario: usuario || null,
-              aprobaciones: aprobacionesMap[solicitud.id] || undefined
+              aprobaciones: aprobacionesMap[solicitud.id as string] || undefined
             }
           })
           
@@ -1295,7 +1295,7 @@ export default function AdminSolicitudesPermisos() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Cargo</h4>
-                    <p>{selectedDetailsSolicitud.usuario?.cargos?.nombre || 'No disponible'}</p>
+                    <p>{typeof selectedDetailsSolicitud.usuario?.cargo === 'string' ? selectedDetailsSolicitud.usuario.cargo : (selectedDetailsSolicitud.usuario?.cargo as unknown as { nombre?: string })?.nombre || 'No disponible'}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Empresa</h4>

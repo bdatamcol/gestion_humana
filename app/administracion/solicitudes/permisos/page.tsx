@@ -572,6 +572,31 @@ export default function AdminSolicitudesPermisos() {
       const mesFin = fechaFin.getMonth() + 1
       const anioFin = fechaFin.getFullYear()
       
+      // Helper para formatear nombre (Primer Nombre + Primer Apellido)
+      const formatName = (fullName: string) => {
+        if (!fullName) return "";
+        const parts = fullName.trim().toUpperCase().split(/\s+/);
+        if (parts.length >= 3) {
+          return `${parts[0]} ${parts[parts.length - 2]}`;
+        } else if (parts.length === 2) {
+          return `${parts[0]} ${parts[1]}`;
+        }
+        return fullName;
+      };
+
+      // Obtener nombre del jefe inmediato
+      const solicitudEnState = solicitudes.find(s => s.id === solicitudId);
+      let jefeNombre = "";
+      if (solicitudEnState && solicitudEnState.aprobaciones && solicitudEnState.aprobaciones.detalles && solicitudEnState.aprobaciones.detalles.length > 0) {
+         // Preferimos el jefe que aprobó, si no, el primero
+         const jefe = solicitudEnState.aprobaciones.detalles.find(d => d.estado === 'aprobado') || solicitudEnState.aprobaciones.detalles[0];
+         jefeNombre = jefe.jefe_nombre;
+      }
+      
+      const nombreSolicitante = formatName(usuarioData.colaborador || '');
+      const nombreJefe = formatName(jefeNombre);
+      const nombreRH = formatName("LISSETTE VANESSA CALDERON CUELLAR");
+
       // Determinar el tipo de permiso en español
       let tipoPermisoTexto = "";
       switch(solicitudData.tipo_permiso) {
@@ -681,13 +706,22 @@ export default function AdminSolicitudesPermisos() {
               
               <div style="display: flex; justify-content: space-between; margin-top: 40px;">
                 <div style="text-align: center; width: 30%;">
-                  <div style="border-top: 1px solid #000; padding-top: 5px;">Firma Solicitante</div>
+                  <div style="margin-bottom: 5px; font-weight: bold;">${nombreSolicitante}</div>
+                  <div style="border-top: 1px solid #000; padding-top: 5px;">
+                    Firma Solicitante
+                  </div>
                 </div>
                 <div style="text-align: center; width: 30%;">
-                  <div style="border-top: 1px solid #000; padding-top: 5px;">Vo.Bo. Jefe Inmediato</div>
+                  <div style="margin-bottom: 5px; font-weight: bold;">${nombreJefe}</div>
+                  <div style="border-top: 1px solid #000; padding-top: 5px;">
+                    Vo.Bo. Jefe Inmediato
+                  </div>
                 </div>
                 <div style="text-align: center; width: 30%;">
-                  <div style="border-top: 1px solid #000; padding-top: 5px;">Vo.Bo. Directora Talento Humano</div>
+                  <div style="margin-bottom: 5px; font-weight: bold;">${nombreRH}</div>
+                  <div style="border-top: 1px solid #000; padding-top: 5px;">
+                    Vo.Bo. Directora Talento Humano
+                  </div>
                 </div>
               </div>
             </div>

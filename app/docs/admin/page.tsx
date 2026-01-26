@@ -69,7 +69,6 @@ export default function AdminGuide() {
                 <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
                   <li>• Crear y editar usuarios</li>
                   <li>• Asignar roles y permisos</li>
-                  <li>• Importar usuarios masivamente</li>
                   <li>• Gestión de cargos y departamentos</li>
                 </ul>
               </div>
@@ -167,7 +166,6 @@ export default function AdminGuide() {
           <div>
             <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Herramientas</h4>
             <ul className="space-y-1 text-blue-700 dark:text-blue-300">
-              <li>• Importador masivo de usuarios</li>
               <li>• Generador de reportes PDF</li>
               <li>• Panel de notificaciones</li>
             </ul>

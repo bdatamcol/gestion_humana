@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronDown, ChevronUp, Search, X, Eye, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Plus, Edit, Download, Upload, Table as TableIcon } from "lucide-react"
+import { ChevronDown, ChevronUp, Search, X, Eye, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Plus, Edit, Table as TableIcon, Download } from "lucide-react"
 import { ProfileCard } from "@/components/ui/profile-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -22,6 +22,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { PermissionsManager } from "@/components/ui/permissions-manager"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { ImportUsersModal } from "@/components/usuarios/import-users-modal"
+import { toast } from "sonner"
+import { getUsersForExport } from "@/app/actions/user-import-export"
+import * as XLSX from "xlsx"
 
 export default function Usuarios() {
   const router = useRouter()
@@ -83,12 +87,24 @@ export default function Usuarios() {
   const [selectedBossIds, setSelectedBossIds] = useState<string[]>([])
   const [bossSearchTerm, setBossSearchTerm] = useState('')
   
-  // Estados para importación
-  const [importProgress, setImportProgress] = useState(0)
-  const [importStatus, setImportStatus] = useState('')
-  const [isImporting, setIsImporting] = useState(false)
-  const [importResults, setImportResults] = useState({ created: 0, updated: 0, errors: 0 })
-  
+  const handleExportUsers = async () => {
+    try {
+      toast.info("Generando archivo de exportación...")
+      
+      const data = await getUsersForExport()
+      
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, "Usuarios")
+      
+      XLSX.writeFile(wb, `usuarios_gestion_humana_${new Date().toISOString().split('T')[0]}.xlsx`)
+      toast.success("Archivo generado correctamente")
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al exportar usuarios")
+    }
+  }
+
   // Estados para permisos
   const [userPermissions, setUserPermissions] = useState<any[]>([])
   
@@ -536,469 +552,11 @@ export default function Usuarios() {
     setAddUserSuccess(false)
   }
 
-  const handleImportUsers = () => {
-    // Crear input file temporal
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.xlsx,.xls'
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
-        await processExcelFile(file)
-      }
-    }
-    input.click()
-  }
 
-const processExcelFile = async (file: File) => {
-  try {
-    // Import xlsx dynamically
-    const XLSX = await import('xlsx')
-    
-    // Read file
-    const arrayBuffer = await file.arrayBuffer()
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-    
-    // Check for sheets containing 'activos' or 'inactivos' in their names
-    const sheetNames = workbook.SheetNames
-    const activosSheet = sheetNames.find(name => 
-      name.toLowerCase().includes('activos') || name.toLowerCase().includes('activo')
-    )
-    const inactivosSheet = sheetNames.find(name => 
-      name.toLowerCase().includes('inactivos') || name.toLowerCase().includes('inactivo')
-    )
-    
-    let todosLosUsuarios: any[] = []
 
-    // Process active users sheet if exists
-    if (activosSheet) {
-      const usuariosActivos = XLSX.utils.sheet_to_json(workbook.Sheets[activosSheet])
-      todosLosUsuarios = [...todosLosUsuarios, ...usuariosActivos]
-    }
 
-    // Process inactive users sheet if exists 
-    if (inactivosSheet) {
-      const usuariosInactivos = XLSX.utils.sheet_to_json(workbook.Sheets[inactivosSheet])
-      todosLosUsuarios = [...todosLosUsuarios, ...usuariosInactivos]
-    }
 
-    // If no specific sheets found, use the first sheet
-    if (!activosSheet && !inactivosSheet) {
-      if (sheetNames.length > 0) {
-        const firstSheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetNames[0]])
-        todosLosUsuarios = [...todosLosUsuarios, ...firstSheet]
-      } else {
-        alert('El archivo no contiene hojas válidas')
-        return
-      }
-    }
-    
-    if (todosLosUsuarios.length === 0) {
-      alert('No se encontraron usuarios en el archivo')
-      return
-    }
-    
-    // Process users
-    await importUsersFromData(todosLosUsuarios)
-    
-  } catch (error) {
-    console.error('Error al procesar archivo Excel:', error)
-    alert('Error al procesar el archivo Excel. Verifique el formato.')
-  }
-}
 
-const importUsersFromData = async (usuariosData: any[]) => {
-  try {
-    setIsImporting(true)
-    setImportProgress(0)
-    setImportStatus('Preparando importación...')
-    setImportResults({ created: 0, updated: 0, errors: 0 })
-    
-    const supabase = createSupabaseClient()
-    
-    // Get reference data to map names to IDs
-    setImportStatus('Cargando datos de referencia...')
-    const [empresasRef, cargosRef, sedesRef, epsRef, afpRef, cesantiasRef, cajasRef] = await Promise.all([
-      supabase.from('empresas').select('id, nombre'),
-      supabase.from('cargos').select('id, nombre'),
-      supabase.from('sedes').select('id, nombre'),
-      supabase.from('eps').select('id, nombre'),
-      supabase.from('afp').select('id, nombre'),
-      supabase.from('cesantias').select('id, nombre'),
-      supabase.from('caja_de_compensacion').select('id, nombre')
-    ])
-    
-    // Create maps for quick conversion
-    const empresasMap = new Map(empresasRef.data?.map((e: { nombre: unknown; id: unknown }) => [String(e.nombre).toLowerCase(), String(e.id)]) || [])
-    const cargosMap = new Map(cargosRef.data?.map((c: { nombre: unknown; id: unknown }) => [String(c.nombre).toLowerCase(), String(c.id)]) || [])
-    const sedesMap = new Map(sedesRef.data?.map((s: { nombre: unknown; id: unknown }) => [String(s.nombre).toLowerCase(), String(s.id)]) || [])
-    const epsMap = new Map(epsRef.data?.map((e: { nombre: unknown; id: unknown }) => [String(e.nombre).toLowerCase(), String(e.id)]) || [])
-    const afpMap = new Map(afpRef.data?.map((a: { id: unknown; nombre: unknown }) => [String(a.nombre).toLowerCase(), String(a.id)]) || [])
-    const cesantiasMap = new Map(cesantiasRef.data?.map(c => [(c as {nombre: string}).nombre.toLowerCase(), (c as {id: string}).id]) || [])
-    const cajasMap = new Map(cajasRef.data?.map(c => [(c as {nombre: string}).nombre.toLowerCase(), (c as {id: string}).id]) || [])
-    
-    let usuariosCreados = 0
-    let usuariosActualizados = 0
-    let errores = 0
-    const totalUsuarios = usuariosData.length
-    
-    setImportStatus(`Procesando ${totalUsuarios} usuarios...`)
-    
-    for (let i = 0; i < usuariosData.length; i++) {
-      const userData = usuariosData[i]
-      
-      try {
-        // Update progress
-        const progress = Math.round(((i + 1) / totalUsuarios) * 100)
-        setImportProgress(progress)
-        setImportStatus(`Procesando usuario ${i + 1} de ${totalUsuarios}...`)
-        
-        // Helper function to check if a value is empty or null
-        const isEmpty = (value: any) => {
-          return value === null || value === undefined || value === '' || 
-                 (typeof value === 'string' && value.trim() === '')
-        }
-        
-        // Helper function to get safe value or null
-        const getSafeValue = (value: any, defaultValue: any = null) => {
-          return isEmpty(value) ? defaultValue : value
-        }
-        
-        // Helper function to convert Excel date to ISO format
-        const convertExcelDate = (excelDate: any) => {
-          if (isEmpty(excelDate)) return null
-          
-          try {
-            let date: Date
-            
-            // If it's already a Date object
-            if (excelDate instanceof Date) {
-              date = excelDate
-            }
-            // If it's a number (Excel serial date)
-            else if (typeof excelDate === 'number') {
-              // Excel dates are days since 1900-01-01 (with leap year bug)
-              const excelEpoch = new Date(1900, 0, 1)
-              date = new Date(excelEpoch.getTime() + (excelDate - 2) * 24 * 60 * 60 * 1000)
-            }
-            // If it's a string, try to parse it
-            else if (typeof excelDate === 'string') {
-              const dateStr = excelDate.toString().trim()
-              
-              // Try different date formats
-              if (dateStr.includes('/')) {
-                // Format: DD/MM/YYYY or MM/DD/YYYY
-                const parts = dateStr.split('/')
-                if (parts.length === 3) {
-                  // Assume DD/MM/YYYY format (common in Latin America)
-                  const day = parseInt(parts[0])
-                  const month = parseInt(parts[1]) - 1 // Month is 0-indexed
-                  const year = parseInt(parts[2])
-                  date = new Date(year, month, day)
-                } else {
-                  date = new Date(dateStr)
-                }
-              } else if (dateStr.includes('-')) {
-                // Format: YYYY-MM-DD or DD-MM-YYYY
-                date = new Date(dateStr)
-              } else {
-                date = new Date(dateStr)
-              }
-            }
-            else {
-              return null
-            }
-            
-            // Validate the date
-            if (isNaN(date.getTime())) {
-              console.warn('Invalid date:', excelDate)
-              return null
-            }
-            
-            // Convert to ISO format (YYYY-MM-DD)
-            return date.toISOString().split('T')[0]
-          } catch (error) {
-            console.warn('Error converting date:', excelDate, error)
-            return null
-          }
-        }
-        
-        // Map Excel fields to database structure, omitting empty fields
-        const usuarioData: any = {}
-        
-        // Only add fields that have values
-        if (!isEmpty(userData['ID'])) usuarioData.id = userData['ID']
-        if (!isEmpty(userData['Nombre'])) usuarioData.colaborador = userData['Nombre'].toString().trim()
-        if (!isEmpty(userData['Correo'])) usuarioData.correo_electronico = userData['Correo'].toString().trim()
-        if (!isEmpty(userData['Teléfono'])) usuarioData.telefono = userData['Teléfono'].toString().trim()
-        if (!isEmpty(userData['Cédula'])) usuarioData.cedula = userData['Cédula'].toString().trim()
-        
-        // Handle gender mapping
-        if (!isEmpty(userData['Género'])) {
-          const genero = userData['Género'].toString().trim()
-          if (genero === 'Masculino') usuarioData.genero = 'M'
-          else if (genero === 'Femenino') usuarioData.genero = 'F'
-          else usuarioData.genero = genero
-        }
-        
-        // Handle dates with proper conversion
-        const fechaIngreso = convertExcelDate(userData['Fecha Ingreso'])
-        if (fechaIngreso) usuarioData.fecha_ingreso = fechaIngreso
-        
-        const fechaNacimiento = convertExcelDate(userData['Fecha Nacimiento'])
-        if (fechaNacimiento) usuarioData.fecha_nacimiento = fechaNacimiento
-        
-        const fechaRetiro = convertExcelDate(userData['Fecha Retiro'])
-        if (fechaRetiro) usuarioData.fecha_retiro = fechaRetiro
-        
-        // Handle numeric fields
-        if (!isEmpty(userData['Edad'])) {
-          const edad = parseInt(userData['Edad'])
-          if (!isNaN(edad)) usuarioData.edad = edad
-        }
-        
-        // Handle text fields
-        if (!isEmpty(userData['RH'])) usuarioData.rh = userData['RH'].toString().trim()
-        if (!isEmpty(userData['Dirección'])) usuarioData.direccion_residencia = userData['Dirección'].toString().trim()
-        if (!isEmpty(userData['Tipo de Contrato'])) usuarioData.tipo_de_contrato = userData['Tipo de Contrato'].toString().trim()
-        if (!isEmpty(userData['Motivo Retiro'])) usuarioData.motivo_retiro = userData['Motivo Retiro'].toString().trim()
-        
-        // Set default values for required fields
-        usuarioData.estado = getSafeValue(userData['Estado'], 'activo')
-        usuarioData.rol = getSafeValue(userData['Rol'], 'usuario')
-        
-        // Handle foreign key mappings - only if the field has a value
-        if (!isEmpty(userData['Empresa'])) {
-          const empresaId = empresasMap.get(userData['Empresa'].toString().toLowerCase())
-          if (empresaId) usuarioData.empresa_id = empresaId
-        }
-        
-        if (!isEmpty(userData['Cargo'])) {
-          const cargoId = cargosMap.get(userData['Cargo'].toString().toLowerCase())
-          if (cargoId) usuarioData.cargo_id = cargoId
-        }
-        
-        if (!isEmpty(userData['Sede'])) {
-          const sedeId = sedesMap.get(userData['Sede'].toString().toLowerCase())
-          if (sedeId) usuarioData.sede_id = sedeId
-        }
-        
-        if (!isEmpty(userData['EPS'])) {
-          const epsId = epsMap.get(userData['EPS'].toString().toLowerCase())
-          if (epsId) usuarioData.eps_id = epsId
-        }
-        
-        if (!isEmpty(userData['AFP'])) {
-          const afpId = afpMap.get(userData['AFP'].toString().toLowerCase())
-          if (afpId) usuarioData.afp_id = afpId
-        }
-        
-        if (!isEmpty(userData['Cesantías'])) {
-          const cesantiasId = cesantiasMap.get(userData['Cesantías'].toString().toLowerCase())
-          if (cesantiasId) usuarioData.cesantias_id = cesantiasId
-        }
-        
-        if (!isEmpty(userData['Caja Compensación'])) {
-          const cajaId = cajasMap.get(userData['Caja Compensación'].toString().toLowerCase())
-          if (cajaId) usuarioData.caja_de_compensacion_id = cajaId
-        }
-        
-        let existingUser = null
-        
-        // Check if user exists by ID or Cedula
-        if (usuarioData.id) {
-          const { data } = await supabase
-            .from('usuario_nomina')
-            .select('id')
-            .eq('id', usuarioData.id)
-            .single()
-          existingUser = data
-        } else if (usuarioData.cedula) {
-          const { data } = await supabase
-            .from('usuario_nomina')
-            .select('id')
-            .eq('cedula', usuarioData.cedula)
-            .single()
-          existingUser = data
-        }
-        
-        if (existingUser) {
-          // Update existing user - only update fields that have values
-          const updateData: any = {}
-          
-          // Only include fields that have values in the update
-          if (usuarioData.colaborador !== undefined) updateData.colaborador = usuarioData.colaborador
-          if (usuarioData.correo_electronico !== undefined) updateData.correo_electronico = usuarioData.correo_electronico
-          if (usuarioData.telefono !== undefined) updateData.telefono = usuarioData.telefono
-          if (usuarioData.cedula !== undefined) updateData.cedula = usuarioData.cedula
-          if (usuarioData.genero !== undefined) updateData.genero = usuarioData.genero
-          if (usuarioData.fecha_ingreso !== undefined) updateData.fecha_ingreso = usuarioData.fecha_ingreso
-          if (usuarioData.fecha_nacimiento !== undefined) updateData.fecha_nacimiento = usuarioData.fecha_nacimiento
-          if (usuarioData.edad !== undefined) updateData.edad = usuarioData.edad
-          if (usuarioData.rh !== undefined) updateData.rh = usuarioData.rh
-          if (usuarioData.direccion_residencia !== undefined) updateData.direccion_residencia = usuarioData.direccion_residencia
-          if (usuarioData.tipo_de_contrato !== undefined) updateData.tipo_de_contrato = usuarioData.tipo_de_contrato
-          if (usuarioData.empresa_id !== undefined) updateData.empresa_id = usuarioData.empresa_id
-          if (usuarioData.cargo_id !== undefined) updateData.cargo_id = usuarioData.cargo_id
-          if (usuarioData.sede_id !== undefined) updateData.sede_id = usuarioData.sede_id
-          if (usuarioData.eps_id !== undefined) updateData.eps_id = usuarioData.eps_id
-          if (usuarioData.afp_id !== undefined) updateData.afp_id = usuarioData.afp_id
-          if (usuarioData.cesantias_id !== undefined) updateData.cesantias_id = usuarioData.cesantias_id
-          if (usuarioData.caja_de_compensacion_id !== undefined) updateData.caja_de_compensacion_id = usuarioData.caja_de_compensacion_id
-          if (usuarioData.motivo_retiro !== undefined) updateData.motivo_retiro = usuarioData.motivo_retiro
-          if (usuarioData.fecha_retiro !== undefined) updateData.fecha_retiro = usuarioData.fecha_retiro
-          
-          // Always update estado and rol as they have default values
-          updateData.estado = usuarioData.estado
-          updateData.rol = usuarioData.rol
-          
-          const { error } = await supabase
-            .from('usuario_nomina')
-            .update(updateData)
-            .eq('id', (existingUser as { id: string | number }).id)
-          
-          if (error) {
-            console.error('Error actualizando usuario:', error)
-            errores++
-          } else {
-            usuariosActualizados++
-          }
-        } else {
-          // Create new user
-          const insertData = usuarioData.id ? usuarioData : (() => {
-            const { id, ...userDataWithoutId } = usuarioData
-            return userDataWithoutId
-          })()
-          
-          const { error } = await supabase
-            .from('usuario_nomina')
-            .insert([insertData])
-          
-          if (error) {
-            console.error('Error creando usuario:', error)
-            errores++
-          } else {
-            usuariosCreados++
-          }
-        }
-        
-        // Update results in real time
-        setImportResults({ created: usuariosCreados, updated: usuariosActualizados, errors: errores })
-        
-        // Small delay to show progress
-        await new Promise(resolve => setTimeout(resolve, 10))
-        
-      } catch (error) {
-        console.error('Error procesando usuario:', error)
-        errores++
-        setImportResults({ created: usuariosCreados, updated: usuariosActualizados, errors: errores })
-      }
-    }
-    
-    setImportProgress(100)
-    setImportStatus('Importación completada')
-    
-    // Show summary
-    setTimeout(() => {
-      const mensaje = `Importación completada:\n- Usuarios creados: ${usuariosCreados}\n- Usuarios actualizados: ${usuariosActualizados}\n- Errores: ${errores}`
-      alert(mensaje)
-      
-      // Reset import state
-      setIsImporting(false)
-      setImportProgress(0)
-      setImportStatus('')
-      setImportResults({ created: 0, updated: 0, errors: 0 })
-      
-      // Reload users list
-      fetchUsers()
-    }, 1000)
-    
-  } catch (error) {
-    console.error('Error en importación:', error)
-    alert('Error durante la importación. Verifique el formato del archivo.')
-    setIsImporting(false)
-    setImportProgress(0)
-    setImportStatus('')
-    setImportResults({ created: 0, updated: 0, errors: 0 })
-  }
-}
-
-const handleExportUsers = async () => {
-  try {
-    // Import xlsx dynamically
-    const XLSX = await import('xlsx')
-    
-    // Separate active and inactive users
-    const usuariosActivos = users.filter(user => user.estado === 'activo')
-    const usuariosInactivos = users.filter(user => user.estado === 'inactivo')
-    
-    // Calculate age from birth date
-    const calculateAge = (birthDate: string) => {
-      if (!birthDate) return ''
-      const today = new Date()
-      const birth = new Date(birthDate)
-      let age = today.getFullYear() - birth.getFullYear()
-      const monthDiff = today.getMonth() - birth.getMonth()
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--
-      }
-      return age.toString()
-    }
-    
-    // Format user data
-    const formatUserData = (user: any) => ({
-      'ID': user.id,
-      'Nombre': user.colaborador,
-      'Correo': user.correo_electronico,
-      'Teléfono': user.telefono,
-      'Cédula': user.cedula,
-      'Género': user.genero === 'M' ? 'Masculino' : user.genero === 'F' ? 'Femenino' : user.genero,
-      'Fecha Ingreso': user.fecha_ingreso,
-      'Fecha Nacimiento': user.fecha_nacimiento,
-      'Edad': calculateAge(user.fecha_nacimiento),
-      'RH': user.rh,
-      'Tipo de Contrato': user.tipo_de_contrato || '',
-      'Empresa': user.empresas?.nombre || '',
-      'Cargo': user.cargos?.nombre || '',
-      'Sede': user.sedes?.nombre || '',
-      'EPS': user.eps?.nombre || '',
-      'AFP': user.afp?.nombre || '',
-      'Cesantías': user.cesantias?.nombre || '',
-      'Caja Compensación': user.caja_de_compensacion?.nombre || '',
-      'Dirección': user.direccion_residencia,
-      'Motivo Retiro': user.motivo_retiro || '',
-      'Fecha Retiro': user.fecha_retiro || '',
-      'Estado': user.estado,
-      'Rol': user.rol
-    })
-    
-    // Format data
-    const datosActivos = usuariosActivos.map(formatUserData)
-    const datosInactivos = usuariosInactivos.map(formatUserData)
-    
-    // Create workbook
-    const workbook = XLSX.utils.book_new()
-    
-    // Create sheets
-    const worksheetActivos = XLSX.utils.json_to_sheet(datosActivos)
-    const worksheetInactivos = XLSX.utils.json_to_sheet(datosInactivos)
-    
-    // Add sheets to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheetActivos, 'Usuarios Activos')
-    XLSX.utils.book_append_sheet(workbook, worksheetInactivos, 'Usuarios Inactivos')
-    
-    // Generate filename with date
-    const fecha = new Date().toISOString().split('T')[0]
-    const nombreArchivo = `usuarios_${fecha}.xlsx`
-    
-    // Download file
-    XLSX.writeFile(workbook, nombreArchivo)
-    
-  } catch (error) {
-    console.error('Error al exportar usuarios:', error)
-    alert('Error al exportar usuarios. Por favor, intente nuevamente.')
-  }
-}
 
 const handleEditUser = (user: any) => {
   console.log('Usuario seleccionado:', user);
@@ -1536,11 +1094,12 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                     <p className="text-muted-foreground">Gestiona los usuarios del sistema.</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button onClick={handleImportUsers} variant="outline" className="flex items-center gap-2">
-                      <Upload className="h-4 w-4" />
-                      Importar
-                    </Button>
-                    <Button onClick={handleExportUsers} variant="outline" className="flex items-center gap-2">
+                    <ImportUsersModal onSuccess={fetchUsers} />
+                    <Button 
+                      onClick={handleExportUsers} 
+                      variant="outline" 
+                      className="flex items-center gap-2"
+                    >
                       <Download className="h-4 w-4" />
                       Exportar
                     </Button>
@@ -1684,28 +1243,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                   </CardContent>
                 </Card>
 
-                {/* Progreso de importación */}
-                {isImporting && (
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-medium">Importando usuarios</h3>
-                          <span className="text-sm text-muted-foreground">{importProgress}%</span>
-                        </div>
-                        <Progress value={importProgress} className="w-full" />
-                        <div className="text-sm text-muted-foreground">{importStatus}</div>
-                        {(importResults.created > 0 || importResults.updated > 0 || importResults.errors > 0) && (
-                          <div className="flex gap-4 text-sm">
-                            <span className="text-green-600">Creados: {importResults.created}</span>
-                            <span className="text-blue-600">Actualizados: {importResults.updated}</span>
-                            <span className="text-red-600">Errores: {importResults.errors}</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+
 
                 <div className="rounded-md border bg-white">
                   {loading || searchLoading ? (

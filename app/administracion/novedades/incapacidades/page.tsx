@@ -26,7 +26,6 @@ import {
   ChevronDown,
   Download,
   MessageSquare,
-  FileSpreadsheet,
   Plus,
   Upload,
   User,
@@ -128,57 +127,7 @@ export default function AdminNovedadesIncapacidades() {
     return diffDays
   }
 
-  // Función para descargar Excel
-  const descargarExcel = async () => {
-    try {
-      setActionLoading(true)
-      
-      // Import xlsx dynamically
-      const XLSX = await import('xlsx')
-      
-      // Preparar datos para Excel
-      const datosExcel = filteredIncapacidades.map((inc) => ({
-        'Colaborador': inc.usuario?.colaborador || '—',
-        'Cédula': inc.usuario?.cedula || '—',
-        'Empresa': inc.usuario?.empresa_nombre || '—',
-        'Cargo': inc.usuario?.cargo || '—',
-        'Fecha Inicio': inc.fecha_inicio ? formatDate(inc.fecha_inicio) : '—',
-        'Fecha Fin': inc.fecha_fin ? formatDate(inc.fecha_fin) : '—',
-        'Cantidad de Días': calculateDays(inc.fecha_inicio, inc.fecha_fin),
-        'Fecha Subida': inc.fecha_subida ? formatDate(inc.fecha_subida) : '—',
-        'Estado': inc.estado === 'en_revision' ? 'En revisión' : 
-                 inc.estado === 'aprobada' ? 'Aprobado' : 
-                 inc.estado === 'rechazada' ? 'Rechazado' : 
-                 inc.estado?.charAt(0).toUpperCase() + inc.estado?.slice(1) || 'En revisión',
-        'Motivo Rechazo': inc.motivo_rechazo || '—',
-        'Fecha Resolución': inc.fecha_resolucion ? formatDate(inc.fecha_resolucion) : '—'
-      }))
-      
-      // Crear libro de trabajo
-      const workbook = XLSX.utils.book_new()
-      
-      // Crear hoja de trabajo
-      const worksheet = XLSX.utils.json_to_sheet(datosExcel)
-      
-      // Agregar hoja al libro
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Incapacidades')
-      
-      // Generar nombre del archivo con fecha actual
-      const fecha = new Date().toISOString().split('T')[0]
-      const nombreArchivo = `incapacidades_${fecha}.xlsx`
-      
-      // Descargar archivo
-      XLSX.writeFile(workbook, nombreArchivo)
-      
-      setSuccess("Archivo Excel descargado correctamente.")
-      
-    } catch (err: any) {
-      console.error("Error al generar Excel:", err)
-      setError("Error al generar el archivo Excel")
-    } finally {
-      setActionLoading(false)
-    }
-  }
+
 
   // — Función para aprobar incapacidad
   const aprobarIncapacidad = async (incapacidadId: string) => {
@@ -886,15 +835,7 @@ export default function AdminNovedadesIncapacidades() {
                 <X className="mr-2 h-4 w-4" />
                 Limpiar filtros
               </Button>
-              <Button 
-                variant="outline" 
-                className="w-full md:w-auto bg-black hover:bg-slate-900 hover:text-white text-white border-black-200" 
-                onClick={descargarExcel}
-                disabled={actionLoading || filteredIncapacidades.length === 0}
-              >
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                {actionLoading ? "Generando..." : "Descargar Excel"}
-              </Button>
+
               <Button 
                 className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white" 
                 onClick={openNewIncapacidadModal}

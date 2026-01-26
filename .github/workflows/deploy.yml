@@ -23,11 +23,11 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u bdatamcol --password-stdin
             cd /srv/stacks/gestionhumana360
             docker compose pull
             docker compose up -d
             docker image prune -f
 
       - name: Notify Deployment Success
-        if: ${{ steps.deploy.outcome == 'success' }}
         run: echo "Deployment to production environment was successful by @ronaldo071515."

@@ -224,10 +224,10 @@ export async function GET(request: NextRequest) {
           .from('usuario_nomina')
           .select('colaborador, avatar_path, rol')
           .eq('auth_user_id', onlineUser.user_id)
-          .eq('rol', 'usuario')
+          .in('rol', ['usuario', 'jefe'])
           .single()
         
-        // Solo agregar si el usuario tiene rol 'usuario'
+        // Solo agregar si el usuario tiene rol 'usuario' o 'jefe'
         if (userData && !userError) {
           usersWithInfo.push({
             user_id: onlineUser.user_id,

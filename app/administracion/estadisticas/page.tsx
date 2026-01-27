@@ -167,7 +167,7 @@ export default function EstadisticasPage() {
         .from('usuario_nomina')
         .select('genero')
         .eq('rol', 'usuario')
-        .in('genero', ['F', 'M'])
+        .in('genero', ['Femenino', 'Masculino'])
       
       if (empresaFilter) {
         generoQuery = generoQuery.eq('empresa_id', empresaFilter)
@@ -414,8 +414,8 @@ export default function EstadisticasPage() {
         }, {})
         
         const totalGenero = generoResult.data.length
-        const mujeres = generoCount['F'] || 0
-        const hombres = generoCount['M'] || 0
+        const mujeres = generoCount['Femenino'] || 0
+        const hombres = generoCount['Masculino'] || 0
         
         const generoData: GeneroStats[] = [
           {

@@ -18,7 +18,7 @@ export default function TestVacaciones() {
       const { data, error } = await supabase
         .from('usuario_nomina')
         .select('colaborador, auth_user_id')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
         .limit(5)
       
       if (error) throw error

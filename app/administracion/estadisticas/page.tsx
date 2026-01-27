@@ -166,7 +166,7 @@ export default function EstadisticasPage() {
       let generoQuery = supabase
         .from('usuario_nomina')
         .select('genero')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
         .in('genero', ['Femenino', 'Masculino'])
       
       if (empresaFilter) {
@@ -183,7 +183,7 @@ export default function EstadisticasPage() {
       let sedesQuery = supabase
         .from('usuario_nomina')
         .select('sede_id')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
       
       if (empresaFilter) {
         sedesQuery = sedesQuery.eq('empresa_id', empresaFilter)
@@ -206,7 +206,7 @@ export default function EstadisticasPage() {
       let cargosQuery = supabase
         .from('usuario_nomina')
         .select('cargo_id')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
       
       if (empresaFilter) {
         cargosQuery = cargosQuery.eq('empresa_id', empresaFilter)
@@ -229,7 +229,7 @@ export default function EstadisticasPage() {
       let epsQuery = supabase
         .from('usuario_nomina')
         .select('eps_id')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
       
       if (empresaFilter) {
         epsQuery = epsQuery.eq('empresa_id', empresaFilter)
@@ -252,7 +252,7 @@ export default function EstadisticasPage() {
       let afpQuery = supabase
         .from('usuario_nomina')
         .select('afp_id')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
       
       if (empresaFilter) {
         afpQuery = afpQuery.eq('empresa_id', empresaFilter)
@@ -275,7 +275,7 @@ export default function EstadisticasPage() {
       let cesantiasQuery = supabase
         .from('usuario_nomina')
         .select('cesantias_id')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
       
       if (empresaFilter) {
         cesantiasQuery = cesantiasQuery.eq('empresa_id', empresaFilter)
@@ -298,7 +298,7 @@ export default function EstadisticasPage() {
       let cajaQuery = supabase
         .from('usuario_nomina')
         .select('caja_de_compensacion_id')
-        .eq('rol', 'usuario')
+        .in('rol', ['usuario', 'jefe'])
       
       if (empresaFilter) {
         cajaQuery = cajaQuery.eq('empresa_id', empresaFilter)
@@ -365,7 +365,7 @@ export default function EstadisticasPage() {
         for (const empresa of empresasResult.data) {
           const empresaTyped = empresa as Empresa
           const usuariosEmpresa = empresasDataResult.data.filter((u: any) => 
-            u.empresa_id === empresaTyped.id && u.rol === 'usuario'
+            u.empresa_id === empresaTyped.id && ['usuario', 'jefe'].includes(u.rol)
           )
           
           // Filtrar usuarios según el estado seleccionado

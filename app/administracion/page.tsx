@@ -83,9 +83,9 @@ export default function Administracion() {
         { data: vacationRequests },
         { data: companies }
       ] = await Promise.all([
-        supabase.from('usuario_nomina').select('auth_user_id').eq('rol', 'usuario'),
-        supabase.from('usuario_nomina').select('auth_user_id').eq('rol', 'usuario').eq('estado', 'activo'),
-        supabase.from('usuario_nomina').select('auth_user_id').eq('rol', 'usuario').eq('estado', 'inactivo'),
+        supabase.from('usuario_nomina').select('auth_user_id').in('rol', ['usuario', 'jefe']),
+        supabase.from('usuario_nomina').select('auth_user_id').in('rol', ['usuario', 'jefe']).eq('estado', 'activo'),
+        supabase.from('usuario_nomina').select('auth_user_id').in('rol', ['usuario', 'jefe']).eq('estado', 'inactivo'),
         supabase.from('solicitudes_vacaciones').select('usuario_id').eq('estado', 'aprobado').lte('fecha_inicio', today).gte('fecha_fin', today),
         supabase.from('empresas').select('id')
       ])
@@ -132,9 +132,9 @@ export default function Administracion() {
           { data: solicitudesPermisosData },
           { data: incapacidadesData }
         ] = await Promise.all([
-          supabase.from('usuario_nomina').select('auth_user_id').eq('rol', 'usuario'),
-          supabase.from('usuario_nomina').select('auth_user_id').eq('rol', 'usuario').eq('estado', 'activo'),
-          supabase.from('usuario_nomina').select('auth_user_id').eq('rol', 'usuario').eq('estado', 'inactivo'),
+          supabase.from('usuario_nomina').select('auth_user_id').in('rol', ['usuario', 'jefe']),
+          supabase.from('usuario_nomina').select('auth_user_id').in('rol', ['usuario', 'jefe']).eq('estado', 'activo'),
+          supabase.from('usuario_nomina').select('auth_user_id').in('rol', ['usuario', 'jefe']).eq('estado', 'inactivo'),
           supabase.from('solicitudes_vacaciones').select('usuario_id').eq('estado', 'aprobado').lte('fecha_inicio', today).gte('fecha_fin', today),
           supabase.from('empresas').select('id'),
           supabase.from('solicitudes_certificacion').select('*, usuario_nomina:usuario_id(colaborador, cedula)').eq('estado', 'pendiente').order('fecha_solicitud', { ascending: false }).limit(5),
@@ -152,7 +152,7 @@ export default function Administracion() {
         const { data: vacationUsers } = uniqueVacationUserIds.length > 0 ? await supabase
           .from('usuario_nomina')
           .select('auth_user_id')
-          .eq('rol', 'usuario')
+          .in('rol', ['usuario', 'jefe'])
           .eq('estado', 'activo')
           .in('auth_user_id', uniqueVacationUserIds) : { data: [] }
 

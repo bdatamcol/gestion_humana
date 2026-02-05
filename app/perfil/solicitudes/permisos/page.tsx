@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import { FileUpload } from "@/components/ui/file-upload"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
 
 export default function SolicitudPermisos() {
@@ -47,6 +48,7 @@ export default function SolicitudPermisos() {
     motivo: "",
     compensacion: "",
     ciudad: "",
+    soporteUrl: "",
   })
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -375,6 +377,12 @@ export default function SolicitudPermisos() {
       return
     }
 
+    // Validar soporte obligatorio
+    if (!formData.soporteUrl) {
+      setError("Debe adjuntar un documento de soporte.")
+      return
+    }
+
     // Validar que la fecha de fin sea posterior o igual a la fecha de inicio
     const fechaInicio = new Date(formData.fechaInicio)
     const fechaFin = new Date(formData.fechaFin)
@@ -420,6 +428,7 @@ export default function SolicitudPermisos() {
           motivo: formData.motivo,
           compensacion: formData.compensacion || null,
           ciudad: formData.ciudad || null,
+          soporte_url: formData.soporteUrl,
           fecha_solicitud: new Date().toISOString(),
           estado: 'pendiente'
         }])
@@ -467,6 +476,7 @@ export default function SolicitudPermisos() {
         motivo: "",
         compensacion: "",
         ciudad: "",
+        soporteUrl: "",
       })
     } catch (err: any) {
       console.error("Error al enviar la solicitud:", err)
@@ -669,6 +679,21 @@ export default function SolicitudPermisos() {
                   value={formData.motivo}
                   onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
                 />
+              </div>
+
+              <div className="grid grid-cols-4 items-start gap-4 pt-2">
+                <Label className="text-right pt-2">
+                  Soporte <span className="text-red-500">*</span>
+                </Label>
+                <div className="col-span-3">
+                  <FileUpload
+                    value={formData.soporteUrl}
+                    onChange={(url) => setFormData({ ...formData, soporteUrl: url })}
+                    bucket="permisos"
+                    label="Adjuntar documento de soporte"
+                    accept="image/*,application/pdf"
+                  />
+                </div>
               </div>
 
               {formData.tipoPermiso === "remunerado" && (

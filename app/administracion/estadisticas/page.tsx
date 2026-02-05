@@ -166,7 +166,7 @@ export default function EstadisticasPage() {
       let generoQuery = supabase
         .from('usuario_nomina')
         .select('genero')
-        .in('rol', ['usuario', 'jefe'])
+        .in('rol', ['usuario', 'jefe', 'Jefe', 'JEFE'])
         .in('genero', ['Femenino', 'Masculino'])
       
       if (empresaFilter) {
@@ -183,7 +183,7 @@ export default function EstadisticasPage() {
       let sedesQuery = supabase
         .from('usuario_nomina')
         .select('sede_id')
-        .in('rol', ['usuario', 'jefe'])
+        .in('rol', ['usuario', 'jefe', 'Jefe', 'JEFE'])
       
       if (empresaFilter) {
         sedesQuery = sedesQuery.eq('empresa_id', empresaFilter)
@@ -206,7 +206,7 @@ export default function EstadisticasPage() {
       let cargosQuery = supabase
         .from('usuario_nomina')
         .select('cargo_id')
-        .in('rol', ['usuario', 'jefe'])
+        .in('rol', ['usuario', 'jefe', 'Jefe', 'JEFE'])
       
       if (empresaFilter) {
         cargosQuery = cargosQuery.eq('empresa_id', empresaFilter)
@@ -229,7 +229,7 @@ export default function EstadisticasPage() {
       let epsQuery = supabase
         .from('usuario_nomina')
         .select('eps_id')
-        .in('rol', ['usuario', 'jefe'])
+        .in('rol', ['usuario', 'jefe', 'Jefe', 'JEFE'])
       
       if (empresaFilter) {
         epsQuery = epsQuery.eq('empresa_id', empresaFilter)
@@ -252,7 +252,7 @@ export default function EstadisticasPage() {
       let afpQuery = supabase
         .from('usuario_nomina')
         .select('afp_id')
-        .in('rol', ['usuario', 'jefe'])
+        .in('rol', ['usuario', 'jefe', 'Jefe', 'JEFE'])
       
       if (empresaFilter) {
         afpQuery = afpQuery.eq('empresa_id', empresaFilter)
@@ -275,7 +275,7 @@ export default function EstadisticasPage() {
       let cesantiasQuery = supabase
         .from('usuario_nomina')
         .select('cesantias_id')
-        .in('rol', ['usuario', 'jefe'])
+        .in('rol', ['usuario', 'jefe', 'Jefe', 'JEFE'])
       
       if (empresaFilter) {
         cesantiasQuery = cesantiasQuery.eq('empresa_id', empresaFilter)
@@ -298,7 +298,7 @@ export default function EstadisticasPage() {
       let cajaQuery = supabase
         .from('usuario_nomina')
         .select('caja_de_compensacion_id')
-        .in('rol', ['usuario', 'jefe'])
+        .in('rol', ['usuario', 'jefe', 'Jefe', 'JEFE'])
       
       if (empresaFilter) {
         cajaQuery = cajaQuery.eq('empresa_id', empresaFilter)
@@ -365,7 +365,7 @@ export default function EstadisticasPage() {
         for (const empresa of empresasResult.data) {
           const empresaTyped = empresa as Empresa
           const usuariosEmpresa = empresasDataResult.data.filter((u: any) => 
-            u.empresa_id === empresaTyped.id && ['usuario', 'jefe'].includes(u.rol)
+            u.empresa_id === empresaTyped.id && ['usuario', 'jefe', 'Jefe', 'JEFE'].includes(u.rol)
           )
           
           // Filtrar usuarios según el estado seleccionado
@@ -389,6 +389,28 @@ export default function EstadisticasPage() {
             nombre: empresaTyped.nombre,
             usuarios_activos: activosEmpresa,
             usuarios_totales: totalEmpresa,
+            porcentaje: 0
+          })
+        }
+
+        // Manejar usuarios sin empresa o con empresa no válida
+        const usuariosSinEmpresa = empresasDataResult.data.filter((u: any) => 
+          (!u.empresa_id || !empresasResult.data.some((e: any) => e.id === u.empresa_id)) && 
+          ['usuario', 'jefe', 'Jefe', 'JEFE'].includes(u.rol)
+        )
+
+        if (usuariosSinEmpresa.length > 0) {
+          const usuariosActivos = usuariosSinEmpresa.filter((u: any) => u.estado === 'activo')
+          const totalSinEmpresa = usuariosSinEmpresa.length
+          const activosSinEmpresa = usuariosActivos.length
+          
+          totalUsuariosGlobal += totalSinEmpresa
+          
+          empresasConStats.push({
+            id: 'sin-empresa',
+            nombre: 'Sin Empresa Asignada',
+            usuarios_activos: activosSinEmpresa,
+            usuarios_totales: totalSinEmpresa,
             porcentaje: 0
           })
         }

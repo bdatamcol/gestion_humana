@@ -37,6 +37,7 @@ interface Usuario {
   colaborador?: string
   cedula?: string
   cargo?: string
+  cargos?: { nombre: string }
   fecha_ingreso?: string
   empresa_id?: string
   empresas?: Empresa
@@ -57,6 +58,7 @@ interface SolicitudPermiso {
   fecha_resolucion?: string
   motivo_rechazo?: string
   pdf_url?: string
+  soporte_url?: string
   usuario_id: string
   admin_id?: string
   usuario?: Usuario | null
@@ -188,7 +190,7 @@ export default function AdminSolicitudesPermisos() {
             .select(`
               id, tipo_permiso, fecha_inicio, fecha_fin, hora_inicio, hora_fin, 
               motivo, compensacion, ciudad, estado, fecha_solicitud, fecha_resolucion, 
-              motivo_rechazo, pdf_url, usuario_id, admin_id
+              motivo_rechazo, pdf_url, soporte_url, usuario_id, admin_id
             `)
             .order('fecha_solicitud', { ascending: false })
         ])
@@ -1295,7 +1297,7 @@ export default function AdminSolicitudesPermisos() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Cargo</h4>
-                    <p>{typeof selectedDetailsSolicitud.usuario?.cargo === 'string' ? selectedDetailsSolicitud.usuario.cargo : (selectedDetailsSolicitud.usuario?.cargo as unknown as { nombre?: string })?.nombre || 'No disponible'}</p>
+                    <p>{selectedDetailsSolicitud.usuario?.cargos?.nombre || selectedDetailsSolicitud.usuario?.cargo || 'No disponible'}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Empresa</h4>
@@ -1359,6 +1361,31 @@ export default function AdminSolicitudesPermisos() {
                   <h4 className="font-semibold mb-2">Compensación</h4>
                   <div className="bg-muted/30 p-4 rounded-md">
                     <p className="text-sm whitespace-pre-wrap">{selectedDetailsSolicitud.compensacion}</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedDetailsSolicitud.soporte_url && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2">Documento de Soporte</h4>
+                  <div className="bg-muted/30 p-4 rounded-md flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                       {selectedDetailsSolicitud.soporte_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                         <Eye className="h-5 w-5 text-blue-500" />
+                       ) : (
+                         <FileDown className="h-5 w-5 text-blue-500" />
+                       )}
+                       <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                         {selectedDetailsSolicitud.soporte_url.split('/').pop()}
+                       </span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => window.open(selectedDetailsSolicitud.soporte_url, '_blank')}
+                    >
+                      Ver documento
+                    </Button>
                   </div>
                 </div>
               )}

@@ -22,7 +22,7 @@ export default function Perfil() {
       }
 
       // Obtener datos del usuario desde la tabla usuario_nomina con relaciones
-      const { data: userData, error: userError } = await supabase
+      const { data: userNomina, error: userError } = await supabase
         .from("usuario_nomina")
         .select(`
           *,
@@ -40,6 +40,27 @@ export default function Perfil() {
       if (userError) {
         console.error("Error al obtener datos del usuario:", userError)
         return
+      }
+
+      // Obtener jefe(s) asignado(s)
+      const { data: relacionesJefes } = await supabase
+        .from("usuario_jefes")
+        .select("jefe_id")
+        .eq("usuario_id", session.user.id)
+
+      let jefeNombre = "No asignado"
+
+      if (relacionesJefes && relacionesJefes.length > 0) {
+        const jefeIds = relacionesJefes.map((relacion: any) => relacion.jefe_id)
+
+        const { data: jefesData } = await supabase
+          .from("usuario_nomina")
+          .select("colaborador")
+          .in("auth_user_id", jefeIds)
+
+        if (jefesData && jefesData.length > 0) {
+          jefeNombre = jefesData.map((jefe: any) => jefe.colaborador).join(", ")
+        }
       }
 
       // Verificar si el usuario está actualmente de vacaciones
@@ -103,12 +124,15 @@ export default function Perfil() {
         }
       }
 
+      const baseUserData = (userNomina ?? {}) as Record<string, any>
+
       // Agregar el estado de vacaciones al userData
       const userDataWithVacaciones = {
-        ...userData,
+        ...baseUserData,
         enVacaciones: vacacionesActivas && vacacionesActivas.length > 0,
         estadoVacaciones,
-        rangoVacaciones
+        rangoVacaciones,
+        jefeNombre
       }
 
       setUserData(userDataWithVacaciones)

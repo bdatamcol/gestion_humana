@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { diffDaysInclusive, formatLocalDate } from "@/lib/date-utils";
 
 export default function Administracion() {
   const router = useRouter()
@@ -683,7 +684,7 @@ export default function Administracion() {
             <TableBody>
               {solicitudesCertificacion.map((solicitud, index) => (
                 <TableRow key={solicitud.id || `certificacion-${index}`}>
-                  <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatLocalDate(solicitud.fecha_solicitud)}</TableCell>
                   <TableCell>{solicitud.usuario_nomina?.colaborador}</TableCell>
                   <TableCell>
                     <Badge
@@ -731,14 +732,10 @@ export default function Administracion() {
             <TableBody>
               {solicitudesVacaciones.map((solicitud, index) => (
                 <TableRow key={solicitud.id || `vacacion-${index}`}>
-                  <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatLocalDate(solicitud.fecha_solicitud)}</TableCell>
                   <TableCell>{solicitud.usuario?.colaborador}</TableCell>
                   <TableCell>
-                    {Math.ceil(
-                      (new Date(solicitud.fecha_fin).getTime() - 
-                      new Date(solicitud.fecha_inicio).getTime()) / 
-                      (1000 * 3600 * 24)
-                    ) + 1}
+                    {diffDaysInclusive(solicitud.fecha_inicio, solicitud.fecha_fin)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -777,7 +774,7 @@ export default function Administracion() {
             <TableBody>
               {solicitudesPermisos.map((solicitud, index) => (
                 <TableRow key={solicitud.id || `permiso-${index}`}>
-                  <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatLocalDate(solicitud.fecha_solicitud)}</TableCell>
                   <TableCell>{solicitud.usuario?.colaborador}</TableCell>
                   <TableCell>{solicitud.tipo_permiso}</TableCell>
                 </TableRow>
@@ -817,14 +814,10 @@ export default function Administracion() {
             <TableBody>
               {notificacionesIncapacidades.map((incapacidad, index) => (
                 <TableRow key={incapacidad.id || `incapacidad-${index}`}>
-                  <TableCell>{new Date(incapacidad.fecha_subida).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatLocalDate(incapacidad.fecha_subida)}</TableCell>
                   <TableCell>{incapacidad.usuario?.colaborador}</TableCell>
                   <TableCell>
-                    {Math.ceil(
-                      (new Date(incapacidad.fecha_fin).getTime() - 
-                      new Date(incapacidad.fecha_inicio).getTime()) / 
-                      (1000 * 3600 * 24)
-                    ) + 1}
+                    {diffDaysInclusive(incapacidad.fecha_inicio, incapacidad.fecha_fin)}
                   </TableCell>
                 </TableRow>
               ))}

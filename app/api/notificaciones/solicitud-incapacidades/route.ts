@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase-server'
 import nodemailer from 'nodemailer'
+import { formatLocalDate } from '@/lib/date-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
         fechaLimpia = date.slice(0, 10)
       }
       
-      return new Date(fechaLimpia + 'T00:00:00').toLocaleDateString('es-ES', {
+      return formatLocalDate(fechaLimpia, 'es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase-server'
 import nodemailer from 'nodemailer'
+import { formatLocalDate } from '@/lib/date-utils'
 
 // Función para obtener configuración SMTP
 function getSMTPConfig() {
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Preparar el contenido del correo
-    const fechaSolicitud = new Date(solicitudData.fecha_solicitud).toLocaleDateString('es-CO', {
+    const fechaSolicitud = formatLocalDate(solicitudData.fecha_solicitud, 'es-CO', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import { formatLocalDate } from "@/lib/date-utils"
 import {
   Table,
   TableBody,
@@ -39,6 +40,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ComentariosCertificacion } from "@/components/certificacion-laboral/certificacion-laboral"
+
 
 export default function CertificacionLaboral() {
   const router = useRouter()
@@ -141,8 +143,8 @@ export default function CertificacionLaboral() {
   }
 
   // formatea fecha
-  const formatDate = (d: Date) =>
-    d.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
+  const formatDate = (d: string | Date | null | undefined) =>
+    formatLocalDate(d, "es-CO", { year: "numeric", month: "long", day: "numeric" })
 
   // enviar nueva solicitud
   const enviarSolicitud = async () => {
@@ -366,7 +368,7 @@ export default function CertificacionLaboral() {
                       {solicitudes.map((s) => (
                         <TableRow key={s.id}>
                           <TableCell>
-                            {formatDate(new Date(s.fecha_solicitud))}
+                            {formatDate(s.fecha_solicitud)}
                           </TableCell>
                           <TableCell>{s.dirigido_a}</TableCell>
                           <TableCell>{s.ciudad}</TableCell>

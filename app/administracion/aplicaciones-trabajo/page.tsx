@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Download, Eye, Calendar, User, Mail, Phone, FileText, MapPin, GraduationCap, Briefcase, Filter, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { parseLocalDate } from "@/lib/date-utils"
 
 interface AplicacionTrabajo {
   id: string
@@ -309,7 +310,7 @@ export default function AplicacionesTrabajoPage() {
                                             Fecha de Nacimiento
                                           </label>
                                           <p className="text-sm bg-gray-50 p-2 rounded">
-                                            {format(new Date(selectedAplicacion.fecha_nacimiento), 'dd/MM/yyyy', { locale: es })}
+                                            {format(parseLocalDate(selectedAplicacion.fecha_nacimiento), 'dd/MM/yyyy', { locale: es })}
                                           </p>
                                         </div>
                                       )}

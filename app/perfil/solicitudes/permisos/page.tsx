@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { FileUpload } from "@/components/ui/file-upload"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
+import { formatLocalDate } from "@/lib/date-utils"
 
 export default function SolicitudPermisos() {
   const [showReasonModal, setShowReasonModal] = useState(false)
@@ -313,10 +314,7 @@ export default function SolicitudPermisos() {
     checkAuth()
   }, [])
 
-  const formatDate = (date: string | Date) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
-    return new Date(date).toLocaleDateString('es-CO', options)
-  }
+  const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
 
   const aprobarComoJefe = async (solicitudId: string) => {
     try {
@@ -753,8 +751,8 @@ export default function SolicitudPermisos() {
                              s.tipo_permiso === 'remunerado' ? 'Remunerado' :
                              'Actividad interna'}
                           </TableCell>
-                          <TableCell>{new Date(s.fecha_inicio).toLocaleDateString()}</TableCell>
-                          <TableCell>{new Date(s.fecha_fin).toLocaleDateString()}</TableCell>
+                          <TableCell>{formatDate(s.fecha_inicio)}</TableCell>
+                          <TableCell>{formatDate(s.fecha_fin)}</TableCell>
                           <TableCell>
                             <Badge variant={
                               s.estado_aprobacion_jefe === 'aprobado' ? 'secondary' :
@@ -827,14 +825,14 @@ export default function SolicitudPermisos() {
                   {solicitudes.length > 0 ? (
                     solicitudes.map((solicitud) => (
                       <TableRow key={solicitud.id}>
-                        <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(solicitud.fecha_solicitud)}</TableCell>
                         <TableCell>
                           {solicitud.tipo_permiso === 'no_remunerado' ? 'No remunerado' :
                            solicitud.tipo_permiso === 'remunerado' ? 'Remunerado' :
                            'Actividad interna'}
                         </TableCell>
-                        <TableCell>{new Date(solicitud.fecha_inicio).toLocaleDateString()}</TableCell>
-                        <TableCell>{new Date(solicitud.fecha_fin).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(solicitud.fecha_inicio)}</TableCell>
+                        <TableCell>{formatDate(solicitud.fecha_fin)}</TableCell>
                         <TableCell>
                           <Badge
                             variant={solicitud.estado === 'aprobado' ? 'secondary' :
@@ -979,7 +977,7 @@ export default function SolicitudPermisos() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Fecha Solicitud</h4>
-                    <p>{new Date(selectedDetailsSolicitud.fecha_solicitud).toLocaleDateString()}</p>
+                    <p>{formatDate(selectedDetailsSolicitud.fecha_solicitud)}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Ciudad</h4>
@@ -993,11 +991,11 @@ export default function SolicitudPermisos() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-muted/30 p-3 rounded-md">
                     <span className="text-sm font-medium block mb-1">Inicio</span>
-                    <p>{new Date(selectedDetailsSolicitud.fecha_inicio).toLocaleDateString()} {selectedDetailsSolicitud.hora_inicio || ''}</p>
+                    <p>{formatDate(selectedDetailsSolicitud.fecha_inicio)} {selectedDetailsSolicitud.hora_inicio || ''}</p>
                   </div>
                   <div className="bg-muted/30 p-3 rounded-md">
                     <span className="text-sm font-medium block mb-1">Fin</span>
-                    <p>{new Date(selectedDetailsSolicitud.fecha_fin).toLocaleDateString()} {selectedDetailsSolicitud.hora_fin || ''}</p>
+                    <p>{formatDate(selectedDetailsSolicitud.fecha_fin)} {selectedDetailsSolicitud.hora_fin || ''}</p>
                   </div>
                 </div>
               </div>

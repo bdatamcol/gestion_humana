@@ -31,6 +31,7 @@ import {
   User,
 } from "lucide-react"
 import { ComentariosIncapacidades } from "@/components/incapacidades/comentarios-incapacidades"
+import { diffDaysInclusive, formatLocalDate, parseLocalDate } from "@/lib/date-utils"
 
 // Interfaz para incapacidad
 interface Incapacidad {
@@ -107,24 +108,13 @@ export default function AdminNovedadesIncapacidades() {
   const userSearchTimeout = useRef<NodeJS.Timeout | null>(null)
 
   // Formatea fecha
-  const formatDate = (date: Date | string) => {
-    const d = new Date(date)
-    return d.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })
-  }
+  const formatDate = (date: Date | string) =>
+    formatLocalDate(date, "es-CO", { year: "numeric", month: "long", day: "numeric" })
 
   // Calcula la cantidad de días entre dos fechas
   const calculateDays = (fechaInicio: string, fechaFin: string) => {
     if (!fechaInicio || !fechaFin) return 0
-    
-    const inicio = new Date(fechaInicio)
-    const fin = new Date(fechaFin)
-    
-    // Calcular la diferencia en milisegundos
-    const diffTime = Math.abs(fin.getTime() - inicio.getTime())
-    // Convertir a días (incluye el día de inicio)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-    
-    return diffDays
+    return diffDaysInclusive(fechaInicio, fechaFin)
   }
 
 
@@ -665,8 +655,8 @@ export default function AdminNovedadesIncapacidades() {
     }
 
     if (newIncapacidadForm.fecha_inicio && newIncapacidadForm.fecha_fin) {
-      const fechaInicio = new Date(newIncapacidadForm.fecha_inicio)
-      const fechaFin = new Date(newIncapacidadForm.fecha_fin)
+      const fechaInicio = parseLocalDate(newIncapacidadForm.fecha_inicio)
+      const fechaFin = parseLocalDate(newIncapacidadForm.fecha_fin)
       
       if (fechaFin < fechaInicio) {
         errors.fecha_fin = "La fecha de fin no puede ser anterior a la fecha de inicio"

@@ -43,6 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { formatLocalDate, parseLocalDate } from "@/lib/date-utils"
 
 export default function HistoricoCertificacionLaboral() {
   const router = useRouter()
@@ -157,7 +158,7 @@ export default function HistoricoCertificacionLaboral() {
     // Filtro por año
     if (selectedYear !== "all") {
       filtered = filtered.filter((sol) => {
-        const year = new Date(sol.fecha_solicitud).getFullYear().toString()
+        const year = parseLocalDate(sol.fecha_solicitud).getFullYear().toString()
         return year === selectedYear
       })
     }
@@ -167,7 +168,7 @@ export default function HistoricoCertificacionLaboral() {
 
   // Obtener años únicos para el filtro
   const getUniqueYears = () => {
-    const years = solicitudes.map((sol) => new Date(sol.fecha_solicitud).getFullYear())
+    const years = solicitudes.map((sol) => parseLocalDate(sol.fecha_solicitud).getFullYear())
     return [...new Set(years)].sort((a, b) => b - a)
   }
 
@@ -384,7 +385,7 @@ export default function HistoricoCertificacionLaboral() {
                     filteredSolicitudes.map((solicitud) => (
                       <TableRow key={solicitud.id}>
                         <TableCell>
-                          {new Date(solicitud.fecha_solicitud).toLocaleDateString()}
+                          {formatLocalDate(solicitud.fecha_solicitud)}
                         </TableCell>
                         <TableCell>{solicitud.dirigido_a}</TableCell>
                         <TableCell>{solicitud.ciudad}</TableCell>

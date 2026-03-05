@@ -27,6 +27,7 @@ import { useEffect, useState, useRef } from "react"
 import { createSupabaseClient } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { formatLocalDate } from "@/lib/date-utils"
 
 interface ProfileCardProps {
   userData: any
@@ -449,16 +450,16 @@ export function ProfileCard({ userData }: ProfileCardProps) {
                   <p className="text-sm font-medium">
                     {(() => {
                       if (userData?.estadoVacaciones === "ya_tomo" && userData?.rangoVacaciones) {
-                        const fechaInicio = new Date(userData.rangoVacaciones.inicio + 'T00:00:00').toLocaleDateString('es-ES')
-                        const fechaFin = new Date(userData.rangoVacaciones.fin + 'T00:00:00').toLocaleDateString('es-ES')
+                        const fechaInicio = formatLocalDate(userData.rangoVacaciones.inicio, "es-ES")
+                        const fechaFin = formatLocalDate(userData.rangoVacaciones.fin, "es-ES")
                         return `Ya tomó vacaciones (${fechaInicio} - ${fechaFin})`
                       } else if (userData?.estadoVacaciones === "en_vacaciones" && userData?.rangoVacaciones) {
-                        const fechaInicio = new Date(userData.rangoVacaciones.inicio + 'T00:00:00').toLocaleDateString('es-ES')
-                        const fechaFin = new Date(userData.rangoVacaciones.fin + 'T00:00:00').toLocaleDateString('es-ES')
+                        const fechaInicio = formatLocalDate(userData.rangoVacaciones.inicio, "es-ES")
+                        const fechaFin = formatLocalDate(userData.rangoVacaciones.fin, "es-ES")
                         return `Actualmente de vacaciones (${fechaInicio} - ${fechaFin})`
                       } else if (userData?.estadoVacaciones === "pendientes" && userData?.rangoVacaciones) {
-                        const fechaInicio = new Date(userData.rangoVacaciones.inicio + 'T00:00:00').toLocaleDateString('es-ES')
-                        const fechaFin = new Date(userData.rangoVacaciones.fin + 'T00:00:00').toLocaleDateString('es-ES')
+                        const fechaInicio = formatLocalDate(userData.rangoVacaciones.inicio, "es-ES")
+                        const fechaFin = formatLocalDate(userData.rangoVacaciones.fin, "es-ES")
                         return `Vacaciones pendientes para (${fechaInicio} - ${fechaFin})`
                       } else {
                         return "No tiene vacaciones aprobadas actualmente"

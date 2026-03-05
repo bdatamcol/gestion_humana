@@ -50,6 +50,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ComentariosCertificacion } from "@/components/certificacion-laboral/certificacion-laboral"
+import { formatLocalDate } from "@/lib/date-utils"
 
 export default function AdminCertificacionLaboral() {
   const router = useRouter()
@@ -103,27 +104,7 @@ export default function AdminCertificacionLaboral() {
   const formatDate = (d: Date | string | null | undefined) => {
     if (!d) return 'Fecha no disponible'
     try {
-      // Manejar diferentes formatos de fecha de PostgreSQL
-      let date: Date
-      if (typeof d === 'string') {
-        // Si ya incluye información de tiempo, usar directamente
-        if (d.includes('T') || d.includes(' ')) {
-          date = new Date(d)
-        } else {
-          // Si es solo fecha, agregar tiempo
-          date = new Date(d + 'T00:00:00')
-        }
-      } else {
-        date = d
-      }
-      
-      // Verificar si la fecha es válida
-      if (isNaN(date.getTime())) {
-        console.error('Fecha inválida:', d)
-        return 'Fecha inválida'
-      }
-      
-      const formatted = date.toLocaleDateString("es-CO", {
+      const formatted = formatLocalDate(d, "es-CO", {
         year: "numeric",
         month: "long",
         day: "numeric",

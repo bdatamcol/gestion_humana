@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ComentariosIncapacidades } from "@/components/incapacidades/comentarios-incapacidades"
+import { formatLocalDate } from "@/lib/date-utils"
 
 export default function IncapacidadesUsuario() {
   const router = useRouter()
@@ -58,8 +59,7 @@ export default function IncapacidadesUsuario() {
   // Formatea fecha
   const formatDate = (date: string | null | undefined) => {
     if (!date) return "No especificada"
-    const options: Intl.DateTimeFormatOptions = { year: "numeric", month: "long", day: "numeric" }
-    return new Date(date + 'T00:00:00').toLocaleDateString("es-CO", options)
+    return formatLocalDate(date, "es-CO", { year: "numeric", month: "long", day: "numeric" })
   }
 
   // Función para contar comentarios no vistos por el usuario

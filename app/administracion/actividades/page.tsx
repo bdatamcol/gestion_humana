@@ -190,6 +190,14 @@ export default function Actividades() {
       year: "numeric",
     })
 
+  const handleViewActividad = (id: string) => {
+    if (!id) {
+      setError("No se pudo abrir la actividad seleccionada.")
+      return
+    }
+    window.location.assign(`/administracion/actividades/${id}`)
+  }
+
   return (
     <div className="py-6 flex min-h-screen">
       <div className="w-full mx-auto flex-1">
@@ -351,7 +359,7 @@ export default function Actividades() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => router.push(`/administracion/actividades/${p.id}`)}
+                            onClick={() => handleViewActividad(p.id)}
                             title="Ver actividad"
                             className="h-8 w-8"
                           >

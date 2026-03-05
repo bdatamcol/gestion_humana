@@ -30,7 +30,6 @@ interface PublicacionActividad {
   imagen_principal: string | null;
   galeria_imagenes: string[];
   fecha_publicacion: string;
-  categoria_id: string;
   autor_id: string;
   estado: string;
   vistas: number;
@@ -56,101 +55,87 @@ export default function DetallePublicacionBienestarPage() {
 
   useEffect(() => {
     const checkAuthAndLoadData = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { session },
-        error: authError,
-      } = await supabase.auth.getSession();
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { session },
+          error: authError,
+        } = await supabase.auth.getSession();
 
-      if (authError || !session) {
-        router.push("/");
-        return;
-      }
+        if (authError || !session) {
+          router.push("/");
+          return;
+        }
 
-      // Verificar rol
-      const { data: userData, error: userError } = await supabase
-        .from("usuario_nomina")
-        .select("rol")
-        .eq("auth_user_id", session.user.id)
-        .single();
-
-      if (userError || userData?.rol !== "administrador") {
-        router.push("/perfil");
-        return;
-      }
-
-      // Cargar publicación
-      const { data: publicacionData, error: publicacionError } = await supabase
-        .from("publicaciones_bienestar")
-        .select(`
-          id,
-          titulo,
-          contenido,
-          imagen_principal,
-          galeria_imagenes,
-          fecha_publicacion,
-          autor_id,
-          categoria_id,
-          destacado,
-          vistas,
-          estado,
-          tipo_seccion
-        `)
-        .eq("id", publicacionId)
-        .single();
-
-      if (publicacionError || !publicacionData) {
-        setError("No se pudo cargar la actividad.");
-        setLoading(false);
-        return;
-      }
-
-      // Verificar que la publicación pertenece a la sección de actividades
-      if (publicacionData.tipo_seccion !== "actividades") {
-        router.push("/administracion/actividades");
-        return;
-      }
-
-      // Obtener datos relacionados por separado
-      let categoriaData = null;
-      let autorData = null;
-      
-      // Obtener categoría por separado
-      if (publicacionData.categoria_id) {
-        const { data: categoria } = await supabase
-          .from("categorias_bienestar")
-          .select("nombre")
-          .eq("id", publicacionData.categoria_id)
-          .single();
-        categoriaData = categoria;
-      }
-      
-      // Obtener autor por separado
-      if (publicacionData.autor_id) {
-        const { data: autor } = await supabase
+        const { data: userData, error: userError } = await supabase
           .from("usuario_nomina")
-          .select("colaborador")
-          .eq("auth_user_id", publicacionData.autor_id)
+          .select("rol")
+          .eq("auth_user_id", session.user.id)
           .single();
-        autorData = autor;
+
+        if (userError || userData?.rol !== "administrador") {
+          router.push("/perfil");
+          return;
+        }
+
+        const { data: publicacionData, error: publicacionError } = await supabase
+          .from("publicaciones_bienestar")
+          .select(`
+            id,
+            titulo,
+            contenido,
+            imagen_principal,
+            galeria_imagenes,
+            fecha_publicacion,
+            autor_id,
+            destacado,
+            vistas,
+            estado,
+            tipo_seccion
+          `)
+          .eq("id", publicacionId)
+          .maybeSingle();
+
+        if (publicacionError || !publicacionData) {
+          setError("No se pudo cargar la actividad.");
+          return;
+        }
+
+        let autorData = null;
+
+        if (publicacionData.autor_id) {
+          const [{ data: autorByAuth }, { data: autorById }] = await Promise.all([
+            supabase
+              .from("usuario_nomina")
+              .select("colaborador")
+              .eq("auth_user_id", publicacionData.autor_id)
+              .maybeSingle(),
+            supabase
+              .from("usuario_nomina")
+              .select("colaborador")
+              .eq("id", publicacionData.autor_id)
+              .maybeSingle(),
+          ]);
+          autorData = autorByAuth || autorById;
+        }
+
+        const publicacionCompleta: PublicacionActividad = {
+          ...(publicacionData as Omit<PublicacionActividad, "categorias_bienestar" | "usuario_nomina">),
+          categorias_bienestar: null,
+          usuario_nomina: autorData as { colaborador: string } | null,
+        };
+
+        setPublicacion(publicacionCompleta);
+
+        await supabase
+          .from("publicaciones_bienestar")
+          .update({ vistas: ((publicacionData.vistas as number) || 0) + 1 })
+          .eq("id", publicacionId);
+      } catch {
+        setError("No se pudo cargar la actividad.");
+      } finally {
+        setLoading(false);
       }
-
-      // Combinar los datos
-      const publicacionCompleta: PublicacionActividad = {
-        ...(publicacionData as Omit<PublicacionActividad, 'categorias_bienestar' | 'usuario_nomina'>),
-        categorias_bienestar: categoriaData as { nombre: string } | null,
-        usuario_nomina: autorData as { colaborador: string } | null
-      };
-
-      setPublicacion(publicacionCompleta);
-
-      // Incrementar contador de vistas
-      await supabase
-        .from("publicaciones_bienestar")
-        .update({ vistas: ((publicacionData.vistas as number) || 0) + 1 })
-        .eq("id", publicacionId);
-
-      setLoading(false);
     };
 
     if (publicacionId) {

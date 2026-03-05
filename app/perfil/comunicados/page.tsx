@@ -16,6 +16,7 @@ import {
 import ComunicadoAvatar from "@/components/ui/comunicado-avatar";
 import { createSupabaseClient } from "@/lib/supabase";
 import { Search, Eye, EyeOff, Calendar, Building } from "lucide-react";
+import { formatLocalDate } from "@/lib/date-utils";
 
 interface Comunicado {
   id: string;
@@ -411,7 +412,7 @@ export default function ComunicadosPage() {
                             <div>{c.area_responsable}</div>
                             <div>
                               {c.fecha_publicacion
-                                ? new Date(c.fecha_publicacion + 'T00:00:00').toLocaleDateString('es-ES')
+                                ? formatLocalDate(c.fecha_publicacion, "es-ES")
                                 : "-"}
                             </div>
                           </div>

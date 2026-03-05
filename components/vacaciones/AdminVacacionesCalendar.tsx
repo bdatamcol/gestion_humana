@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { diffDaysInclusive, parseLocalDate } from "@/lib/date-utils"
 
 interface Disponibilidad {
   id: string
@@ -337,10 +338,10 @@ export default function AdminVacacionesCalendar() {
         const newRecords = []
         
         for (const record of overlappingRecords) {
-          const recordStart = new Date(record.fecha_inicio as string)
-          const recordEnd = new Date(record.fecha_fin as string)
-          const selectedStart = new Date(startDate)
-          const selectedEnd = new Date(endDate)
+          const recordStart = parseLocalDate(record.fecha_inicio as string)
+          const recordEnd = parseLocalDate(record.fecha_fin as string)
+          const selectedStart = parseLocalDate(startDate)
+          const selectedEnd = parseLocalDate(endDate)
           
           // Si hay una parte antes del rango seleccionado
           if (recordStart < selectedStart) {
@@ -640,28 +641,19 @@ export default function AdminVacacionesCalendar() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium text-blue-800">
-                            {format(new Date(vacacion.fecha_inicio), "d MMM", { locale: es })} - {format(new Date(vacacion.fecha_fin), "d MMM", { locale: es })}
+                            {format(parseLocalDate(vacacion.fecha_inicio), "d MMM", { locale: es })} - {format(parseLocalDate(vacacion.fecha_fin), "d MMM", { locale: es })}
                           </p>
                           <p className="text-xs text-blue-600">
                             {(() => {
-                              // Crear fechas en zona horaria local para evitar problemas de UTC
-                              const start = new Date(vacacion.fecha_inicio + 'T00:00:00')
-                              const end = new Date(vacacion.fecha_fin + 'T00:00:00')
-                              
-                              let diasVacaciones = 0
-                              const fechaActual = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-                              
-                              // Iterar día por día desde la fecha de inicio hasta la fecha de fin
-                              while (fechaActual <= end) {
-                                // Solo contar si no es domingo (día 0)
-                                if (fechaActual.getDay() !== 0) {
-                                  diasVacaciones++
-                                }
-                                // Avanzar al siguiente día
+                              const totalDias = diffDaysInclusive(vacacion.fecha_inicio, vacacion.fecha_fin)
+                              const fechaActual = parseLocalDate(vacacion.fecha_inicio)
+                              const fechaFinal = parseLocalDate(vacacion.fecha_fin)
+                              let domingos = 0
+                              while (fechaActual <= fechaFinal) {
+                                if (fechaActual.getDay() === 0) domingos++
                                 fechaActual.setDate(fechaActual.getDate() + 1)
                               }
-                              
-                              return diasVacaciones
+                              return totalDias - domingos
                             })()} días
                           </p>
                         </div>

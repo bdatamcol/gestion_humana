@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import UserVacacionesCalendar from "@/components/vacaciones/UserVacacionesCalendar"
 import { ComentariosVacaciones } from "@/components/vacaciones/comentarios-vacaciones"
+import { formatLocalDate, parseLocalDate } from "@/lib/date-utils"
 // import { crearNotificacionNuevaSolicitud } from "@/lib/notificaciones" // Removido - se maneja desde el servidor
 
 export default function SolicitudVacaciones() {
@@ -134,38 +135,8 @@ export default function SolicitudVacaciones() {
     checkAuth()
   }, [])
 
-  const formatDate = (date: string | Date | null | undefined) => {
-    if (!date) return 'Fecha no disponible'
-    
-    try {
-      const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
-      
-      // If it's a string in YYYY-MM-DD format, parse it manually to avoid timezone issues
-      if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = date.split('-').map(Number)
-        return new Date(year, month - 1, day).toLocaleDateString('es-CO', options)
-      }
-      
-      // Handle timestamp strings from PostgreSQL
-      if (typeof date === 'string') {
-        const parsedDate = new Date(date)
-        if (!isNaN(parsedDate.getTime())) {
-          return parsedDate.toLocaleDateString('es-CO', options)
-        }
-      }
-      
-      // Handle Date objects
-      if (date instanceof Date) {
-        return date.toLocaleDateString('es-CO', options)
-      }
-      
-      // Fallback for other string formats
-      return new Date(date + 'T00:00:00').toLocaleDateString('es-CO', options)
-    } catch (error) {
-      console.error('Error al formatear fecha:', date, error)
-      return 'Fecha inválida'
-    }
-  }
+  const formatDate = (date: string | Date | null | undefined) =>
+    formatLocalDate(date, "es-CO", { year: "numeric", month: "long", day: "numeric" })
 
   const enviarSolicitud = async () => {
     if (!selectedRange.from || !selectedRange.to) {
@@ -258,13 +229,8 @@ export default function SolicitudVacaciones() {
   }
 
   const calcularDiasVacaciones = (fechaInicio: string | Date, fechaFin: string | Date) => {
-    // Crear fechas en zona horaria local para evitar problemas de UTC
-    const inicio = typeof fechaInicio === 'string' 
-      ? new Date(fechaInicio + 'T00:00:00') 
-      : new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), fechaInicio.getDate())
-    const fin = typeof fechaFin === 'string' 
-      ? new Date(fechaFin + 'T00:00:00') 
-      : new Date(fechaFin.getFullYear(), fechaFin.getMonth(), fechaFin.getDate())
+    const inicio = parseLocalDate(fechaInicio)
+    const fin = parseLocalDate(fechaFin)
     
     let diasVacaciones = 0
     const fechaActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate())

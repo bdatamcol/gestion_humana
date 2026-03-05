@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Search, X, MessageSquare } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ComentariosVacaciones } from "@/components/vacaciones/comentarios-vacaciones"
+import { diffDaysInclusive, formatLocalDate, parseLocalDate } from "@/lib/date-utils"
 
 export default function AdminSolicitudesVacaciones() {
   const router = useRouter()
@@ -191,18 +192,7 @@ export default function AdminSolicitudesVacaciones() {
 
   const formatDate = (fecha?: string | null) => {
     if (!fecha) return ""
-    
-    // If it's a string in YYYY-MM-DD format, parse it manually to avoid timezone issues
-    if (fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = fecha.split('-').map(Number)
-      return new Date(year, month - 1, day).toLocaleDateString("es-CO", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    }
-    
-    return new Date(fecha).toLocaleDateString("es-CO", {
+    return formatLocalDate(fecha, "es-CO", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -210,24 +200,15 @@ export default function AdminSolicitudesVacaciones() {
   }
 
   const calcularDiasVacaciones = (inicio: string, fin: string) => {
-    // Crear fechas en zona horaria local para evitar problemas de UTC
-    const start = new Date(inicio + 'T00:00:00')
-    const end = new Date(fin + 'T00:00:00')
-    
-    let diasVacaciones = 0
-    const fechaActual = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-    
-    // Iterar día por día desde la fecha de inicio hasta la fecha de fin
-    while (fechaActual <= end) {
-      // Solo contar si no es domingo (día 0)
-      if (fechaActual.getDay() !== 0) {
-        diasVacaciones++
-      }
-      // Avanzar al siguiente día
+    const totalDias = diffDaysInclusive(inicio, fin)
+    const fechaActual = parseLocalDate(inicio)
+    const fechaFinal = parseLocalDate(fin)
+    let domingos = 0
+    while (fechaActual <= fechaFinal) {
+      if (fechaActual.getDay() === 0) domingos++
       fechaActual.setDate(fechaActual.getDate() + 1)
     }
-    
-    return diasVacaciones
+    return totalDias - domingos
   }
 
   const handleShowComments = (solicitudId: string) => {

@@ -27,6 +27,7 @@ import {
 import { Search, X, FileDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatLocalDate } from "@/lib/date-utils";
 
 type SolicitudPermiso = {
   id: string;
@@ -146,7 +147,7 @@ export default function AdminPermisosHistorico() {
 
   const formatDate = (d: string | null) =>
     d
-      ? new Date(d).toLocaleDateString("es-CO", {
+      ? formatLocalDate(d, "es-CO", {
           day: "2-digit",
           month: "2-digit",
           year: "numeric",

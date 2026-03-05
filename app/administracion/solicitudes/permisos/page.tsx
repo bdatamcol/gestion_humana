@@ -19,6 +19,7 @@ import html2canvas from "html2canvas"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
+import { formatLocalDate, parseLocalDate } from "@/lib/date-utils"
 
 // Tipos para los datos principales
 interface Empresa {
@@ -399,10 +400,7 @@ export default function AdminSolicitudesPermisos() {
     fetchSolicitudes()
   }, [router])
 
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
-    return new Date(date).toLocaleDateString('es-CO', options)
-  }
+  const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
   
   // Función para ordenar
   const requestSort = (key: string) => {
@@ -565,8 +563,8 @@ export default function AdminSolicitudesPermisos() {
       const fechaActual = formatDate(new Date())
       
       // Formatear las fechas para el PDF
-      const fechaInicio = new Date(solicitudData.fecha_inicio as string)
-      const fechaFin = new Date(solicitudData.fecha_fin as string)
+      const fechaInicio = parseLocalDate(solicitudData.fecha_inicio as string)
+      const fechaFin = parseLocalDate(solicitudData.fecha_fin as string)
       const diaInicio = fechaInicio.getDate()
       const mesInicio = fechaInicio.getMonth() + 1
       const anioInicio = fechaInicio.getFullYear()
@@ -1109,7 +1107,7 @@ export default function AdminSolicitudesPermisos() {
                     ) : (
                       filteredSolicitudes.map((solicitud) => (
                         <TableRow key={solicitud.id}>
-                          <TableCell>{new Date(solicitud.fecha_solicitud).toLocaleDateString()}</TableCell>
+                          <TableCell>{formatDate(solicitud.fecha_solicitud)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium">{solicitud.usuario?.colaborador}</span>
@@ -1125,13 +1123,13 @@ export default function AdminSolicitudesPermisos() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div>{new Date(solicitud.fecha_inicio).toLocaleDateString()}</div>
+                              <div>{formatDate(solicitud.fecha_inicio)}</div>
                               {solicitud.hora_inicio && <div className="text-xs text-gray-500">{solicitud.hora_inicio}</div>}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div>{new Date(solicitud.fecha_fin).toLocaleDateString()}</div>
+                              <div>{formatDate(solicitud.fecha_fin)}</div>
                               {solicitud.hora_fin && <div className="text-xs text-gray-500">{solicitud.hora_fin}</div>}
                             </div>
                           </TableCell>
@@ -1326,7 +1324,7 @@ export default function AdminSolicitudesPermisos() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Fecha Solicitud</h4>
-                    <p>{new Date(selectedDetailsSolicitud.fecha_solicitud).toLocaleDateString()}</p>
+                    <p>{formatDate(selectedDetailsSolicitud.fecha_solicitud)}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Ciudad</h4>
@@ -1340,11 +1338,11 @@ export default function AdminSolicitudesPermisos() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-muted/30 p-3 rounded-md">
                     <span className="text-sm font-medium block mb-1">Inicio</span>
-                    <p>{new Date(selectedDetailsSolicitud.fecha_inicio).toLocaleDateString()} {selectedDetailsSolicitud.hora_inicio || ''}</p>
+                    <p>{formatDate(selectedDetailsSolicitud.fecha_inicio)} {selectedDetailsSolicitud.hora_inicio || ''}</p>
                   </div>
                   <div className="bg-muted/30 p-3 rounded-md">
                     <span className="text-sm font-medium block mb-1">Fin</span>
-                    <p>{new Date(selectedDetailsSolicitud.fecha_fin).toLocaleDateString()} {selectedDetailsSolicitud.hora_fin || ''}</p>
+                    <p>{formatDate(selectedDetailsSolicitud.fecha_fin)} {selectedDetailsSolicitud.hora_fin || ''}</p>
                   </div>
                 </div>
               </div>

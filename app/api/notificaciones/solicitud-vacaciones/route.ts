@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminSupabaseClient } from '@/lib/supabase-server'
 import * as nodemailer from 'nodemailer'
+import { diffDaysInclusive, formatLocalDate, parseLocalDate } from '@/lib/date-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -97,17 +98,15 @@ export async function POST(request: NextRequest) {
     })
 
     // Calcular días de vacaciones con zona horaria local
-    const fechaInicio = new Date(solicitudData.fecha_inicio + 'T00:00:00')
-    const fechaFin = new Date(solicitudData.fecha_fin + 'T00:00:00')
-    let diasVacaciones = 0
-    const fechaActual = new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), fechaInicio.getDate())
-    
-    while (fechaActual <= fechaFin) {
-      if (fechaActual.getDay() !== 0) { // No contar domingos
-        diasVacaciones++
-      }
+    const diasTotales = diffDaysInclusive(solicitudData.fecha_inicio, solicitudData.fecha_fin)
+    const fechaActual = parseLocalDate(solicitudData.fecha_inicio)
+    const fechaFinal = parseLocalDate(solicitudData.fecha_fin)
+    let domingos = 0
+    while (fechaActual <= fechaFinal) {
+      if (fechaActual.getDay() === 0) domingos++
       fechaActual.setDate(fechaActual.getDate() + 1)
     }
+    const diasVacaciones = diasTotales - domingos
 
     // Función para formatear fechas correctamente
     const formatDate = (date: string) => {
@@ -117,7 +116,7 @@ export async function POST(request: NextRequest) {
         fechaLimpia = date.slice(0, 10)
       }
       
-      return new Date(fechaLimpia + 'T00:00:00').toLocaleDateString('es-ES', {
+      return formatLocalDate(fechaLimpia, 'es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'

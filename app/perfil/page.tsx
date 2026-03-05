@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ProfileCard } from "@/components/ui/profile-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { createSupabaseClient } from "@/lib/supabase"
+import { parseLocalDate } from "@/lib/date-utils"
 
 export default function Perfil() {
   const [userData, setUserData] = useState<any>(null)
@@ -89,15 +90,16 @@ export default function Perfil() {
         
         // Buscar vacaciones del año actual
         const vacacionesEsteAno = todasVacacionesAprobadas.filter((v: any) => {
-          const fechaInicio = new Date(v.fecha_inicio)
+          const fechaInicio = parseLocalDate(v.fecha_inicio)
           return fechaInicio.getFullYear() === currentYear
         })
         
         if (vacacionesEsteAno.length > 0) {
           const proximasVacaciones: any = vacacionesEsteAno[0]
-          const fechaInicio = new Date(proximasVacaciones.fecha_inicio)
-          const fechaFin = new Date(proximasVacaciones.fecha_fin)
-          const hoy = new Date()
+          const fechaInicio = parseLocalDate(proximasVacaciones.fecha_inicio)
+          const fechaFin = parseLocalDate(proximasVacaciones.fecha_fin)
+          const ahora = new Date()
+          const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
           
           if (fechaFin < hoy) {
             // Ya tomó vacaciones este año

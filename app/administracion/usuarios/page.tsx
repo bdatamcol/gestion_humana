@@ -26,6 +26,7 @@ import { ImportUsersModal } from "@/components/usuarios/import-users-modal"
 import { toast } from "sonner"
 import { getUsersForExport } from "@/app/actions/user-import-export"
 import * as XLSX from "xlsx"
+import { parseLocalDate } from "@/lib/date-utils"
 
 export default function Usuarios() {
   const router = useRouter()
@@ -493,15 +494,16 @@ export default function Usuarios() {
         
         // Buscar vacaciones del año actual
         const vacacionesEsteAno = todasVacacionesAprobadas.filter((v: any) => {
-          const fechaInicio = new Date(v.fecha_inicio)
+          const fechaInicio = parseLocalDate(v.fecha_inicio)
           return fechaInicio.getFullYear() === currentYear
         })
         
         if (vacacionesEsteAno.length > 0) {
           const proximasVacaciones: any = vacacionesEsteAno[0]
-          const fechaInicio = new Date(proximasVacaciones.fecha_inicio)
-          const fechaFin = new Date(proximasVacaciones.fecha_fin)
-          const hoy = new Date()
+          const fechaInicio = parseLocalDate(proximasVacaciones.fecha_inicio)
+          const fechaFin = parseLocalDate(proximasVacaciones.fecha_fin)
+          const ahora = new Date()
+          const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
           
           if (fechaFin < hoy) {
             // Ya tomó vacaciones este año
@@ -674,19 +676,19 @@ const fetchUsers = async () => {
       
       if (user.auth_user_id && todasLasVacaciones) {
         const anoActual = new Date().getFullYear()
+        const ahora = new Date()
+        const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
         const vacacionesEsteAno = todasLasVacaciones
           .filter((vacacion: any) => vacacion.usuario_id === user.auth_user_id)
           .filter((vacacion: any) => {
-            const fechaInicio = new Date(vacacion.fecha_inicio)
+            const fechaInicio = parseLocalDate(vacacion.fecha_inicio)
             return fechaInicio.getFullYear() === anoActual
           })
         
         if (vacacionesEsteAno.length > 0) {
-          const hoy = new Date()
-          
           const vacacionActual = vacacionesEsteAno.find((v: any) => {
-            const fechaInicio = new Date(v.fecha_inicio)
-            const fechaFin = new Date(v.fecha_fin)
+            const fechaInicio = parseLocalDate(v.fecha_inicio)
+            const fechaFin = parseLocalDate(v.fecha_fin)
             return fechaInicio <= hoy && fechaFin >= hoy
           })
           
@@ -698,7 +700,7 @@ const fetchUsers = async () => {
             }
           } else {
             const vacacionFutura = vacacionesEsteAno.find((v: any) => {
-              const fechaInicio = new Date(v.fecha_inicio)
+              const fechaInicio = parseLocalDate(v.fecha_inicio)
               return fechaInicio > hoy
             })
             

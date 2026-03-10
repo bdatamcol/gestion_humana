@@ -103,8 +103,10 @@ export async function POST(request: NextRequest) {
     let notificacionesInternasCreadas = 0
     let notificacionesInternasExistentes = 0
 
+    let jefeIds: string[] = []
+
     if (jefesAsignados && jefesAsignados.length > 0) {
-      const jefeIds = [...new Set(jefesAsignados.map((j: any) => j.jefe_id))]
+      jefeIds = [...new Set(jefesAsignados.map((j: any) => j.jefe_id))]
 
       const { data: notificacionesExistentes, error: existentesError } = await supabase
         .from('notificaciones')
@@ -149,37 +151,47 @@ export async function POST(request: NextRequest) {
       .eq('clave', 'correo_notificaciones')
       .single()
 
-    if (configError || !configData) {
-      return NextResponse.json({
-        success: true,
-        message: 'Notificaciones internas a jefes procesadas. No se pudo enviar correo administrativo por configuración faltante.',
-        data: {
-          solicitudId,
-          colaborador: userData.colaborador,
-          notificacionesInternas: {
-            creadas: notificacionesInternasCreadas,
-            ya_existentes: notificacionesInternasExistentes,
-          },
-          correo: {
-            enviado: false,
-            motivo: 'No se encontró la configuración de correo_notificaciones.'
-          }
-        }
-      })
+    let correosDestinoAdmin: string[] = []
+    let motivoCorreoAdmin = ''
+
+    if (!configError && configData?.valor) {
+      correosDestinoAdmin = configData.valor
+        .split(',')
+        .map((email: string) => email.trim())
+        .filter((email: string) => email.length > 0 && validarEmail(email))
+
+      if (correosDestinoAdmin.length === 0) {
+        motivoCorreoAdmin = 'No hay correos válidos en correo_notificaciones.'
+      }
+    } else {
+      motivoCorreoAdmin = 'No se encontró la configuración de correo_notificaciones.'
     }
 
-    const correoDestino = configData.valor
+    // Obtener correos de jefes activos
+    const { data: jefesCorreoData, error: jefesCorreoError } = jefeIds.length > 0
+      ? await supabase
+          .from('usuario_nomina')
+          .select('auth_user_id, colaborador, correo_electronico, estado')
+          .in('auth_user_id', jefeIds)
+          .eq('estado', 'activo')
+      : { data: [], error: null }
 
-    // Procesar múltiples correos destinatarios
-    const correosDestino = correoDestino
-      .split(',')
-      .map((email: string) => email.trim())
-      .filter((email: string) => email.length > 0 && validarEmail(email))
+    if (jefesCorreoError) {
+      console.error('Error obteniendo correos de jefes:', jefesCorreoError)
+    }
 
-    if (correosDestino.length === 0) {
+    const jefesActivosConCorreo = (jefesCorreoData || []).filter((jefe: any) =>
+      typeof jefe.correo_electronico === 'string' && validarEmail(jefe.correo_electronico)
+    )
+
+    const correosDestinoJefes = [...new Set(
+      jefesActivosConCorreo.map((jefe: any) => jefe.correo_electronico.trim())
+    )]
+
+    if (correosDestinoAdmin.length === 0 && correosDestinoJefes.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'Notificaciones internas a jefes procesadas. No se encontraron correos administrativos válidos.',
+        message: 'Notificaciones internas procesadas. No hay correos de jefes ni administrativos válidos para envío.',
         data: {
           solicitudId,
           colaborador: userData.colaborador,
@@ -188,8 +200,16 @@ export async function POST(request: NextRequest) {
             ya_existentes: notificacionesInternasExistentes,
           },
           correo: {
-            enviado: false,
-            motivo: 'No hay correos válidos en correo_notificaciones.'
+            admin: {
+              enviados: 0,
+              fallidos: 0,
+              motivo: motivoCorreoAdmin || 'Sin destinatarios administrativos válidos.'
+            },
+            jefes: {
+              enviados: 0,
+              fallidos: 0,
+              motivo: 'No se encontraron jefes activos con correo_electronico válido.'
+            }
           }
         }
       })
@@ -214,6 +234,8 @@ export async function POST(request: NextRequest) {
     const empresaNombre = Array.isArray((userData as any).empresas)
       ? (userData as any).empresas[0]?.nombre
       : (userData as any).empresas?.nombre
+    const tipoPermisoNombre = getTipoPermisoNombre(solicitudData.tipo_permiso)
+    const urlPanelJefe = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://gestionhumana360.co'}/perfil/solicitudes/permisos`
     
     const contenidoHTML = `
       <!DOCTYPE html>
@@ -320,7 +342,7 @@ export async function POST(request: NextRequest) {
             <h3>📅 Detalles del Permiso</h3>
             <div class="info-row">
               <span class="label">Tipo de Permiso:</span>
-              <span class="value">${getTipoPermisoNombre(solicitudData.tipo_permiso)}</span>
+              <span class="value">${tipoPermisoNombre}</span>
             </div>
             <div class="info-row">
               <span class="label">Fecha de Inicio:</span>
@@ -383,7 +405,7 @@ INFORMACIÓN DEL COLABORADOR:
 - Empresa: ${empresaNombre || 'No especificada'}
 
 DETALLES DEL PERMISO:
-- Tipo de Permiso: ${getTipoPermisoNombre(solicitudData.tipo_permiso)}
+- Tipo de Permiso: ${tipoPermisoNombre}
 - Fecha de Inicio: ${formatDate(solicitudData.fecha_inicio)}
 - Fecha de Fin: ${formatDate(solicitudData.fecha_fin)}
 - Hora de Inicio: ${formatTime(solicitudData.hora_inicio)}
@@ -400,12 +422,57 @@ Este es un correo automático del Sistema de Gestión Humana.
 Por favor, no responda a este correo.
     `
 
-    // Enviar el email a múltiples destinatarios
-    const resultadosEnvio = []
-    let enviosExitosos = 0
-    let enviosFallidos = 0
+    const contenidoJefeHTML = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Nueva Solicitud Pendiente de Aprobación</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.5;">
+        <h2>Tienes una solicitud de permiso pendiente</h2>
+        <p>El colaborador <strong>${userData.colaborador}</strong> registró una nueva solicitud que requiere tu aprobación o rechazo.</p>
+        <ul>
+          <li><strong>Tipo:</strong> ${tipoPermisoNombre}</li>
+          <li><strong>Fecha inicio:</strong> ${formatDate(solicitudData.fecha_inicio)}</li>
+          <li><strong>Fecha fin:</strong> ${formatDate(solicitudData.fecha_fin)}</li>
+          <li><strong>Motivo:</strong> ${solicitudData.motivo || 'No especificado'}</li>
+        </ul>
+        <p>
+          <a href="${urlPanelJefe}" style="display:inline-block;background:#111;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px;">
+            Ir a mis solicitudes de permisos
+          </a>
+        </p>
+        <p style="font-size: 12px; color: #666;">Este es un correo automático del Sistema de Gestión Humana.</p>
+      </body>
+      </html>
+    `
 
-    for (const email of correosDestino) {
+    const contenidoJefeTexto = `
+Tienes una solicitud de permiso pendiente
+
+El colaborador ${userData.colaborador} registró una nueva solicitud que requiere tu aprobación o rechazo.
+
+- Tipo: ${tipoPermisoNombre}
+- Fecha inicio: ${formatDate(solicitudData.fecha_inicio)}
+- Fecha fin: ${formatDate(solicitudData.fecha_fin)}
+- Motivo: ${solicitudData.motivo || 'No especificado'}
+
+Ingresa aquí para revisar: ${urlPanelJefe}
+
+Este es un correo automático del Sistema de Gestión Humana.
+    `
+
+    const resultadosEnvioAdmin = []
+    let enviosAdminExitosos = 0
+    let enviosAdminFallidos = 0
+
+    const resultadosEnvioJefes = []
+    let enviosJefesExitosos = 0
+    let enviosJefesFallidos = 0
+
+    for (const email of correosDestinoAdmin) {
       try {
         await transporter.sendMail({
           from: process.env.SMTP_USER,
@@ -414,29 +481,66 @@ Por favor, no responda a este correo.
           html: contenidoHTML,
           text: contenidoTexto,
         })
-        resultadosEnvio.push({ email, status: 'enviado' })
-        enviosExitosos++
+        resultadosEnvioAdmin.push({ email, status: 'enviado' })
+        enviosAdminExitosos++
       } catch (emailError) {
         console.error(`Error enviando correo a ${email}:`, emailError)
         const errorMessage = emailError instanceof Error ? emailError.message : 'Error desconocido'
-        resultadosEnvio.push({ email, status: 'error', error: errorMessage })
-        enviosFallidos++
+        resultadosEnvioAdmin.push({ email, status: 'error', error: errorMessage })
+        enviosAdminFallidos++
+      }
+    }
+
+    for (const email of correosDestinoJefes) {
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: email,
+          subject: 'Solicitud de permiso pendiente de aprobación',
+          html: contenidoJefeHTML,
+          text: contenidoJefeTexto,
+        })
+        resultadosEnvioJefes.push({ email, status: 'enviado' })
+        enviosJefesExitosos++
+      } catch (emailError) {
+        console.error(`Error enviando correo de jefe a ${email}:`, emailError)
+        const errorMessage = emailError instanceof Error ? emailError.message : 'Error desconocido'
+        resultadosEnvioJefes.push({ email, status: 'error', error: errorMessage })
+        enviosJefesFallidos++
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Notificación de solicitud de permisos procesada. ${enviosExitosos} correo(s) enviado(s), ${enviosFallidos} fallo(s)`,
+      message: `Notificación de solicitud de permisos procesada. Admin: ${enviosAdminExitosos} enviado(s), ${enviosAdminFallidos} fallo(s). Jefes: ${enviosJefesExitosos} enviado(s), ${enviosJefesFallidos} fallo(s).`,
       data: {
         solicitudId,
         colaborador: userData.colaborador,
-        correosEnviados: correosDestino,
-        resultadosEnvio,
+        correosEnviados: {
+          admin: correosDestinoAdmin,
+          jefes: correosDestinoJefes,
+        },
+        resultadosEnvio: {
+          admin: resultadosEnvioAdmin,
+          jefes: resultadosEnvioJefes,
+        },
         estadisticas: {
-          total: correosDestino.length,
-          exitosos: enviosExitosos,
-          fallidos: enviosFallidos
-        }
+          admin: {
+            total: correosDestinoAdmin.length,
+            exitosos: enviosAdminExitosos,
+            fallidos: enviosAdminFallidos,
+            motivo: motivoCorreoAdmin,
+          },
+          jefes: {
+            total: correosDestinoJefes.length,
+            exitosos: enviosJefesExitosos,
+            fallidos: enviosJefesFallidos,
+          },
+        },
+        notificacionesInternas: {
+          creadas: notificacionesInternasCreadas,
+          ya_existentes: notificacionesInternasExistentes,
+        },
       }
     })
 

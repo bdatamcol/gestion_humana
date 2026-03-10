@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle2, Calendar, Download, Plus, MessageSquare, Eye, XCircle, Clock } from "lucide-react"
+import { AlertCircle, CheckCircle2, Calendar, Download, Plus, MessageSquare, Eye, XCircle, Clock, Loader2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -34,7 +34,9 @@ export default function SolicitudPermisos() {
   }
 
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(false)
+  const [isSubmittingSolicitud, setIsSubmittingSolicitud] = useState(false)
+  const [isResolvingSolicitud, setIsResolvingSolicitud] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [solicitudes, setSolicitudes] = useState<any[]>([])
   const [solicitudesEquipo, setSolicitudesEquipo] = useState<any[]>([])
@@ -155,7 +157,7 @@ export default function SolicitudPermisos() {
   // Verificar autenticación y obtener datos del usuario
   useEffect(() => {
     const checkAuth = async () => {
-      setLoading(true)
+      setInitialLoading(true)
       const supabase = createSupabaseClient()
       const {
         data: { session },
@@ -182,7 +184,7 @@ export default function SolicitudPermisos() {
 
       if (userError) {
         console.error("Error al obtener datos del usuario:", userError)
-        setLoading(false)
+        setInitialLoading(false)
         return
       }
 
@@ -308,7 +310,7 @@ export default function SolicitudPermisos() {
           setSolicitudesEquipo([])
         }
       }
-      setLoading(false)
+      setInitialLoading(false)
     }
 
     checkAuth()
@@ -318,7 +320,7 @@ export default function SolicitudPermisos() {
 
   const aprobarComoJefe = async (solicitudId: string) => {
     try {
-      setLoading(true)
+      setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
@@ -337,7 +339,7 @@ export default function SolicitudPermisos() {
       console.error(e)
       setError('Error al aprobar la solicitud.')
     } finally {
-      setLoading(false)
+      setIsResolvingSolicitud(false)
     }
   }
 
@@ -345,7 +347,7 @@ export default function SolicitudPermisos() {
     const motivo = prompt('Motivo del rechazo:')
     if (!motivo) return
     try {
-      setLoading(true)
+      setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
@@ -364,11 +366,13 @@ export default function SolicitudPermisos() {
       console.error(e)
       setError('Error al rechazar la solicitud.')
     } finally {
-      setLoading(false)
+      setIsResolvingSolicitud(false)
     }
   }
 
   const enviarSolicitud = async () => {
+    if (isSubmittingSolicitud) return
+
     // Validar campos requeridos según el tipo de permiso
     if (!formData.tipoPermiso || !formData.fechaInicio || !formData.fechaFin || !formData.motivo) {
       setError("Por favor complete todos los campos requeridos.")
@@ -391,7 +395,7 @@ export default function SolicitudPermisos() {
     }
 
     try {
-      setLoading(true)
+      setIsSubmittingSolicitud(true)
       setError("")
       
       const supabase = createSupabaseClient()
@@ -435,34 +439,8 @@ export default function SolicitudPermisos() {
 
       if (error) throw error
 
-      // Enviar notificación por email
-      try {
-        const notificationResponse = await fetch('/api/notificaciones/solicitud-permisos', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            solicitudId: data.id,
-            usuarioId: session.user.id
-          })
-        })
-
-        if (!notificationResponse.ok) {
-          console.error('Error al enviar notificación por correo')
-        }
-      } catch (notificationError) {
-        console.error('Error al enviar notificación:', notificationError)
-      }
-
-      // Actualizar la lista de solicitudes
-      const { data: solicitudesData } = await supabase
-        .from('solicitudes_permisos')
-        .select('*')
-        .eq('usuario_id', session.user.id)
-        .order('fecha_solicitud', { ascending: false })
-
-      setSolicitudes(solicitudesData || [])
+      // Actualizar UI inmediatamente para evitar sensación de bloqueo
+      setSolicitudes(prev => [data, ...prev])
       setSuccess("Solicitud de permiso enviada correctamente. Espera la aprobación del administrador.")
       setShowModal(false)
       setFormData({
@@ -476,11 +454,41 @@ export default function SolicitudPermisos() {
         ciudad: "",
         soporteUrl: "",
       })
+
+      // Procesos no críticos en segundo plano
+      void (async () => {
+        try {
+          const notificationResponse = await fetch('/api/notificaciones/solicitud-permisos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              solicitudId: data.id,
+              usuarioId: session.user.id
+            })
+          })
+
+          if (!notificationResponse.ok) {
+            console.error('Error al enviar notificación por correo')
+          }
+        } catch (notificationError) {
+          console.error('Error al enviar notificación:', notificationError)
+        }
+
+        const { data: solicitudesData } = await supabase
+          .from('solicitudes_permisos')
+          .select('*')
+          .eq('usuario_id', session.user.id)
+          .order('fecha_solicitud', { ascending: false })
+
+        setSolicitudes(solicitudesData || [])
+      })()
     } catch (err: any) {
       console.error("Error al enviar la solicitud:", err)
       setError("Error al enviar la solicitud. Por favor intente nuevamente.")
     } finally {
-      setLoading(false)
+      setIsSubmittingSolicitud(false)
     }
   }
 
@@ -502,7 +510,7 @@ export default function SolicitudPermisos() {
     }
   }
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="space-y-6">
         {/* Header Skeleton */}
@@ -576,7 +584,13 @@ export default function SolicitudPermisos() {
         )}
 
         {/* Modal de solicitud */}
-        <Dialog open={showModal} onOpenChange={setShowModal}>
+        <Dialog
+          open={showModal}
+          onOpenChange={(open) => {
+            if (isSubmittingSolicitud) return
+            setShowModal(open)
+          }}
+        >
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Solicitar Permiso</DialogTitle>
@@ -585,6 +599,7 @@ export default function SolicitudPermisos() {
               </DialogDescription>
             </DialogHeader>
 
+            <fieldset disabled={isSubmittingSolicitud}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="tipoPermiso" className="text-right">
@@ -709,13 +724,28 @@ export default function SolicitudPermisos() {
                 </div>
               )}
             </div>
+            </fieldset>
+
+            {isSubmittingSolicitud && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Estamos enviando tu solicitud, por favor espera...
+              </div>
+            )}
 
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowModal(false)}>
+              <Button variant="outline" onClick={() => setShowModal(false)} disabled={isSubmittingSolicitud}>
                 Cancelar
               </Button>
-              <Button onClick={enviarSolicitud} disabled={loading}>
-                {loading ? "Enviando..." : "Enviar Solicitud"}
+              <Button onClick={enviarSolicitud} disabled={isSubmittingSolicitud}>
+                {isSubmittingSolicitud ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Enviando solicitud...
+                  </span>
+                ) : (
+                  "Enviar Solicitud"
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -766,8 +796,8 @@ export default function SolicitudPermisos() {
                             <div className="flex gap-2 items-center">
                               {s.estado_aprobacion_jefe === 'pendiente' && (
                                 <>
-                                  <Button size="sm" onClick={() => aprobarComoJefe(s.id)}>Aprobar</Button>
-                                  <Button size="sm" variant="outline" onClick={() => rechazarComoJefe(s.id)}>Rechazar</Button>
+                                  <Button size="sm" onClick={() => aprobarComoJefe(s.id)} disabled={isResolvingSolicitud}>Aprobar</Button>
+                                  <Button size="sm" variant="outline" onClick={() => rechazarComoJefe(s.id)} disabled={isResolvingSolicitud}>Rechazar</Button>
                                 </>
                               )}
                               <Button

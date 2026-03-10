@@ -22,15 +22,17 @@ interface Notificacion {
 
 interface NotificationsDropdownProps {
   className?: string
+  context?: 'admin' | 'jefe'
 }
 
-export function NotificationsDropdown({ className }: NotificationsDropdownProps) {
+export function NotificationsDropdown({ className, context = 'admin' }: NotificationsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [noLeidasCount, setNoLeidasCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const supabase = createSupabaseClient()
   const router = useRouter()
@@ -72,6 +74,10 @@ export function NotificationsDropdown({ className }: NotificationsDropdownProps)
         console.log('❌ No hay sesión activa')
         setError('Sesión no válida. Por favor, inicia sesión nuevamente.')
         return
+      }
+
+      if (authUserId !== session.user.id) {
+        setAuthUserId(session.user.id)
       }
 
       // Solo cargar notificaciones no leídas para el dropdown
@@ -125,18 +131,20 @@ export function NotificationsDropdown({ className }: NotificationsDropdownProps)
 
   // Configurar suscripción en tiempo real
   useEffect(() => {
+    if (!authUserId) return
+
     const channel = supabase
-      .channel('notificaciones-realtime')
+      .channel(`notificaciones-realtime-${authUserId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'notificaciones'
+          table: 'notificaciones',
+          filter: `usuario_id=eq.${authUserId}`
         },
-        (payload) => {
-          console.log('Cambio en notificaciones:', payload)
-          cargarNotificaciones() // Recargar notificaciones cuando hay cambios
+        () => {
+          cargarNotificaciones()
         }
       )
       .subscribe()
@@ -144,7 +152,7 @@ export function NotificationsDropdown({ className }: NotificationsDropdownProps)
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase])
+  }, [authUserId])
 
   // Marcar notificación como leída
   const marcarComoLeida = async (notificacionId: string) => {
@@ -255,6 +263,16 @@ export function NotificationsDropdown({ className }: NotificationsDropdownProps)
 
   // Obtener URL de redirección según tipo de notificación
   const obtenerUrlRedireccion = (tipo: string) => {
+    if (context === 'jefe') {
+      switch (tipo) {
+        case 'permisos':
+        case 'comentario_permisos':
+          return '/perfil/solicitudes/permisos'
+        default:
+          return '/perfil/solicitudes/permisos'
+      }
+    }
+
     switch (tipo) {
       case 'certificacion_laboral':
         return '/administracion/solicitudes/certificacion-laboral'
@@ -274,6 +292,14 @@ export function NotificationsDropdown({ className }: NotificationsDropdownProps)
         return '/administracion/notificaciones'
     }
   }
+
+  const allNotificationsUrl = context === 'jefe'
+    ? '/perfil/solicitudes/permisos'
+    : '/administracion/notificaciones'
+
+  const allNotificationsLabel = context === 'jefe'
+    ? 'Ver solicitudes pendientes'
+    : 'Ver todas las notificaciones'
 
   return (
     <div className={cn('relative', className)} ref={dropdownRef}>
@@ -408,10 +434,10 @@ export function NotificationsDropdown({ className }: NotificationsDropdownProps)
                   className="w-full text-xs"
                   onClick={() => {
                     setIsOpen(false)
-                    router.push('/administracion/notificaciones')
+                    router.push(allNotificationsUrl)
                   }}
                 >
-                  Ver todas las notificaciones
+                  {allNotificationsLabel}
                 </Button>
               </div>
             </>

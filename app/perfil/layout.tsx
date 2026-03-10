@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/ui/sidebar"
 import { OnlineUsersIndicator } from "@/components/ui/online-users-indicator"
+import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
 import { createSupabaseClient } from "@/lib/supabase"
 
 export default function PerfilLayout({
@@ -147,6 +148,17 @@ export default function PerfilLayout({
         <div className="md:hidden relative z-20">
           <Sidebar userName={userData?.colaborador || 'Usuario'} />
         </div>
+
+        {userData?.rol === 'jefe' && (
+          <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-gray-200 px-4 md:px-6 py-2">
+            <div className="flex justify-between items-center">
+              <h1 className="text-lg font-semibold text-gray-900">Panel de Jefe</h1>
+              <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors">
+                <NotificationsDropdown context="jefe" />
+              </div>
+            </div>
+          </div>
+        )}
         
         <main className="relative px-4 md:px-20 py-6 md:py-10 space-y-6 z-10">
           {children}

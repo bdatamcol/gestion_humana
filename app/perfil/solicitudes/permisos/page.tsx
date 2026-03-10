@@ -1016,6 +1016,31 @@ export default function SolicitudPermisos() {
                 </div>
               )}
 
+              {selectedDetailsSolicitud.soporte_url && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2">Documento de Soporte</h4>
+                  <div className="bg-muted/30 p-4 rounded-md flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {selectedDetailsSolicitud.soporte_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                        <Eye className="h-5 w-5 text-blue-500" />
+                      ) : (
+                        <Download className="h-5 w-5 text-blue-500" />
+                      )}
+                      <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                        {selectedDetailsSolicitud.soporte_url.split('/').pop()}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(selectedDetailsSolicitud.soporte_url, '_blank')}
+                    >
+                      Ver documento
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {selectedDetailsSolicitud.aprobaciones && (
                 <div className="border-t pt-4">
                   <h4 className="font-semibold mb-3">Aprobaciones de Jefes</h4>

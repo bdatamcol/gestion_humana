@@ -49,52 +49,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Obtener configuración de correo
-    const { data: configData, error: configError } = await supabase
-      .from('configuracion_sistema')
-      .select('*')
-      .eq('clave', 'correo_notificaciones')
-      .single()
-
-    if (configError || !configData) {
-      return NextResponse.json(
-        { error: 'No se pudo obtener el correo de notificaciones configurado' },
-        { status: 500 }
-      )
-    }
-
-    const correoDestino = configData.valor
-
     // Función para validar formato de correo
     const validarEmail = (email: string): boolean => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       return emailRegex.test(email.trim())
     }
-
-    // Procesar múltiples correos destinatarios
-    const correosDestino = correoDestino
-      .split(',')
-      .map(email => email.trim())
-      .filter(email => email.length > 0 && validarEmail(email))
-
-    if (correosDestino.length === 0) {
-      console.error('No se encontraron correos válidos en la configuración')
-      return NextResponse.json(
-        { error: 'No hay correos de destino válidos configurados' },
-        { status: 500 }
-      )
-    }
-
-    // Crear transporter de nodemailer usando configuración del entorno
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    })
 
     // Función para formatear fechas correctamente
     const formatDate = (date: string) => {
@@ -132,26 +91,129 @@ export async function POST(request: NextRequest) {
     }
 
     // Notificar en la aplicación a los jefes asignados del usuario
-    const { data: jefesAsignados } = await supabase
+    const { data: jefesAsignados, error: jefesError } = await supabase
       .from('usuario_jefes')
       .select('jefe_id')
       .eq('usuario_id', usuarioId)
 
+    if (jefesError) {
+      console.error('Error obteniendo jefes asignados:', jefesError)
+    }
+
+    let notificacionesInternasCreadas = 0
+    let notificacionesInternasExistentes = 0
+
     if (jefesAsignados && jefesAsignados.length > 0) {
+      const jefeIds = [...new Set(jefesAsignados.map((j: any) => j.jefe_id))]
+
+      const { data: notificacionesExistentes, error: existentesError } = await supabase
+        .from('notificaciones')
+        .select('usuario_id')
+        .eq('solicitud_id', solicitudId)
+        .eq('tipo', 'permisos')
+        .in('usuario_id', jefeIds)
+
+      if (existentesError) {
+        console.error('Error consultando notificaciones existentes:', existentesError)
+      }
+
+      const usuariosConNotificacion = new Set((notificacionesExistentes || []).map((n: any) => n.usuario_id))
+      notificacionesInternasExistentes = usuariosConNotificacion.size
+
       const tituloJefe = 'Solicitud de permiso pendiente de aprobación'
       const mensajeJefe = `El colaborador ${userData.colaborador} ha solicitado un permiso. Revisa y aprueba/rechaza.`
-      const notifs = jefesAsignados.map((j: any) => ({
-        usuario_id: j.jefe_id,
+      const notifs = jefeIds
+      .filter((jefeId: string) => !usuariosConNotificacion.has(jefeId))
+      .map((jefeId: string) => ({
+        usuario_id: jefeId,
         tipo: 'permisos',
         titulo: tituloJefe,
         mensaje: mensajeJefe,
         solicitud_id: solicitudId
       }))
-      await supabase.from('notificaciones').insert(notifs)
+
+      if (notifs.length > 0) {
+        const { error: insertNotifError } = await supabase.from('notificaciones').insert(notifs)
+        if (insertNotifError) {
+          console.error('Error creando notificaciones internas para jefes:', insertNotifError)
+        } else {
+          notificacionesInternasCreadas = notifs.length
+        }
+      }
     }
+
+    // Obtener configuración de correo para notificaciones administrativas
+    const { data: configData, error: configError } = await supabase
+      .from('configuracion_sistema')
+      .select('*')
+      .eq('clave', 'correo_notificaciones')
+      .single()
+
+    if (configError || !configData) {
+      return NextResponse.json({
+        success: true,
+        message: 'Notificaciones internas a jefes procesadas. No se pudo enviar correo administrativo por configuración faltante.',
+        data: {
+          solicitudId,
+          colaborador: userData.colaborador,
+          notificacionesInternas: {
+            creadas: notificacionesInternasCreadas,
+            ya_existentes: notificacionesInternasExistentes,
+          },
+          correo: {
+            enviado: false,
+            motivo: 'No se encontró la configuración de correo_notificaciones.'
+          }
+        }
+      })
+    }
+
+    const correoDestino = configData.valor
+
+    // Procesar múltiples correos destinatarios
+    const correosDestino = correoDestino
+      .split(',')
+      .map((email: string) => email.trim())
+      .filter((email: string) => email.length > 0 && validarEmail(email))
+
+    if (correosDestino.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'Notificaciones internas a jefes procesadas. No se encontraron correos administrativos válidos.',
+        data: {
+          solicitudId,
+          colaborador: userData.colaborador,
+          notificacionesInternas: {
+            creadas: notificacionesInternasCreadas,
+            ya_existentes: notificacionesInternasExistentes,
+          },
+          correo: {
+            enviado: false,
+            motivo: 'No hay correos válidos en correo_notificaciones.'
+          }
+        }
+      })
+    }
+
+    // Crear transporter de nodemailer usando configuración del entorno
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    })
 
     // Crear contenido del correo para administración
     const asunto = `Nueva Solicitud de Permiso - ${userData.colaborador}`
+    const cargoNombre = Array.isArray((userData as any).cargos)
+      ? (userData as any).cargos[0]?.nombre
+      : (userData as any).cargos?.nombre
+    const empresaNombre = Array.isArray((userData as any).empresas)
+      ? (userData as any).empresas[0]?.nombre
+      : (userData as any).empresas?.nombre
     
     const contenidoHTML = `
       <!DOCTYPE html>
@@ -246,11 +308,11 @@ export async function POST(request: NextRequest) {
             </div>
             <div class="info-row">
               <span class="label">Cargo:</span>
-              <span class="value">${userData.cargos?.nombre || 'No especificado'}</span>
+              <span class="value">${cargoNombre || 'No especificado'}</span>
             </div>
             <div class="info-row">
               <span class="label">Empresa:</span>
-              <span class="value">${userData.empresas?.nombre || 'No especificada'}</span>
+              <span class="value">${empresaNombre || 'No especificada'}</span>
             </div>
           </div>
 
@@ -317,8 +379,8 @@ Nueva Solicitud de Permiso
 INFORMACIÓN DEL COLABORADOR:
 - Nombre: ${userData.colaborador}
 - Cédula: ${userData.cedula}
-- Cargo: ${userData.cargos?.nombre || 'No especificado'}
-- Empresa: ${userData.empresas?.nombre || 'No especificada'}
+- Cargo: ${cargoNombre || 'No especificado'}
+- Empresa: ${empresaNombre || 'No especificada'}
 
 DETALLES DEL PERMISO:
 - Tipo de Permiso: ${getTipoPermisoNombre(solicitudData.tipo_permiso)}
@@ -356,7 +418,8 @@ Por favor, no responda a este correo.
         enviosExitosos++
       } catch (emailError) {
         console.error(`Error enviando correo a ${email}:`, emailError)
-        resultadosEnvio.push({ email, status: 'error', error: emailError.message })
+        const errorMessage = emailError instanceof Error ? emailError.message : 'Error desconocido'
+        resultadosEnvio.push({ email, status: 'error', error: errorMessage })
         enviosFallidos++
       }
     }

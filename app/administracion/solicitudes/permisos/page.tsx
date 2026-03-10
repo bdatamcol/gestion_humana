@@ -548,6 +548,32 @@ export default function AdminSolicitudesPermisos() {
 
       if (solicitudError) throw solicitudError
 
+      // Validar aprobaciones de jefes antes de generar PDF y aprobar
+      const { data: approvals, error: approvalsError } = await supabase
+        .from('permisos_aprobaciones')
+        .select('estado')
+        .eq('solicitud_id', solicitudId)
+
+      if (approvalsError) throw approvalsError
+
+      if (!approvals || approvals.length === 0) {
+        setError('Esta solicitud no tiene jefes asignados. No puede aprobarse por administración.')
+        return
+      }
+
+      const tienePendientes = approvals.some(a => a.estado === 'pendiente')
+      const algunRechazo = approvals.some(a => a.estado === 'rechazado')
+
+      if (algunRechazo) {
+        setError('Esta solicitud tiene un rechazo por parte de un jefe.')
+        return
+      }
+
+      if (tienePendientes) {
+        setError('Aún hay aprobaciones de jefes pendientes.')
+        return
+      }
+
       // Crear un elemento HTML temporal para renderizar el permiso
       const permisoContainer = document.createElement("div")
       // Configurar dimensiones exactas de tamaño carta (215.9mm x 279.4mm)
@@ -1185,25 +1211,7 @@ export default function AdminSolicitudesPermisos() {
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={async () => {
-                                      // Verificar aprobaciones de jefes antes de aprobar
-                                      const supabase = createSupabaseClient()
-                                      const { data: approvals } = await supabase
-                                        .from('permisos_aprobaciones')
-                                        .select('estado')
-                                        .eq('solicitud_id', solicitud.id)
-                                      const tienePendientes = approvals?.some(a => a.estado === 'pendiente')
-                                      const algunRechazo = approvals?.some(a => a.estado === 'rechazado')
-                                      if (algunRechazo) {
-                                        setError('Esta solicitud tiene un rechazo por parte de un jefe.')
-                                        return
-                                      }
-                                      if (tienePendientes) {
-                                        setError('Aún hay aprobaciones de jefes pendientes.')
-                                        return
-                                      }
-                                      aprobarSolicitud(solicitud.id, solicitud.usuario)
-                                    }}
+                                    onClick={() => aprobarSolicitud(solicitud.id, solicitud.usuario)}
                                   >
                                     Aprobar
                                   </Button>

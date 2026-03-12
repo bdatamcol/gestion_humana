@@ -862,13 +862,68 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
       const aInsertar = Array.from(nuevasIds).filter(id => !actualesIds.has(id))
       const aEliminar = Array.from(actualesIds).filter(id => !nuevasIds.has(id))
 
+      // Solicitudes pendientes del usuario para sincronizar aprobaciones de jefes
+      const { data: solicitudesPendientes, error: pendientesError } = await supabase
+        .from('solicitudes_permisos')
+        .select('id')
+        .eq('usuario_id', editUserData.auth_user_id)
+        .eq('estado', 'pendiente')
+      if (pendientesError) {
+        throw pendientesError
+      }
+      const solicitudesPendientesIds = (solicitudesPendientes || []).map((s: any) => s.id)
+
       if (aInsertar.length > 0) {
         const filas = aInsertar.map(jefe_id => ({ usuario_id: editUserData.auth_user_id, jefe_id }))
-        await supabase.from('usuario_jefes').insert(filas)
+        const { error: insertJefesError } = await supabase.from('usuario_jefes').insert(filas)
+        if (insertJefesError) {
+          throw insertJefesError
+        }
+
+        if (solicitudesPendientesIds.length > 0) {
+          const filasAprobaciones = solicitudesPendientesIds.flatMap((solicitud_id: string) =>
+            aInsertar.map((jefe_id: string) => ({
+              solicitud_id,
+              jefe_id,
+              estado: 'pendiente'
+            }))
+          )
+
+          if (filasAprobaciones.length > 0) {
+            const { error: insertAprobacionesError } = await supabase
+              .from('permisos_aprobaciones')
+              .upsert(filasAprobaciones, {
+                onConflict: 'solicitud_id,jefe_id',
+                ignoreDuplicates: true
+              })
+            if (insertAprobacionesError) {
+              throw insertAprobacionesError
+            }
+          }
+        }
       }
       if (aEliminar.length > 0) {
         for (const jefe_id of aEliminar) {
-          await supabase.from('usuario_jefes').delete().eq('usuario_id', editUserData.auth_user_id).eq('jefe_id', jefe_id)
+          const { error: deleteJefeError } = await supabase
+            .from('usuario_jefes')
+            .delete()
+            .eq('usuario_id', editUserData.auth_user_id)
+            .eq('jefe_id', jefe_id)
+          if (deleteJefeError) {
+            throw deleteJefeError
+          }
+        }
+
+        if (solicitudesPendientesIds.length > 0) {
+          const { error: deleteAprobacionesError } = await supabase
+            .from('permisos_aprobaciones')
+            .delete()
+            .in('solicitud_id', solicitudesPendientesIds)
+            .in('jefe_id', aEliminar as string[])
+            .eq('estado', 'pendiente')
+          if (deleteAprobacionesError) {
+            throw deleteAprobacionesError
+          }
         }
       }
     }

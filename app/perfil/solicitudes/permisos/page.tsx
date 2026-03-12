@@ -18,6 +18,8 @@ import { FileUpload } from "@/components/ui/file-upload"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
 import { formatLocalDate } from "@/lib/date-utils"
 
+type EstadoAprobacionJefe = "pendiente" | "aprobado" | "rechazado" | "sin_asignacion"
+
 export default function SolicitudPermisos() {
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
@@ -230,19 +232,33 @@ export default function SolicitudPermisos() {
 
       // Si es jefe, cargar solicitudes del equipo
       if (userData?.rol === 'jefe') {
-        const { data: subordinates } = await supabase
+        const { data: subordinates, error: subordinatesError } = await supabase
           .from('usuario_jefes')
           .select('usuario_id')
           .eq('jefe_id', session.user.id)
+        if (subordinatesError) {
+          console.error("Error al obtener subordinados:", subordinatesError)
+          setError("No fue posible cargar las solicitudes del equipo.")
+          setSolicitudesEquipo([])
+          setInitialLoading(false)
+          return
+        }
         const ids = (subordinates || []).map(s => s.usuario_id)
         if (ids.length > 0) {
-          const { data: teamSolicitudes } = await supabase
+          const { data: teamSolicitudes, error: teamSolicitudesError } = await supabase
             .from('solicitudes_permisos')
             .select('*')
             .in('usuario_id', ids)
             .order('fecha_solicitud', { ascending: false })
+          if (teamSolicitudesError) {
+            console.error("Error al obtener solicitudes del equipo:", teamSolicitudesError)
+            setError("No fue posible cargar las solicitudes del equipo.")
+            setSolicitudesEquipo([])
+            setInitialLoading(false)
+            return
+          }
           // Enriquecer con nombre del colaborador y estado de mi aprobación
-          const { data: usuariosN } = await supabase
+          const { data: usuariosN, error: usuariosNError } = await supabase
             .from('usuario_nomina')
             .select(`
               auth_user_id,
@@ -252,6 +268,13 @@ export default function SolicitudPermisos() {
               cargos:cargo_id(nombre)
             `)
             .in('auth_user_id', ids)
+          if (usuariosNError) {
+            console.error("Error al obtener datos de colaboradores:", usuariosNError)
+            setError("No fue posible cargar los datos del equipo.")
+            setSolicitudesEquipo([])
+            setInitialLoading(false)
+            return
+          }
           const enrichedTeam = (teamSolicitudes || []).map(s => {
             const u = usuariosN?.find((x: any) => x.auth_user_id === s.usuario_id)
             return { 
@@ -262,10 +285,17 @@ export default function SolicitudPermisos() {
           })
           // Obtener aprobaciones para las solicitudes del equipo
           const solIdsEquipo = enrichedTeam.map(s => s.id)
-          const { data: todasAprobaciones } = await supabase
+          const { data: todasAprobaciones, error: todasAprobacionesError } = await supabase
             .from('permisos_aprobaciones')
             .select('solicitud_id, estado, jefe_id')
             .in('solicitud_id', solIdsEquipo)
+          if (todasAprobacionesError) {
+            console.error("Error al obtener aprobaciones del equipo:", todasAprobacionesError)
+            setError("No fue posible cargar el estado de aprobaciones.")
+            setSolicitudesEquipo([])
+            setInitialLoading(false)
+            return
+          }
 
           // Obtener nombres de los jefes
           const jefesIds = [...new Set(todasAprobaciones?.map((a: any) => a.jefe_id) || [])]
@@ -299,7 +329,7 @@ export default function SolicitudPermisos() {
                 const miAprobacion = todasAprobaciones?.find((a: any) => a.solicitud_id === s.id && a.jefe_id === session.user.id)
                 return { 
                     ...s, 
-                    estado_aprobacion_jefe: miAprobacion?.estado || 'pendiente',
+                    estado_aprobacion_jefe: (miAprobacion?.estado || 'sin_asignacion') as EstadoAprobacionJefe,
                     aprobaciones: {
                         detalles: aprobacionesPorSol[s.id] || []
                     }
@@ -318,8 +348,38 @@ export default function SolicitudPermisos() {
 
   const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
 
+  const actualizarEstadoAprobacionLocal = (
+    solicitudId: string,
+    jefeId: string,
+    nuevoEstado: Exclude<EstadoAprobacionJefe, "sin_asignacion">
+  ) => {
+    setSolicitudesEquipo(prev =>
+      prev.map((s: any) => {
+        if (s.id !== solicitudId) return s
+
+        const detallesActuales = Array.isArray(s.aprobaciones?.detalles) ? s.aprobaciones.detalles : []
+        const detallesActualizados = detallesActuales.map((detalle: any) =>
+          detalle.jefe_id === jefeId
+            ? { ...detalle, estado: nuevoEstado }
+            : detalle
+        )
+
+        return {
+          ...s,
+          estado_aprobacion_jefe: nuevoEstado,
+          aprobaciones: {
+            ...(s.aprobaciones || {}),
+            detalles: detallesActualizados,
+          },
+        }
+      })
+    )
+  }
+
   const aprobarComoJefe = async (solicitudId: string) => {
     try {
+      setError('')
+      setSuccess('')
       setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
@@ -327,17 +387,34 @@ export default function SolicitudPermisos() {
         router.push('/login')
         return
       }
-      const { error } = await supabase
+      const solicitudActual = solicitudesEquipo.find((s: any) => s.id === solicitudId)
+      if (!solicitudActual) {
+        throw new Error('No se encontro la solicitud en tu lista de equipo.')
+      }
+      if (solicitudActual.estado !== 'pendiente') {
+        throw new Error('La solicitud ya fue resuelta y no admite nuevas aprobaciones.')
+      }
+      if (solicitudActual.estado_aprobacion_jefe === 'sin_asignacion') {
+        throw new Error('No tienes una aprobacion asignada para esta solicitud.')
+      }
+
+      const { data: updateData, error } = await supabase
         .from('permisos_aprobaciones')
         .update({ estado: 'aprobado', fecha_resolucion: new Date().toISOString() })
         .eq('solicitud_id', solicitudId)
         .eq('jefe_id', session.user.id)
+        .eq('estado', 'pendiente')
+        .select('id')
+        .maybeSingle()
       if (error) throw error
-      setSolicitudesEquipo(prev => prev.map(s => s.id === solicitudId ? { ...s, estado_aprobacion_jefe: 'aprobado' } : s))
+      if (!updateData) {
+        throw new Error('No se pudo registrar la aprobacion. Verifica que tengas una aprobacion pendiente asignada.')
+      }
+      actualizarEstadoAprobacionLocal(solicitudId, session.user.id, 'aprobado')
       setSuccess('Aprobación registrada.')
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
-      setError('Error al aprobar la solicitud.')
+      setError(e?.message || 'Error al aprobar la solicitud.')
     } finally {
       setIsResolvingSolicitud(false)
     }
@@ -347,6 +424,8 @@ export default function SolicitudPermisos() {
     const motivo = prompt('Motivo del rechazo:')
     if (!motivo) return
     try {
+      setError('')
+      setSuccess('')
       setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
@@ -354,17 +433,35 @@ export default function SolicitudPermisos() {
         router.push('/login')
         return
       }
-      const { error } = await supabase
+
+      const solicitudActual = solicitudesEquipo.find((s: any) => s.id === solicitudId)
+      if (!solicitudActual) {
+        throw new Error('No se encontro la solicitud en tu lista de equipo.')
+      }
+      if (solicitudActual.estado !== 'pendiente') {
+        throw new Error('La solicitud ya fue resuelta y no admite nuevas decisiones.')
+      }
+      if (solicitudActual.estado_aprobacion_jefe === 'sin_asignacion') {
+        throw new Error('No tienes una aprobacion asignada para esta solicitud.')
+      }
+
+      const { data: updateData, error } = await supabase
         .from('permisos_aprobaciones')
         .update({ estado: 'rechazado', fecha_resolucion: new Date().toISOString(), motivo_rechazo: motivo })
         .eq('solicitud_id', solicitudId)
         .eq('jefe_id', session.user.id)
+        .eq('estado', 'pendiente')
+        .select('id')
+        .maybeSingle()
       if (error) throw error
-      setSolicitudesEquipo(prev => prev.map(s => s.id === solicitudId ? { ...s, estado_aprobacion_jefe: 'rechazado' } : s))
+      if (!updateData) {
+        throw new Error('No se pudo registrar el rechazo. Verifica que tengas una aprobacion pendiente asignada.')
+      }
+      actualizarEstadoAprobacionLocal(solicitudId, session.user.id, 'rechazado')
       setSuccess('Rechazo registrado.')
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
-      setError('Error al rechazar la solicitud.')
+      setError(e?.message || 'Error al rechazar la solicitud.')
     } finally {
       setIsResolvingSolicitud(false)
     }
@@ -482,7 +579,33 @@ export default function SolicitudPermisos() {
           .eq('usuario_id', session.user.id)
           .order('fecha_solicitud', { ascending: false })
 
-        setSolicitudes(solicitudesData || [])
+        const sols = solicitudesData || []
+        const solIds = sols.map(s => s.id)
+        const aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number }> = {}
+
+        if (solIds.length > 0) {
+          const { data: approvals } = await supabase
+            .from('permisos_aprobaciones')
+            .select('solicitud_id, estado')
+            .in('solicitud_id', solIds)
+
+          solIds.forEach(id => {
+            aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }
+          })
+
+          approvals?.forEach((ap: any) => {
+            const key = ap.solicitud_id
+            if (!aprobacionesMap[key]) {
+              aprobacionesMap[key] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }
+            }
+            aprobacionesMap[key].total += 1
+            if (ap.estado === 'aprobado') aprobacionesMap[key].aprobadas += 1
+            else if (ap.estado === 'rechazado') aprobacionesMap[key].rechazadas += 1
+            else aprobacionesMap[key].pendientes += 1
+          })
+        }
+
+        setSolicitudes(sols.map(s => ({ ...s, aprobaciones: aprobacionesMap[s.id] })))
       })()
     } catch (err: any) {
       console.error("Error al enviar la solicitud:", err)
@@ -787,18 +910,27 @@ export default function SolicitudPermisos() {
                             <Badge variant={
                               s.estado_aprobacion_jefe === 'aprobado' ? 'secondary' :
                               s.estado_aprobacion_jefe === 'rechazado' ? 'destructive' :
+                              s.estado_aprobacion_jefe === 'sin_asignacion' ? 'outline' :
                               'default'
                             }>
-                              {s.estado_aprobacion_jefe.charAt(0).toUpperCase() + s.estado_aprobacion_jefe.slice(1)}
+                              {s.estado_aprobacion_jefe === 'sin_asignacion'
+                                ? 'Sin asignacion'
+                                : s.estado_aprobacion_jefe.charAt(0).toUpperCase() + s.estado_aprobacion_jefe.slice(1)}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2 items-center">
-                              {s.estado_aprobacion_jefe === 'pendiente' && (
+                              {s.estado === 'pendiente' && s.estado_aprobacion_jefe === 'pendiente' && (
                                 <>
                                   <Button size="sm" onClick={() => aprobarComoJefe(s.id)} disabled={isResolvingSolicitud}>Aprobar</Button>
                                   <Button size="sm" variant="outline" onClick={() => rechazarComoJefe(s.id)} disabled={isResolvingSolicitud}>Rechazar</Button>
                                 </>
+                              )}
+                              {s.estado !== 'pendiente' && (
+                                <span className="text-xs text-muted-foreground">Solicitud resuelta</span>
+                              )}
+                              {s.estado === 'pendiente' && s.estado_aprobacion_jefe === 'sin_asignacion' && (
+                                <span className="text-xs text-amber-700">No asignado como aprobador</span>
                               )}
                               <Button
                                 size="sm"

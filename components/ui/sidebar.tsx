@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle, Users } from "lucide-react"
 import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -163,6 +163,16 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
 
   const menuItems = [
     { name: "Mis datos", href: "/perfil", icon: Info, current: currentPath === "/perfil" },
+    ...(permissionsData?.rol === "jefe"
+      ? [
+          {
+            name: "Equipo a cargo",
+            href: "/perfil/equipo",
+            icon: Users,
+            current: currentPath === "/perfil/equipo",
+          },
+        ]
+      : []),
     {
       name: "Solicitudes",
       icon: FileText,

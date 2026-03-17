@@ -43,6 +43,7 @@ export default function Usuarios() {
   const [empresasFilter, setEmpresasFilter] = useState<string[]>([])
   const [cargos, setCargos] = useState<any[]>([])
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>("")
+  const [selectedSede, setSelectedSede] = useState<string>("all")
   const [selectedCargo, setSelectedCargo] = useState<string>("all")
   const [selectedEstado, setSelectedEstado] = useState<string>("all")
   const [selectedRol, setSelectedRol] = useState<string>("all")
@@ -322,7 +323,7 @@ export default function Usuarios() {
 
     // Establecer un nuevo timeout para aplicar la búsqueda después de 300ms
     searchTimeout.current = setTimeout(() => {
-      applyFilters(value, selectedEmpresa, selectedCargo, selectedEstado, selectedRol, sortConfig)
+      applyFilters(value, selectedEmpresa, selectedSede, selectedCargo, selectedEstado, selectedRol, sortConfig)
     }, 300)
   }
 
@@ -330,6 +331,7 @@ export default function Usuarios() {
   const applyFilters = (
     search: string,
     empresa: string,
+    sede: string,
     cargo: string,
     estado: string,
     rol: string,
@@ -352,6 +354,11 @@ export default function Usuarios() {
     // Aplicar filtro de empresa
     if (empresa && empresa !== "all") {
       result = result.filter((user) => user.empresas?.nombre === empresa)
+    }
+
+    // Aplicar filtro de sede
+    if (sede && sede !== "all") {
+      result = result.filter((user) => user.sedes?.nombre === sede)
     }
 
     // Aplicar filtro de cargo
@@ -422,10 +429,10 @@ export default function Usuarios() {
 
     setSearchLoading(true)
     searchTimeout.current = setTimeout(() => {
-      applyFilters(searchTerm, selectedEmpresa, selectedCargo, selectedEstado, selectedRol, sortConfig)
+      applyFilters(searchTerm, selectedEmpresa, selectedSede, selectedCargo, selectedEstado, selectedRol, sortConfig)
       setCurrentPage(1)
     }, 300)
-  }, [selectedEmpresa, selectedCargo, selectedEstado, selectedRol, sortConfig, users])
+  }, [selectedEmpresa, selectedSede, selectedCargo, selectedEstado, selectedRol, sortConfig, users])
 
   // Efecto para calcular la paginación
   useEffect(() => {
@@ -440,6 +447,7 @@ export default function Usuarios() {
   const clearFilters = () => {
     setSearchTerm("")
     setSelectedEmpresa("")
+    setSelectedSede("all")
     setSelectedCargo("all")
     setSelectedEstado("all")
     setSelectedRol("all")
@@ -447,7 +455,7 @@ export default function Usuarios() {
     setCurrentPage(1)
 
     // Aplicar filtros inmediatamente sin esperar
-    applyFilters("", "", "all", "all", "all", null)
+    applyFilters("", "", "all", "all", "all", "all", null)
   }
 
   const handleViewDetails = async (user: any) => {
@@ -1178,7 +1186,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                 {/* Filtros */}
                 <Card>
                   <CardContent className="p-6 space-y-4">
-                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="flex flex-col md:flex-row md:flex-wrap gap-4 items-end">
                       <div className="flex-1">
                         <label className="text-sm font-medium mb-1 block">Buscar</label>
                         <div className="relative">
@@ -1227,6 +1235,23 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                       </div>
 
                       <div className="w-full md:w-48">
+                        <label className="text-sm font-medium mb-1 block">Sede</label>
+                        <Select value={selectedSede} onValueChange={setSelectedSede}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Todas las sedes" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60 overflow-y-auto">
+                            <SelectItem value="all">Todas las sedes</SelectItem>
+                            {sedes.map((sede) => (
+                              <SelectItem key={sede.id} value={sede.nombre}>
+                                {sede.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="w-full md:w-48">
                         <label className="text-sm font-medium mb-1 block">Estado</label>
                         <Select value={selectedEstado} onValueChange={setSelectedEstado}>
                           <SelectTrigger>
@@ -1261,7 +1286,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                     </div>
 
                     {/* Indicadores de filtros activos */}
-                    {(searchTerm || selectedEmpresa || selectedCargo || selectedEstado !== "all" || selectedRol !== "all" || sortConfig) && (
+                    {(searchTerm || selectedEmpresa || selectedSede !== "all" || selectedCargo || selectedEstado !== "all" || selectedRol !== "all" || sortConfig) && (
                       <div className="flex flex-wrap gap-2 mt-4">
                         <div className="text-sm text-muted-foreground">Filtros activos:</div>
                         {searchTerm && (
@@ -1277,6 +1302,11 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                         {selectedCargo && selectedCargo !== "all" && (
                           <Badge variant="outline" className="flex items-center gap-1">
                             Cargo: {selectedCargo}
+                          </Badge>
+                        )}
+                        {selectedSede && selectedSede !== "all" && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            Sede: {selectedSede}
                           </Badge>
                         )}
                         {selectedEstado && selectedEstado !== "all" && (

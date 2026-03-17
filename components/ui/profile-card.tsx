@@ -31,9 +31,10 @@ import { formatLocalDate } from "@/lib/date-utils"
 
 interface ProfileCardProps {
   userData: any
+  readOnly?: boolean
 }
 
-export function ProfileCard({ userData }: ProfileCardProps) {
+export function ProfileCard({ userData, readOnly = false }: ProfileCardProps) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -88,7 +89,7 @@ export function ProfileCard({ userData }: ProfileCardProps) {
         return
       }
 
-      const oldAvatarPath = currentUser?.avatar_path as string | undefined
+      const oldAvatarPath = (currentUser as any)?.avatar_path as string | undefined
 
       const img = document.createElement('img')
       img.src = URL.createObjectURL(file)
@@ -138,8 +139,8 @@ export function ProfileCard({ userData }: ProfileCardProps) {
         return
       }
 
-      const { error: updateError } = await supabase
-        .from("usuario_nomina")
+      const { error: updateError } = await (supabase
+        .from("usuario_nomina") as any)
         .update({ avatar_path: filePath })
         .eq("auth_user_id", userData.auth_user_id)
 
@@ -188,29 +189,31 @@ export function ProfileCard({ userData }: ProfileCardProps) {
           <div className="flex items-center gap-5">
             <div className="relative group">
               <div
-                className="h-20 w-20 rounded-full overflow-hidden cursor-pointer border-2 border-white shadow-md bg-white"
-                onClick={() => setIsModalOpen(true)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
+                className={`h-20 w-20 rounded-full overflow-hidden border-2 border-white shadow-md bg-white ${readOnly ? "" : "cursor-pointer"}`}
+                onClick={readOnly ? undefined : () => setIsModalOpen(true)}
+                role={readOnly ? undefined : "button"}
+                tabIndex={readOnly ? -1 : 0}
+                onKeyDown={readOnly ? undefined : (e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
                     setIsModalOpen(true)
                   }
                 }}
-                aria-label="Ver avatar en tamaño completo"
+                aria-label={readOnly ? undefined : "Ver avatar en tamaño completo"}
               >
                 <img src={avatarUrl || undefined} alt="Avatar del usuario" className="h-full w-full object-cover" />
               </div>
-              <div
-                className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                onClick={() => setIsModalOpen(true)}
-              >
-                <Search className="h-5 w-5 text-white" />
-              </div>
+              {!readOnly && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  onClick={() => setIsModalOpen(true)}
+                >
+                  <Search className="h-5 w-5 text-white" />
+                </div>
+              )}
             </div>
 
-            {isModalOpen && (
+            {!readOnly && isModalOpen && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeModal}>
                 <div
                   className="bg-white rounded-[10px] max-w-md w-full mx-4 overflow-hidden"
@@ -252,7 +255,7 @@ export function ProfileCard({ userData }: ProfileCardProps) {
               </div>
             )}
 
-            {showUploadOptions && (
+            {!readOnly && showUploadOptions && (
               <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
                 <div className="bg-white rounded-[10px] p-6 max-w-sm w-full mx-4">
                   <div className="flex items-center justify-between mb-4">

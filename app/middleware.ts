@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
       
       // Solo los administradores tienen acceso a las rutas de administración
       if (userData.rol !== 'administrador') {
-        return NextResponse.redirect(new URL('/perfil', request.url));
+        return NextResponse.redirect(new URL('/perfil/bienvenido', request.url));
       }
     }
 

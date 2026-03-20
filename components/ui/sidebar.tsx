@@ -162,6 +162,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
   // Este sidebar es solo para la sección de perfil de usuario
 
   const menuItems = [
+    { name: "Bienvenido", href: "/perfil/bienvenido", icon: Newspaper, current: currentPath === "/perfil/bienvenido" },
     { name: "Mis datos", href: "/perfil", icon: Info, current: currentPath === "/perfil" },
     ...(permissionsData?.rol === "jefe"
       ? [

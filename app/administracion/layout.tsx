@@ -47,6 +47,8 @@ export default function AdministracionLayout({
         .eq("auth_user_id", session.user.id)
         .single()
 
+      const currentUser = userData as any
+
       if (userError) {
         console.error("Error al obtener datos del usuario:", userError)
         router.push("/")
@@ -54,18 +56,18 @@ export default function AdministracionLayout({
       }
 
       // Verificar que el usuario tenga permisos de administración
-      if (userData.rol !== 'administrador' && userData.rol !== 'moderador') {
+      if (currentUser.rol !== 'administrador') {
         router.push("/")
         return
       }
 
       // Verificar si el usuario está activo
-      if (userData.estado !== 'activo') {
+      if (currentUser.estado !== 'activo') {
         router.push("/")
         return
       }
 
-      setUserData(userData)
+      setUserData(currentUser)
       setLoading(false)
     }
 

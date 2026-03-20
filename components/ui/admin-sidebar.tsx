@@ -17,7 +17,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { createClient } from "@supabase/supabase-js"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { usePermissions } from "@/hooks/use-permissions"
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -39,8 +38,6 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<{[key: string]: boolean}>({})
   const router = useRouter()
-  const { userData, loading: permissionsLoading } = usePermissions()
-
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (!error) {
@@ -52,8 +49,6 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
 
   // Generar menuItems dinámicamente basado en rol
   const menuItems = React.useMemo(() => {
-    if (permissionsLoading || !userData) return [];
-    
     const items = [];
     
     // 1. Escritorio - Siempre incluir
@@ -63,9 +58,16 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
       icon: Home, 
       current: currentPath === "/administracion" 
     });
+
+    items.push({
+      name: "Bienvenido",
+      href: "/administracion/bienvenido",
+      icon: Newspaper,
+      current: currentPath === "/administracion/bienvenido",
+    });
     
-    // Solo administradores tienen acceso completo
-    if (userData.rol === 'administrador') {
+    // Administracion tiene acceso completo
+    {
       // 2. Estadísticas
       items.push({ 
         name: "Estadísticas", 
@@ -294,7 +296,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
     });
     
     return items;
-  }, [permissionsLoading, userData, currentPath]);
+  }, [currentPath]);
   
   // Inicializar el estado de expansión basado en la ruta actual
   useEffect(() => {

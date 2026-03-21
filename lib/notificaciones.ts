@@ -19,11 +19,11 @@ export async function crearNotificacionNuevaSolicitud({
   try {
     const supabase = createAdminSupabaseClient()
 
-    // Obtener todos los administradores y moderadores
+    // Obtener todos los administradores
     const { data: administradores, error: adminError } = await supabase
       .from('usuario_nomina')
       .select('auth_user_id')
-      .in('rol', ['administrador', 'moderador'])
+      .eq('rol', 'administrador')
       .eq('estado', 'activo')
 
     if (adminError) {

@@ -45,6 +45,8 @@ export default function PerfilLayout({
         .eq("auth_user_id", session.user.id)
         .single()
 
+      const currentUser = userData as any
+
       if (userError) {
         console.error("Error al obtener datos del usuario:", userError)
         router.push("/")
@@ -55,13 +57,13 @@ export default function PerfilLayout({
       // Los administradores pueden acceder a su perfil cuando sea necesario
       // (por ejemplo, desde notificaciones o para ver sus propias solicitudes)
       // Solo redirigir si están accediendo directamente a /perfil sin una ruta específica
-      if ((userData.rol === 'administrador' || userData.rol === 'moderador') && 
+      if (currentUser.rol === 'administrador' && 
           window.location.pathname === '/perfil') {
-        router.push("/administracion")
+        router.push("/administracion/bienvenido")
         return
       }
 
-      setUserData(userData)
+      setUserData(currentUser)
       setLoading(false)
     }
 
@@ -118,7 +120,7 @@ export default function PerfilLayout({
       {/* Sidebar - oculto en móvil */}
       <div className="hidden md:block w-64 bg-white shadow-sm border-r border-gray-200 flex-shrink-0">
         <Sidebar userName={userData?.colaborador || 'Usuario'} />
-        {(userData?.rol === 'administrador' || userData?.rol === 'moderador') && (
+        {userData?.rol === 'administrador' && (
           <OnlineUsersIndicator />
         )}
       </div>

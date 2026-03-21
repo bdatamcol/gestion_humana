@@ -43,18 +43,20 @@ export default function Login() {
           .eq("auth_user_id", session.user.id)
           .single()
 
-        if (!userError && userData) {
+        const currentUser = userData as any
+
+        if (!userError && currentUser) {
           // Verificar si el usuario está activo
-          if (userData.estado !== "activo") {
+          if (currentUser.estado !== "activo") {
             // Cerrar la sesión si el usuario no está activo
             await supabase.auth.signOut()
             return
           }
 
-          if (userData.rol === "administrador") {
-            router.push("/administracion")
+          if (currentUser.rol === "administrador") {
+            router.push("/administracion/bienvenido")
           } else {
-            router.push("/perfil")
+            router.push("/perfil/bienvenido")
           }
         }
       }
@@ -86,12 +88,14 @@ export default function Login() {
           .eq("cedula", formData.correo)
           .single()
 
+        const nominaUser = userData as any
+
         if (userError) {
           throw new Error("No se encontró ningún usuario con esta cédula")
         }
 
-        if (typeof userData.correo_electronico === "string") {
-          emailToUse = userData.correo_electronico
+        if (typeof nominaUser?.correo_electronico === "string") {
+          emailToUse = nominaUser.correo_electronico
         } else {
           throw new Error("El correo electrónico recuperado no es válido")
         }
@@ -113,20 +117,22 @@ export default function Login() {
           .eq("auth_user_id", data.user.id)
           .single()
 
+        const currentUser = userData as any
+
         if (userError) throw userError
 
         // Verificar si el usuario está activo
-        if (userData.estado !== "activo") {
+        if (currentUser.estado !== "activo") {
           // Cerrar la sesión si el usuario no está activo
           await supabase.auth.signOut()
           throw new Error("Tu cuenta no está activa actualmente. Contacta al administrador para más información.")
         }
 
         // Redirigir según el rol
-        if (userData.rol === "administrador") {
-          router.push("/administracion")
+        if (currentUser.rol === "administrador") {
+          router.push("/administracion/bienvenido")
         } else {
-          router.push("/perfil")
+          router.push("/perfil/bienvenido")
         }
       }
     } catch (err: any) {

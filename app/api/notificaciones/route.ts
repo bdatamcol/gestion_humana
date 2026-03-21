@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       .eq('auth_user_id', session.user.id)
       .single()
 
-    if (userError || !userData || !['administrador', 'moderador'].includes(userData.rol)) {
+    if (userError || !userData || userData.rol !== 'administrador') {
       return NextResponse.json({ error: 'Permisos insuficientes' }, { status: 403 })
     }
 

@@ -297,7 +297,8 @@ export default function AdminCertificacionLaboral() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) {
-        router.push("/login")
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
         return
       }
 
@@ -571,7 +572,11 @@ export default function AdminCertificacionLaboral() {
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (!session) return router.push("/login")
+      if (!session) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
+        return
+      }
 
       const { error: e } = await supabase
         .from("solicitudes_certificacion")
@@ -627,7 +632,11 @@ export default function AdminCertificacionLaboral() {
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (!session) return router.push("/login")
+      if (!session) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
+        return
+      }
 
       const { data: newSol, error: solErr } = await supabase
         .from("solicitudes_certificacion")

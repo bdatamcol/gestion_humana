@@ -128,7 +128,8 @@ export default function AdminNovedadesIncapacidades() {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        router.push("/login")
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setActionLoading(false)
         return
       }
 
@@ -179,7 +180,8 @@ export default function AdminNovedadesIncapacidades() {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        router.push("/login")
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setActionLoading(false)
         return
       }
 

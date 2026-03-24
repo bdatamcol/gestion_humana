@@ -106,6 +106,26 @@ export default function AdminSolicitudesPermisos() {
   // Referencia para el timeout de búsqueda
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
+  const getAuthUserId = async (supabase: ReturnType<typeof createSupabaseClient>, retries = 2): Promise<string | null> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) {
+        return session.user.id
+      }
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (!userError && user?.id) {
+        return user.id
+      }
+
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
+      }
+    }
+
+    return null
+  }
+
   // Obtener conteo de mensajes no leídos para una solicitud
   const fetchUnseenCount = async (solId: string) => {
     if (!adminId) return
@@ -174,15 +194,15 @@ export default function AdminSolicitudesPermisos() {
       try {
         const supabase = createSupabaseClient()
         
-        // Obtener sesión del usuario administrador
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) {
-          router.push("/login")
+        const adminUserId = await getAuthUserId(supabase)
+        if (!adminUserId) {
+          setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+          setLoading(false)
           return
         }
         
         // Guardar ID del administrador para uso en comentarios
-        setAdminId(session.user.id)
+        setAdminId(adminUserId)
         
         // Ejecutar consultas en paralelo para mejor rendimiento
         const [solicitudesResult] = await Promise.all([
@@ -532,10 +552,11 @@ export default function AdminSolicitudesPermisos() {
       setError("")
       
       const supabase = createSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const adminUserId = await getAuthUserId(supabase)
       
-      if (!session) {
-        router.push("/login")
+      if (!adminUserId) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
         return
       }
 
@@ -820,7 +841,7 @@ export default function AdminSolicitudesPermisos() {
           .from('solicitudes_permisos')
           .update({
             estado: 'aprobado',
-            admin_id: session.user.id,
+            admin_id: adminUserId,
             fecha_resolucion: new Date(),
             pdf_url: urlData.publicUrl
           })
@@ -832,14 +853,14 @@ export default function AdminSolicitudesPermisos() {
         setSolicitudes(solicitudes.map(s => s.id === solicitudId ? {
           ...s,
           estado: 'aprobado',
-          admin_id: session.user.id,
+          admin_id: adminUserId,
           fecha_resolucion: new Date().toISOString(),
           pdf_url: urlData.publicUrl
         } : s));
         setFilteredSolicitudes(filteredSolicitudes.map(s => s.id === solicitudId ? {
           ...s,
           estado: 'aprobado',
-          admin_id: session.user.id,
+          admin_id: adminUserId,
           fecha_resolucion: new Date().toISOString(),
           pdf_url: urlData.publicUrl
         } : s));
@@ -860,10 +881,11 @@ export default function AdminSolicitudesPermisos() {
       setError("");
       
       const supabase = createSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const adminUserId = await getAuthUserId(supabase)
       
-      if (!session) {
-        router.push("/login");
+      if (!adminUserId) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.");
+        setLoading(false);
         return;
       }
 
@@ -871,7 +893,7 @@ export default function AdminSolicitudesPermisos() {
         .from('solicitudes_permisos')
         .update({
           estado: 'rechazado',
-          admin_id: session.user.id,
+          admin_id: adminUserId,
           fecha_resolucion: new Date(),
           motivo_rechazo: motivo
         })
@@ -883,14 +905,14 @@ export default function AdminSolicitudesPermisos() {
       setSolicitudes(solicitudes.map(s => s.id === solicitudId ? {
         ...s, 
         estado: 'rechazado', 
-        admin_id: session.user.id, 
+        admin_id: adminUserId, 
         fecha_resolucion: new Date().toISOString(), 
         motivo_rechazo: motivo
       } : s));
       setFilteredSolicitudes(filteredSolicitudes.map(s => s.id === solicitudId ? {
         ...s, 
         estado: 'rechazado', 
-        admin_id: session.user.id, 
+        admin_id: adminUserId, 
         fecha_resolucion: new Date().toISOString(), 
         motivo_rechazo: motivo
       } : s));

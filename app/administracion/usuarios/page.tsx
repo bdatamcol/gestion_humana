@@ -151,7 +151,7 @@ export default function Usuarios() {
       } = await supabase.auth.getSession()
 
       if (error || !session) {
-        router.push("/login")
+        setLoading(false)
         return
       }
 
@@ -164,13 +164,13 @@ export default function Usuarios() {
 
       if (userError) {
         console.error("Error al verificar rol:", userError)
-        router.push("/perfil")
+        setLoading(false)
         return
       }
 
       if (currentUser.rol !== "administrador") {
         console.log("Usuario no tiene permisos de administrador")
-        router.push("/perfil")
+        setLoading(false)
         return
       }
 

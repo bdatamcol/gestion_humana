@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { createClient } from "@supabase/supabase-js"
+import { createSupabaseClient } from "@/lib/supabase"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 
@@ -29,10 +29,7 @@ interface AdminSidebarProps {
   userName?: string
 }
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-)
+const supabase = createSupabaseClient()
 
 export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)

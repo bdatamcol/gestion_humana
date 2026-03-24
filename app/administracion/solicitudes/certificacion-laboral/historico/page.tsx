@@ -220,7 +220,11 @@ export default function AdminSolicitudesCertificacion() {
     try {
       setLoading(true)
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return router.push("/login")
+      if (!session) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
+        return
+      }
 
       const { error } = await supabase
         .from("solicitudes_certificacion")

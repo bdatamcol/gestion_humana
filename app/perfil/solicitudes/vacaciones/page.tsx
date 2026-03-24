@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 // Sidebar removido - ya está en el layout
 import { createSupabaseClient } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,7 +33,6 @@ export default function SolicitudVacaciones() {
     setShowCommentsModal(true)
   }
 
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [solicitudes, setSolicitudes] = useState<any[]>([])
@@ -94,7 +92,7 @@ export default function SolicitudVacaciones() {
       } = await supabase.auth.getSession()
 
       if (error || !session) {
-        router.push("/login")
+        setLoading(false)
         return
       }
 
@@ -103,7 +101,7 @@ export default function SolicitudVacaciones() {
         .from("usuario_nomina")
         .select(`
           *,
-          empresas:empresa_id(nombre, razon_social, nit)
+          empresas:empresa_id(nombre, razon_social, nit),
           sedes:sede_id(nombre)
         `)
         .eq("auth_user_id", session.user.id)
@@ -158,7 +156,8 @@ export default function SolicitudVacaciones() {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        router.push("/login")
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
         return
       }
 

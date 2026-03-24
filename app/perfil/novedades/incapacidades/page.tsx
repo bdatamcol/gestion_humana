@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
 import { createSupabaseClient } from "@/lib/supabase"
 // import { crearNotificacionNuevaSolicitud } from "@/lib/notificaciones" // Removido - se maneja desde el servidor
 // Sidebar removido - ya está en el layout
@@ -29,7 +28,6 @@ import { ComentariosIncapacidades } from "@/components/incapacidades/comentarios
 import { formatLocalDate } from "@/lib/date-utils"
 
 export default function IncapacidadesUsuario() {
-  const router = useRouter()
   const supabase = createSupabaseClient()
 
   const [loading, setLoading] = useState(false)
@@ -82,7 +80,7 @@ export default function IncapacidadesUsuario() {
       setLoading(true)
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
-        router.push("/login")
+        setLoading(false)
         return
       }
       setSessionUserId(session.user.id)
@@ -121,7 +119,7 @@ export default function IncapacidadesUsuario() {
       setLoading(false)
     }
     init()
-  }, [router, supabase])
+  }, [supabase])
 
   // Efecto para filtrar incapacidades
   useEffect(() => {
@@ -219,7 +217,11 @@ export default function IncapacidadesUsuario() {
       }
       setLoading(true)
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return router.push("/login")
+      if (!session) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
+        return
+      }
 
       // Obtener datos del usuario para la notificación
       const { data: userData, error: userError } = await supabase

@@ -72,7 +72,10 @@ export default function CertificacionLaboral() {
     const load = async () => {
       setLoading(true)
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return router.push("/login")
+      if (!session) {
+        setLoading(false)
+        return
+      }
       const { data: solData } = await supabase
         .from("solicitudes_certificacion")
         .select("*")
@@ -155,7 +158,11 @@ export default function CertificacionLaboral() {
     setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return router.push("/login")
+      if (!session) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
+        return
+      }
       
       // Obtener datos del usuario para la notificación
       const { data: userData, error: userError } = await supabase

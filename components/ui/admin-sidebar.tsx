@@ -252,7 +252,28 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
           },
         ],
       });
-      
+
+      // 11. Feed360
+      items.push({
+        name: "Feed360",
+        icon: Activity,
+        current: currentPath.includes("/administracion/feed360"),
+        subItems: [
+          {
+            name: "Temáticas",
+            href: "/administracion/feed360/tematicas",
+            icon: Newspaper,
+            current: currentPath === "/administracion/feed360/tematicas"
+          },
+          {
+            name: "Publicaciones",
+            href: "/administracion/feed360/publicaciones",
+            icon: FileText,
+            current: currentPath === "/administracion/feed360/publicaciones"
+          },
+        ],
+      });
+
       // Segundo separador
       items.push({ 
         name: "separator-2", 

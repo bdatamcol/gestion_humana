@@ -73,7 +73,8 @@ export default function NuevoComunicado() {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
-        router.push("/login");
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.");
+        setLoading(false);
         return;
       }
 
@@ -84,7 +85,8 @@ export default function NuevoComunicado() {
         .single();
 
       if (roleError || userData?.rol !== "administrador") {
-        router.push("/perfil");
+        setError("No tienes permisos para acceder a esta sección.");
+        setLoading(false);
         return;
       }
 
@@ -107,7 +109,7 @@ export default function NuevoComunicado() {
       setLoading(false);
     };
     checkAuthAndLoad();
-  }, [router]);
+  }, []);
 
 
 

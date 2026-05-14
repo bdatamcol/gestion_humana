@@ -71,7 +71,8 @@ export default function EditarSSTPage() {
       } = await supabase.auth.getSession()
 
       if (error || !session) {
-        router.push("/")
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
         return
       }
 
@@ -83,7 +84,8 @@ export default function EditarSSTPage() {
         .single()
 
       if (userError || userData?.rol !== "administrador") {
-        router.push("/perfil")
+        setError("No tienes permisos para acceder a esta sección.")
+        setLoading(false)
         return
       }
 

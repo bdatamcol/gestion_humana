@@ -39,7 +39,8 @@ export default function Cargos() {
       } = await supabase.auth.getSession()
 
       if (error || !session) {
-        router.push("/login")
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setLoading(false)
         return
       }
 
@@ -51,7 +52,8 @@ export default function Cargos() {
         .single()
 
       if (userError || userData?.rol !== "administrador") {
-        router.push("/perfil")
+        setError("No tienes permisos para acceder a esta sección.")
+        setLoading(false)
         return
       }
 

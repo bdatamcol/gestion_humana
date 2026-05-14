@@ -220,6 +220,29 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
       href: "/perfil/comunicados",
       icon: Newspaper,
       current: currentPath === "/perfil/comunicados"
+    },
+    {
+      name: "Feed360",
+      icon: Newspaper,
+      current: false,
+      subItems: [
+        {
+          name: "Publicaciones",
+          href: "/perfil/feed360/publicaciones",
+          icon: Newspaper,
+          current: currentPath === "/perfil/feed360/publicaciones" || currentPath === "/perfil/feed360",
+        },
+        {
+          name: "Temáticas",
+          href: "/perfil/feed360/tematicas",
+          icon: Calendar,
+          current:
+            currentPath === "/perfil/feed360/tematicas" ||
+            (currentPath.startsWith("/perfil/feed360/") &&
+              currentPath !== "/perfil/feed360/publicaciones" &&
+              currentPath !== "/perfil/feed360"),
+        },
+      ],
     }
     // Aquí se pueden agregar más secciones en el futuro
   ]

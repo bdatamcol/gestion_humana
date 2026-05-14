@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { createSupabaseClient } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,7 +34,6 @@ export default function SolicitudPermisos() {
     setShowReasonModal(true)
   }
 
-  const router = useRouter()
   const [initialLoading, setInitialLoading] = useState(false)
   const [isSubmittingSolicitud, setIsSubmittingSolicitud] = useState(false)
   const [isResolvingSolicitud, setIsResolvingSolicitud] = useState(false)
@@ -167,7 +165,7 @@ export default function SolicitudPermisos() {
       } = await supabase.auth.getSession()
 
       if (error || !session) {
-        router.push("/login")
+        setInitialLoading(false)
         return
       }
 
@@ -384,7 +382,8 @@ export default function SolicitudPermisos() {
       const supabase = createSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        router.push('/login')
+        setError('No se pudo validar tu sesión. Recarga la página e intenta nuevamente.')
+        setIsResolvingSolicitud(false)
         return
       }
       const solicitudActual = solicitudesEquipo.find((s: any) => s.id === solicitudId)
@@ -430,7 +429,8 @@ export default function SolicitudPermisos() {
       const supabase = createSupabaseClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        router.push('/login')
+        setError('No se pudo validar tu sesión. Recarga la página e intenta nuevamente.')
+        setIsResolvingSolicitud(false)
         return
       }
 
@@ -499,7 +499,8 @@ export default function SolicitudPermisos() {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
-        router.push("/login")
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+        setIsSubmittingSolicitud(false)
         return
       }
 

@@ -1,14 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 // AdminSidebar removido - ya está en el layout
 import { ProfileCard } from "@/components/ui/profile-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { createSupabaseClient } from "@/lib/supabase"
 
 export default function Perfil() {
-  const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -21,7 +19,7 @@ export default function Perfil() {
       } = await supabase.auth.getSession()
 
       if (error || !session) {
-        router.push("/login")
+        setLoading(false)
         return
       }
 
@@ -57,7 +55,7 @@ export default function Perfil() {
     }
 
     checkAuth()
-  }, [router])
+  }, [])
 
   return (
     <div className="min-h-screen bg-transparent">

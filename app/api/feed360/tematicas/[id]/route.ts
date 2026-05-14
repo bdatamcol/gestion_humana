@@ -27,7 +27,7 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const { titulo, descripcion, fecha_inicio, fecha_fin, estado } = body;
+  const { titulo, descripcion, fecha_inicio, fecha_fin, estado, imagen_url } = body;
 
   const supabase = createAdminSupabaseClient();
 
@@ -39,6 +39,7 @@ export async function PUT(
       fecha_inicio,
       fecha_fin,
       estado,
+      imagen_url,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

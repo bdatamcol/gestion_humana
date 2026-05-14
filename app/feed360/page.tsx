@@ -13,6 +13,7 @@ interface Tematica {
   fecha_inicio: string;
   fecha_fin: string;
   estado: string;
+  imagen_url: string;
 }
 
 export default function Feed360Page() {
@@ -53,9 +54,11 @@ export default function Feed360Page() {
         .eq("estado", "abierta")
         .lte("fecha_inicio", now)
         .gte("fecha_fin", now)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      setTematicaActiva(tematica);
+      setTematicaActiva(tematica || null);
       setLoading(false);
     };
 

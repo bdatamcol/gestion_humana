@@ -1,0 +1,1 @@
+ALTER TABLE tematicas_feed360 ADD COLUMN imagen_url TEXT NOT NULL DEFAULT '';

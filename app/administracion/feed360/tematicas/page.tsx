@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plus, Search, Edit, Trash2, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { createSupabaseClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -33,10 +31,10 @@ interface Tematica {
   fecha_fin: string;
   estado: string;
   created_at: string;
+  imagen_url: string;
 }
 
 export default function Feed360TematicasPage() {
-  const router = useRouter();
   const [tematicas, setTematicas] = useState<Tematica[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -106,102 +104,117 @@ export default function Feed360TematicasPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Temáticas Feed360</h1>
-          <p className="text-muted-foreground">
-            Gestiona las temáticas para las publicaciones
-          </p>
+    <div className="min-h-screen,radial-gradient(circle_at_74%_36%,rgba(234,215,168,0.45)_0_8%,transparent_8.2%),linear-gradient(120deg,#fafafa,#ededeb)] p-6">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div className="rounded-2xl border border-white/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-black tracking-[-0.03em] text-neutral-900">Temáticas Feed360</h1>
+              <p className="mt-1 text-sm text-neutral-600">
+                Gestiona las temáticas para las publicaciones
+              </p>
+            </div>
+            <Button className="rounded-xl bg-neutral-950 hover:bg-neutral-800" asChild>
+              <a href="/administracion/feed360/tematicas/nueva">
+                <Plus className="mr-2 h-4 w-4" />
+                Nueva Temática
+              </a>
+            </Button>
+          </div>
         </div>
-        <Button asChild>
-          <a href="/administracion/feed360/tematicas/nueva">
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Temática
-          </a>
-        </Button>
-      </div>
 
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar temáticas..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+        <div className="rounded-2xl border border-white/80 bg-white/85 p-6 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar temáticas..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-11 rounded-xl border-neutral-200 bg-neutral-50 pl-10"
+            />
+          </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Título</TableHead>
-              <TableHead>Descripción</TableHead>
-              <TableHead>Fecha Inicio</TableHead>
-              <TableHead>Fecha Fin</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  Cargando...
-                </TableCell>
-              </TableRow>
-            ) : filteredTematicas.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  No hay temáticas
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredTematicas.map((tematica) => (
-                <TableRow key={tematica.id}>
-                  <TableCell className="font-medium">{tematica.titulo}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-xs truncate">
-                    {tematica.descripcion || '-'}
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(tematica.fecha_inicio), 'dd MMM yyyy', {
-                      locale: es,
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(tematica.fecha_fin), 'dd MMM yyyy', {
-                      locale: es,
-                    })}
-                  </TableCell>
-                  <TableCell>{getEstadoBadge(tematica.estado)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                      >
-                        <a href={`/administracion/feed360/tematicas/${tematica.id}/edit`}>
-                          <Edit className="h-4 w-4" />
-                        </a>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteId(tematica.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="mt-5 overflow-hidden rounded-xl border border-neutral-200 bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-neutral-200 bg-neutral-50/80 hover:bg-neutral-50/80">
+                  <TableHead className="w-16 text-neutral-600">Imagen</TableHead>
+                  <TableHead className="text-neutral-600">Título</TableHead>
+                  <TableHead className="text-neutral-600">Descripción</TableHead>
+                  <TableHead className="text-neutral-600">Fecha Inicio</TableHead>
+                  <TableHead className="text-neutral-600">Fecha Fin</TableHead>
+                  <TableHead className="text-neutral-600">Estado</TableHead>
+                  <TableHead className="text-right text-neutral-600">Acciones</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                      Cargando temáticas...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredTematicas.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                      No hay temáticas
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTematicas.map((tematica) => (
+                    <TableRow key={tematica.id} className="border-b border-neutral-100 hover:bg-neutral-50/60">
+                      <TableCell>
+                        {tematica.imagen_url ? (
+                          <img
+                            src={tematica.imagen_url}
+                            alt={tematica.titulo}
+                            className="h-11 w-11 rounded-md border border-neutral-200 object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-md border border-neutral-200 bg-neutral-100 text-[10px] text-muted-foreground">
+                            Sin img
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-semibold text-neutral-900">{tematica.titulo}</TableCell>
+                      <TableCell className="max-w-xs truncate text-neutral-600">
+                        {tematica.descripcion || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(tematica.fecha_inicio), 'dd MMM yyyy', {
+                          locale: es,
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(tematica.fecha_fin), 'dd MMM yyyy', {
+                          locale: es,
+                        })}
+                      </TableCell>
+                      <TableCell>{getEstadoBadge(tematica.estado)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="rounded-lg" asChild>
+                            <a href={`/administracion/feed360/tematicas/${tematica.id}/edit`}>
+                              <Edit className="h-4 w-4" />
+                            </a>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-lg"
+                            onClick={() => setDeleteId(tematica.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
 
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

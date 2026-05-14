@@ -6,6 +6,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Feed360ImageUpload } from '@/components/feed360/Feed360ImageUpload';
 import { toast } from 'sonner';
 
 interface Tematica {
@@ -15,6 +16,7 @@ interface Tematica {
   fecha_inicio: string;
   fecha_fin: string;
   estado: string;
+  imagen_url: string;
 }
 
 export default function EditarTematicaPage() {
@@ -24,6 +26,7 @@ export default function EditarTematicaPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [imagenUrl, setImagenUrl] = useState('');
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
@@ -45,6 +48,7 @@ export default function EditarTematicaPage() {
             fecha_fin: data.fecha_fin.slice(0, 16),
             estado: data.estado,
           });
+          setImagenUrl(data.imagen_url || '');
         } else {
           toast.error('Temática no encontrada');
           router.push('/administracion/feed360/tematicas');
@@ -67,6 +71,11 @@ export default function EditarTematicaPage() {
       return;
     }
 
+    if (!imagenUrl) {
+      toast.error('La imagen es requerida');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -75,6 +84,7 @@ export default function EditarTematicaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          imagen_url: imagenUrl,
           fecha_inicio: new Date(formData.fecha_inicio).toISOString(),
           fecha_fin: new Date(formData.fecha_fin).toISOString(),
         }),
@@ -185,6 +195,18 @@ export default function EditarTematicaPage() {
               <option value="abierta">Abierta</option>
               <option value="cerrada">Cerrada</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Imagen Destacada *
+            </label>
+            <Feed360ImageUpload
+              value={imagenUrl}
+              onChange={setImagenUrl}
+              folder="feed360/tematicas"
+              className="max-w-xs"
+            />
           </div>
         </div>
 

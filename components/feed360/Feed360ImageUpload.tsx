@@ -9,12 +9,14 @@ interface Feed360ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
   className?: string;
+  folder?: string;
 }
 
 export function Feed360ImageUpload({
   value,
   onChange,
   className,
+  folder = 'feed360/publicaciones',
 }: Feed360ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(value || null);
@@ -25,7 +27,7 @@ export function Feed360ImageUpload({
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('folder', 'feed360/publicaciones');
+        formData.append('folder', folder);
 
         const res = await fetch('/api/cloudinary/upload', {
           method: 'POST',
@@ -47,7 +49,7 @@ export function Feed360ImageUpload({
         setUploading(false);
       }
     },
-    [onChange]
+    [onChange, folder]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

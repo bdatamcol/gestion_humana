@@ -29,7 +29,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { titulo, descripcion, fecha_inicio, fecha_fin, estado } = body;
+  const { titulo, descripcion, fecha_inicio, fecha_fin, estado, imagen_url } = body;
+
+  if (!imagen_url) {
+    return NextResponse.json({ error: 'La imagen es requerida' }, { status: 400 });
+  }
 
   const supabase = createAdminSupabaseClient();
 
@@ -41,6 +45,7 @@ export async function POST(req: NextRequest) {
       fecha_inicio,
       fecha_fin,
       estado: estado || 'abierta',
+      imagen_url,
     })
     .select()
     .single();

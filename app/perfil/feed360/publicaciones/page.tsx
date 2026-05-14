@@ -12,6 +12,7 @@ interface Tematica {
   fecha_inicio: string;
   fecha_fin: string;
   estado: string;
+  imagen_url: string;
 }
 
 export default function PerfilFeed360PublicacionesPage() {

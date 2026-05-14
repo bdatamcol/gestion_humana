@@ -105,6 +105,12 @@ export function Feed360Card({
     };
   }, [publicacion.id]);
 
+  useEffect(() => {
+    if (onLikeUpdate) {
+      onLikeUpdate(publicacion.id, false, publicacion.likes_count);
+    }
+  }, []);
+
   const fetchPreviewComments = async () => {
     try {
       const res = await fetch(
@@ -225,12 +231,14 @@ export function Feed360Card({
         </div>
       )}
 
-      <div className="relative bg-muted aspect-[16/10]">
+      <div className="relative bg-muted w-full" style={{ maxHeight: '700px' }}>
         <Image
           src={publicacion.imagen_url}
           alt="Publicación"
-          fill
-          className="object-cover"
+          width={1200}
+          height={800}
+          className="object-contain w-full h-auto mx-auto"
+          style={{ maxHeight: '700px', height: 'auto' }}
           unoptimized={publicacion.imagen_url.includes('cloudinary')}
         />
       </div>

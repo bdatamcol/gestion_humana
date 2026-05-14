@@ -11,6 +11,7 @@ interface Tematica {
   id: string;
   titulo: string;
   descripcion: string | null;
+  imagen_url: string;
   fecha_inicio: string;
   fecha_fin: string;
   estado: "abierta" | "cerrada" | "eliminada";
@@ -104,16 +105,27 @@ export default function PerfilFeed360TematicasPage() {
           return (
             <div key={tematica.id} className="rounded-lg border bg-card p-5">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold">{tematica.titulo}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {tematica.descripcion || "Sin descripción"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
+                <div className="flex items-start gap-4 min-w-0">
+                  {tematica.imagen_url && (
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-muted">
+                      <img
+                        src={tematica.imagen_url}
+                        alt={tematica.titulo}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                   <h2 className="text-lg font-semibold">{tematica.titulo}</h2>
+                   <p className="text-sm text-muted-foreground mt-1">
+                     {tematica.descripcion || "Sin descripción"}
+                   </p>
+                   <p className="text-xs text-muted-foreground mt-2">
                     {format(new Date(tematica.fecha_inicio), "dd MMM yyyy, HH:mm", { locale: es })}
                     {" - "}
                     {format(new Date(tematica.fecha_fin), "dd MMM yyyy, HH:mm", { locale: es })}
                   </p>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">

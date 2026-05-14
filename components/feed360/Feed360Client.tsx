@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Search, X, ChevronRight, XCircle } from 'lucide-react';
+import { Plus, Search, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ interface Tematica {
   fecha_inicio: string;
   fecha_fin: string;
   estado: string;
+  imagen_url: string;
 }
 
 interface Publicacion {
@@ -188,12 +189,32 @@ export function Feed360Client({
   };
 
   const visibleTematicas = allTematicas.slice(0, 5);
+  const selectedTematicaData = selectedTematica
+    ? allTematicas.find((t) => t.id === selectedTematica) || null
+    : null;
+  const tematicaVigente = tematicaActiva || allTematicas[0] || null;
 
   return (
     <div className="min-h-screen,radial-gradient(circle_at_74%_36%,rgba(234,215,168,0.55)_0_8%,transparent_8.2%),linear-gradient(120deg,#fafafa,#ededeb)]">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8">
         <aside className="bg-white/85 border border-white/80 rounded-[10px] p-5 md:p-6 sticky top-6 h-fit shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <div className="font-black text-[22px] tracking-[-0.03em] mb-4">Feed360</div>
+          {tematicaVigente?.imagen_url && (
+            <div className="mb-4 rounded-xl overflow-hidden border border-neutral-200 bg-white">
+              <div className="relative aspect-[16/9]">
+                <img
+                  src={tematicaVigente.imagen_url}
+                  alt={tematicaVigente.titulo}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-white/80">Tematica vigente</p>
+                  <p className="text-sm font-semibold leading-tight">{tematicaVigente.titulo}</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="mb-4">
             <h2 className="font-semibold text-xs tracking-[0.12em] text-neutral-500 uppercase mb-3">Temáticas</h2>
             <form onSubmit={handleSearch} className="relative">
@@ -298,6 +319,26 @@ export function Feed360Client({
 
         <main className="flex-1">
           <div className="w-full max-w-[720px] mx-auto space-y-7 bg-white/85 border border-white/80 rounded-[10px]">
+            {selectedTematicaData?.imagen_url && (
+              <div className="relative aspect-[3/1] w-full rounded-t-[10px] overflow-hidden">
+                <img
+                  src={selectedTematicaData.imagen_url}
+                  alt={selectedTematicaData.titulo}
+                  className="object-cover w-full h-full"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-0 left-0 p-4 text-white">
+                  <h2 className="text-xl font-bold">
+                    {selectedTematicaData.titulo}
+                  </h2>
+                  {selectedTematicaData.descripcion && (
+                    <p className="text-sm text-white/80 mt-1">
+                      {selectedTematicaData.descripcion}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {loading ? (
               <div className="text-center py-12 text-muted-foreground">

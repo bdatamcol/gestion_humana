@@ -82,6 +82,7 @@ export default function PerfilFeed360PublicacionesPage() {
       usuarioId={usuarioId}
       tematicaActiva={tematicaActiva}
       publishBasePath="/perfil/feed360"
+      showTopRanking={true}
     />
   );
 }

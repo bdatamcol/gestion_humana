@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Feed360ImageUpload } from '@/components/feed360/Feed360ImageUpload';
 import { toast } from 'sonner';
+import { bogotaDateTimeLocalToIso, isoToBogotaDateTimeLocal } from '@/lib/date-utils';
 
 interface Tematica {
   id: string;
@@ -44,8 +45,8 @@ export default function EditarTematicaPage() {
           setFormData({
             titulo: data.titulo,
             descripcion: data.descripcion || '',
-            fecha_inicio: data.fecha_inicio.slice(0, 16),
-            fecha_fin: data.fecha_fin.slice(0, 16),
+            fecha_inicio: isoToBogotaDateTimeLocal(data.fecha_inicio),
+            fecha_fin: isoToBogotaDateTimeLocal(data.fecha_fin),
             estado: data.estado,
           });
           setImagenUrl(data.imagen_url || '');
@@ -85,8 +86,8 @@ export default function EditarTematicaPage() {
         body: JSON.stringify({
           ...formData,
           imagen_url: imagenUrl,
-          fecha_inicio: new Date(formData.fecha_inicio).toISOString(),
-          fecha_fin: new Date(formData.fecha_fin).toISOString(),
+          fecha_inicio: bogotaDateTimeLocalToIso(formData.fecha_inicio),
+          fecha_fin: bogotaDateTimeLocalToIso(formData.fecha_fin),
         }),
       });
 

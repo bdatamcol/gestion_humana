@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Search, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronRight, Heart, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,7 @@ interface Feed360ClientProps {
   usuarioId: number;
   tematicaActiva?: Tematica | null;
   publishBasePath?: string;
+  showTopRanking?: boolean;
 }
 
 const PAGE_SIZE = 20;
@@ -49,17 +50,21 @@ export function Feed360Client({
   usuarioId,
   tematicaActiva,
   publishBasePath = '/feed360',
+  showTopRanking = false,
 }: Feed360ClientProps) {
   const [allTematicas, setAllTematicas] = useState<Tematica[]>([]);
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
+  const [topPublicaciones, setTopPublicaciones] = useState<Publicacion[]>([]);
   const [selectedTematica, setSelectedTematica] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingTop, setLoadingTop] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [hasPublished, setHasPublished] = useState(false);
   const [showAllTematicas, setShowAllTematicas] = useState(false);
+  const [selectedTopPublicacion, setSelectedTopPublicacion] = useState<Publicacion | null>(null);
   const supabaseRef = useRef<ReturnType<typeof createSupabaseClient> | null>(null);
   const subscriptionRef = useRef<ReturnType<ReturnType<typeof createSupabaseClient>['subscribe']> | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -91,6 +96,11 @@ export function Feed360Client({
 
     return () => observer.disconnect();
   }, [loading, loadingMore, hasMore, offset, selectedTematica, search]);
+
+  useEffect(() => {
+    if (!showTopRanking) return;
+    fetchTopPublicaciones();
+  }, [showTopRanking, selectedTematica, allTematicas]);
 
   useEffect(() => {
     if (!supabaseRef.current) return;
@@ -225,6 +235,35 @@ export function Feed360Client({
     }
   };
 
+  const fetchTopPublicaciones = async () => {
+    const tematicaId = selectedTematica || tematicaActiva?.id || allTematicas[0]?.id;
+
+    if (!tematicaId) {
+      setTopPublicaciones([]);
+      setLoadingTop(false);
+      return;
+    }
+
+    setLoadingTop(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('tematica_id', tematicaId);
+      params.set('sort', 'likes_desc');
+      params.set('limit', '5');
+      params.set('offset', '0');
+
+      const res = await fetch(`/api/feed360/publicaciones?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTopPublicaciones(Array.isArray(data) ? data.slice(0, 5) : []);
+      }
+    } catch (error) {
+      console.error('Error loading top publicaciones:', error);
+    } finally {
+      setLoadingTop(false);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setOffset(0);
@@ -245,6 +284,26 @@ export function Feed360Client({
           : p
       )
     );
+
+    if (!showTopRanking) return;
+
+    setTopPublicaciones((prev) => {
+      const updated = prev.map((p) =>
+        p.id === publicacionId
+          ? {
+            ...p,
+            likes_count:
+              typeof likesCount === 'number'
+                ? likesCount
+                : p.likes_count + (liked ? 1 : -1),
+          }
+          : p
+      );
+
+      return [...updated]
+        .sort((a, b) => b.likes_count - a.likes_count)
+        .slice(0, 5);
+    });
   };
 
   const visibleTematicas = allTematicas.slice(0, 5);
@@ -252,10 +311,18 @@ export function Feed360Client({
     ? allTematicas.find((t) => t.id === selectedTematica) || null
     : null;
   const tematicaVigente = tematicaActiva || allTematicas[0] || null;
+  const tematicaTopActiva = selectedTematica
+    ? allTematicas.find((t) => t.id === selectedTematica) || null
+    : tematicaVigente;
 
   return (
     <div className="min-h-screen,radial-gradient(circle_at_74%_36%,rgba(234,215,168,0.55)_0_8%,transparent_8.2%),linear-gradient(120deg,#fafafa,#ededeb)]">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,720px)] lg:gap-8">
+      <div className={cn(
+        'grid grid-cols-1 gap-6 lg:gap-8',
+        showTopRanking
+          ? 'lg:grid-cols-[280px_minmax(0,740px)_360px]'
+          : 'lg:grid-cols-[280px_minmax(0,720px)]'
+      )}>
         <aside className="bg-white/85 border border-white/80 rounded-[10px] p-5 md:p-6 sticky top-6 h-fit shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
           <div className="font-black text-[22px] tracking-[-0.03em] mb-4">Feed360</div>
           {tematicaVigente?.imagen_url && (
@@ -439,7 +506,92 @@ export function Feed360Client({
             )}
           </div>
         </main>
+
+        {showTopRanking && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-6 bg-white/85 border border-white/80 rounded-[10px] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-black text-[20px] tracking-[-0.02em]">Top 5</h3>
+                <span className="text-[11px] uppercase tracking-[0.12em] text-neutral-500">Más likes</span>
+              </div>
+              <p className="text-xs text-neutral-500 mb-4">
+                {tematicaTopActiva ? `Temática: ${tematicaTopActiva.titulo}` : 'Sin temática activa'}
+              </p>
+
+              {loadingTop ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-14 rounded-lg bg-neutral-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : topPublicaciones.length === 0 ? (
+                <div className="text-sm text-neutral-500 py-8 text-center">
+                  No hay publicaciones para esta temática.
+                </div>
+              ) : (
+                <div className="space-y-3 pr-1">
+                  {topPublicaciones.slice(0, 5).map((publicacion, index) => (
+                    <button
+                      key={publicacion.id}
+                      type="button"
+                      onClick={() => setSelectedTopPublicacion(publicacion)}
+                      className="w-full rounded-xl border border-neutral-200 bg-white p-3 flex items-center gap-3 text-left hover:bg-neutral-50 transition-colors"
+                    >
+                      <div className="w-7 text-center text-base font-bold text-neutral-700">{index + 1}</div>
+                      <div className="h-16 w-16 rounded-md overflow-hidden bg-neutral-100 shrink-0">
+                        <img
+                          src={publicacion.imagen_url}
+                          alt="Miniatura publicación"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-semibold text-neutral-800 truncate">
+                          {publicacion.usuario?.colaborador || 'Usuario'}
+                        </p>
+                        <p className="text-[13px] text-neutral-500 truncate">
+                          {publicacion.texto || 'Publicación sin texto'}
+                        </p>
+                        <div className="mt-1 flex items-center gap-3 text-xs">
+                          <span className="flex items-center gap-1 text-rose-500 font-semibold">
+                            <Heart className="h-3.5 w-3.5 fill-current" />
+                            {publicacion.likes_count}
+                          </span>
+                          <span className="flex items-center gap-1 text-sky-600 font-semibold">
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            {publicacion.comentarios_count || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
       </div>
+
+      {showTopRanking && (
+        <Dialog
+          open={!!selectedTopPublicacion}
+          onOpenChange={(open) => {
+            if (!open) setSelectedTopPublicacion(null);
+          }}
+        >
+          <DialogContent className="max-w-[860px] max-h-[90vh] overflow-y-auto p-0 border-0 bg-transparent shadow-none">
+            {selectedTopPublicacion && (
+              <div className="rounded-[10px] bg-white border border-white/80 shadow-[0_18px_45px_rgba(0,0,0,0.18)] overflow-hidden">
+                <Feed360Card
+                  publicacion={selectedTopPublicacion}
+                  usuarioId={usuarioId}
+                  onLikeUpdate={handleLikeUpdate}
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

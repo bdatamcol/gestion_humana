@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Search, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,6 +37,14 @@ export default function Feed360TematicasPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const formatBogotaDate = (value: string) =>
+    new Intl.DateTimeFormat('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'America/Bogota',
+    }).format(new Date(value));
 
   useEffect(() => {
     fetchTematicas();
@@ -181,14 +187,10 @@ export default function Feed360TematicasPage() {
                         {tematica.descripcion || '-'}
                       </TableCell>
                       <TableCell>
-                        {format(new Date(tematica.fecha_inicio), 'dd MMM yyyy', {
-                          locale: es,
-                        })}
+                        {formatBogotaDate(tematica.fecha_inicio)}
                       </TableCell>
                       <TableCell>
-                        {format(new Date(tematica.fecha_fin), 'dd MMM yyyy', {
-                          locale: es,
-                        })}
+                        {formatBogotaDate(tematica.fecha_fin)}
                       </TableCell>
                       <TableCell>{getEstadoBadge(tematica.estado)}</TableCell>
                       <TableCell className="text-right">

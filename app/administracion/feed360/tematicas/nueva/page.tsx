@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Feed360ImageUpload } from '@/components/feed360/Feed360ImageUpload';
 import { toast } from 'sonner';
+import { bogotaDateTimeLocalToIso } from '@/lib/date-utils';
 
 export default function NuevaTematicaPage() {
   const router = useRouter();
@@ -43,8 +44,8 @@ export default function NuevaTematicaPage() {
         body: JSON.stringify({
           ...formData,
           imagen_url: imagenUrl,
-          fecha_inicio: new Date(formData.fecha_inicio).toISOString(),
-          fecha_fin: new Date(formData.fecha_fin).toISOString(),
+          fecha_inicio: bogotaDateTimeLocalToIso(formData.fecha_inicio),
+          fecha_fin: bogotaDateTimeLocalToIso(formData.fecha_fin),
         }),
       });
 

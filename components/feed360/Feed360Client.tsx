@@ -43,6 +43,8 @@ interface Feed360ClientProps {
   publishBasePath?: string;
 }
 
+const PAGE_SIZE = 20;
+
 export function Feed360Client({
   usuarioId,
   tematicaActiva,
@@ -53,20 +55,42 @@ export function Feed360Client({
   const [selectedTematica, setSelectedTematica] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [hasPublished, setHasPublished] = useState(false);
   const [showAllTematicas, setShowAllTematicas] = useState(false);
   const supabaseRef = useRef<ReturnType<typeof createSupabaseClient> | null>(null);
   const subscriptionRef = useRef<ReturnType<ReturnType<typeof createSupabaseClient>['subscribe']> | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     supabaseRef.current = createSupabaseClient();
     fetchTematicas();
-    fetchPublicaciones();
+    fetchPublicaciones({ reset: true });
 
     return () => {
       subscriptionRef.current?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!loadMoreRef.current || loading || loadingMore || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+        if (firstEntry?.isIntersecting) {
+          fetchPublicaciones({ reset: false });
+        }
+      },
+      { rootMargin: '250px 0px' }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => observer.disconnect();
+  }, [loading, loadingMore, hasMore, offset, selectedTematica, search]);
 
   useEffect(() => {
     if (!supabaseRef.current) return;
@@ -133,22 +157,56 @@ export function Feed360Client({
     }
   };
 
-  const fetchPublicaciones = async () => {
-    setLoading(true);
+  const fetchPublicaciones = async ({
+    reset = false,
+    tematicaId,
+  }: {
+    reset?: boolean;
+    tematicaId?: string | null;
+  } = {}) => {
+    const currentOffset = reset ? 0 : offset;
+    const tematicaToUse = tematicaId !== undefined ? tematicaId : selectedTematica;
+
+    if (reset) {
+      setLoading(true);
+      setHasMore(true);
+    } else {
+      if (loadingMore || loading || !hasMore) return;
+      setLoadingMore(true);
+    }
+
     try {
       const params = new URLSearchParams();
-      if (selectedTematica) params.set('tematica_id', selectedTematica);
+      if (tematicaToUse) params.set('tematica_id', tematicaToUse);
       if (search) params.set('search', search);
+      params.set('limit', String(PAGE_SIZE));
+      params.set('offset', String(currentOffset));
 
       const res = await fetch(`/api/feed360/publicaciones?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setPublicaciones(data);
+        const publicacionesNuevas = Array.isArray(data) ? data : [];
+
+        setPublicaciones((prev) => {
+          if (reset) return publicacionesNuevas;
+
+          const existingIds = new Set(prev.map((p) => p.id));
+          const uniqueNew = publicacionesNuevas.filter((p: Publicacion) => !existingIds.has(p.id));
+          return [...prev, ...uniqueNew];
+        });
+
+        const loadedCount = publicacionesNuevas.length;
+        setHasMore(loadedCount === PAGE_SIZE);
+        setOffset(currentOffset + loadedCount);
       }
     } catch (error) {
       console.error('Error fetching publicaciones:', error);
     } finally {
-      setLoading(false);
+      if (reset) {
+        setLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -169,7 +227,8 @@ export function Feed360Client({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchPublicaciones();
+    setOffset(0);
+    fetchPublicaciones({ reset: true });
   };
 
   const handleLikeUpdate = (publicacionId: string, liked: boolean, likesCount?: number) => {
@@ -229,11 +288,12 @@ export function Feed360Client({
           </div>
 
           <div className="space-y-2">
-            <button
-              onClick={() => {
-                setSelectedTematica(null);
-                fetchPublicaciones();
-              }}
+                <button
+                  onClick={() => {
+                    setSelectedTematica(null);
+                    setOffset(0);
+                    fetchPublicaciones({ reset: true, tematicaId: null });
+                  }}
               className={cn(
                 'w-full text-left px-4 py-3 rounded-xl text-[15px] font-semibold transition-colors flex items-center gap-2',
                 !selectedTematica
@@ -247,10 +307,11 @@ export function Feed360Client({
             {visibleTematicas.map((tematica) => (
               <button
                 key={tematica.id}
-                onClick={() => {
-                  setSelectedTematica(tematica.id);
-                  fetchPublicaciones();
-                }}
+                  onClick={() => {
+                    setSelectedTematica(tematica.id);
+                    setOffset(0);
+                    fetchPublicaciones({ reset: true, tematicaId: tematica.id });
+                  }}
                 className={cn(
                   'w-full text-left px-4 py-3 rounded-xl text-[15px] font-semibold transition-colors flex items-center gap-2',
                   selectedTematica === tematica.id
@@ -283,7 +344,8 @@ export function Feed360Client({
                   onClick={() => {
                     setSelectedTematica(null);
                     setShowAllTematicas(false);
-                    fetchPublicaciones();
+                    setOffset(0);
+                    fetchPublicaciones({ reset: true, tematicaId: null });
                   }}
                   className={cn(
                     'w-full text-left px-4 py-3 rounded-lg text-[15px] font-medium transition-colors',
@@ -300,7 +362,8 @@ export function Feed360Client({
                     onClick={() => {
                       setSelectedTematica(tematica.id);
                       setShowAllTematicas(false);
-                      fetchPublicaciones();
+                      setOffset(0);
+                      fetchPublicaciones({ reset: true, tematicaId: tematica.id });
                     }}
                     className={cn(
                       'w-full text-left px-4 py-3 rounded-lg text-[15px] font-medium transition-colors',
@@ -366,6 +429,12 @@ export function Feed360Client({
                     onLikeUpdate={handleLikeUpdate}
                   />
                 ))}
+                {loadingMore && (
+                  <div className="text-center py-6 text-sm text-muted-foreground">
+                    Cargando más publicaciones...
+                  </div>
+                )}
+                {hasMore && <div ref={loadMoreRef} className="h-1" />}
               </div>
             )}
           </div>

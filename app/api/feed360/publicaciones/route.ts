@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const tematica_id = searchParams.get('tematica_id');
     const search = searchParams.get('search');
+    const sort = searchParams.get('sort');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -40,8 +41,15 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from('publicaciones_feed360')
       .select('*')
-      .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (sort === 'likes_desc') {
+      query = query
+        .order('likes_count', { ascending: false })
+        .order('created_at', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
 
     if (tematica_id) {
       query = query.eq('tematica_id', tematica_id);

@@ -56,7 +56,8 @@ export function Feed360Client({
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [topPublicaciones, setTopPublicaciones] = useState<Publicacion[]>([]);
   const [selectedTematica, setSelectedTematica] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [searchUser, setSearchUser] = useState('');
+  const [debouncedSearchUser, setDebouncedSearchUser] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingTop, setLoadingTop] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -95,7 +96,20 @@ export function Feed360Client({
     observer.observe(loadMoreRef.current);
 
     return () => observer.disconnect();
-  }, [loading, loadingMore, hasMore, offset, selectedTematica, search]);
+  }, [loading, loadingMore, hasMore, offset, selectedTematica, debouncedSearchUser]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchUser(searchUser.trim());
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchUser]);
+
+  useEffect(() => {
+    setOffset(0);
+    fetchPublicaciones({ reset: true });
+  }, [debouncedSearchUser]);
 
   useEffect(() => {
     if (!showTopRanking) return;
@@ -188,7 +202,7 @@ export function Feed360Client({
     try {
       const params = new URLSearchParams();
       if (tematicaToUse) params.set('tematica_id', tematicaToUse);
-      if (search) params.set('search', search);
+      if (debouncedSearchUser) params.set('search_user', debouncedSearchUser);
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String(currentOffset));
 
@@ -264,12 +278,6 @@ export function Feed360Client({
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setOffset(0);
-    fetchPublicaciones({ reset: true });
-  };
-
   const handleLikeUpdate = (publicacionId: string, liked: boolean, likesCount?: number) => {
     setPublicaciones((prev) =>
       prev.map((p) =>
@@ -343,15 +351,7 @@ export function Feed360Client({
           )}
           <div className="mb-4">
             <h2 className="font-semibold text-xs tracking-[0.12em] text-neutral-500 uppercase mb-3">Temáticas</h2>
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar temática..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-neutral-50 rounded-xl border border-neutral-200 h-10 text-sm w-full"
-              />
-            </form>
+            <p className="text-xs text-neutral-500">Selecciona una temática para filtrar las publicaciones.</p>
           </div>
 
           <div className="space-y-2">
@@ -449,6 +449,17 @@ export function Feed360Client({
 
         <main className="flex-1">
           <div className="w-full max-w-[720px] mx-auto space-y-7 bg-white/85 border border-white/80 rounded-[10px]">
+            <div className="p-4 pb-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar publicaciones por usuario..."
+                  value={searchUser}
+                  onChange={(e) => setSearchUser(e.target.value)}
+                  className="pl-9 bg-neutral-50 rounded-xl border border-neutral-200 h-10 text-sm w-full"
+                />
+              </div>
+            </div>
             {selectedTematicaData?.imagen_url && (
               <div className="relative aspect-[3/1] w-full rounded-t-[10px] overflow-hidden">
                 <img

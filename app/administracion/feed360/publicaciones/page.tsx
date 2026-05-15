@@ -46,7 +46,8 @@ export default function Feed360AdminPublicacionesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchUser, setSearchUser] = useState('');
+  const [debouncedSearchUser, setDebouncedSearchUser] = useState('');
   const [selectedTematica, setSelectedTematica] = useState<string | null>(null);
   const [showAllTematicas, setShowAllTematicas] = useState(false);
   const [adminUserId, setAdminUserId] = useState<number>(0);
@@ -78,6 +79,19 @@ export default function Feed360AdminPublicacionesPage() {
   useEffect(() => {
     fetchTopPublicaciones();
   }, [selectedTematica, allTematicas]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchUser(searchUser.trim());
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchUser]);
+
+  useEffect(() => {
+    setOffset(0);
+    fetchPublicaciones({ reset: true });
+  }, [debouncedSearchUser]);
 
   useEffect(() => {
     if (!loadMoreRef.current || loading || loadingMore || !hasMore) return;
@@ -130,6 +144,7 @@ export default function Feed360AdminPublicacionesPage() {
     try {
       const params = new URLSearchParams();
       if (tematicaToUse) params.set('tematica_id', tematicaToUse);
+      if (debouncedSearchUser) params.set('search_user', debouncedSearchUser);
       params.set('limit', String(PAGE_SIZE));
       params.set('offset', String(currentOffset));
 
@@ -230,13 +245,6 @@ export default function Feed360AdminPublicacionesPage() {
     });
   };
 
-  const filteredPublicaciones = publicaciones.filter(
-    (p) =>
-      p.usuario?.colaborador?.toLowerCase().includes(search.toLowerCase()) ||
-      p.tematica?.titulo?.toLowerCase().includes(search.toLowerCase()) ||
-      p.texto?.toLowerCase().includes(search.toLowerCase())
-  );
-
   const visibleTematicas = allTematicas.slice(0, 5);
   const tematicaVigente = allTematicas[0] || null;
   const tematicaTopActiva = selectedTematica
@@ -266,15 +274,7 @@ export default function Feed360AdminPublicacionesPage() {
           )}
           <div className="mb-4">
             <h2 className="font-semibold text-xs tracking-[0.12em] text-neutral-500 uppercase mb-3">Temáticas</h2>
-            <form onSubmit={(e) => { e.preventDefault(); fetchPublicaciones(); }} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar temática..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-neutral-50 rounded-xl border border-neutral-200 h-10 text-sm w-full"
-              />
-            </form>
+            <p className="text-xs text-neutral-500">Selecciona una temática para filtrar las publicaciones.</p>
           </div>
 
           <div className="space-y-2">
@@ -372,6 +372,17 @@ export default function Feed360AdminPublicacionesPage() {
 
         <main className="flex-1">
           <div className="w-full max-w-[720px] mx-auto space-y-7 bg-white/85 border border-white/80 rounded-[10px]">
+            <div className="p-4 pb-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar publicaciones por usuario..."
+                  value={searchUser}
+                  onChange={(e) => setSearchUser(e.target.value)}
+                  className="pl-9 bg-neutral-50 rounded-xl border border-neutral-200 h-10 text-sm w-full"
+                />
+              </div>
+            </div>
 
             {loading ? (
               <div className="space-y-7">
@@ -386,13 +397,13 @@ export default function Feed360AdminPublicacionesPage() {
                   </div>
                 ))}
               </div>
-            ) : filteredPublicaciones.length === 0 ? (
+            ) : publicaciones.length === 0 ? (
               <div className="text-center py-12 rounded-[10px] border border-white/80 bg-white/80">
                 <p className="text-muted-foreground">No hay publicaciones</p>
               </div>
             ) : (
               <div className="space-y-7">
-                {filteredPublicaciones.map((publicacion) => (
+                {publicaciones.map((publicacion) => (
                   <Feed360Card
                     key={publicacion.id}
                     publicacion={publicacion}

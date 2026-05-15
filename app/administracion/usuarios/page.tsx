@@ -574,8 +574,11 @@ const handleEditUser = (user: any) => {
   setEditUserData({
     id: user.id,
     auth_user_id: user.auth_user_id,
+    original_correo: user.correo_electronico || '',
     nombre: user.colaborador || '',
     correo: user.correo_electronico || '',
+    nueva_password: '',
+    confirmar_password: '',
     telefono: user.telefono || '',
     rol: user.rol || 'usuario',
     estado: user.estado || 'activo',
@@ -823,10 +826,60 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
 
     try {
       const supabase = createSupabaseClient()
+      const normalizedEmail = (editUserData.correo || '').trim().toLowerCase()
+      const originalEmail = (editUserData.original_correo || '').trim().toLowerCase()
+      const newPassword = (editUserData.nueva_password || '').trim()
+      const confirmPassword = (editUserData.confirmar_password || '').trim()
+
+      if (!normalizedEmail) {
+        throw new Error('El correo electrónico es obligatorio')
+      }
+
+      if (newPassword || confirmPassword) {
+        if (!editUserData?.auth_user_id) {
+          throw new Error('Este usuario no tiene cuenta de autenticación para cambiar contraseña')
+        }
+        if (newPassword.length < 8) {
+          throw new Error('La nueva contraseña debe tener al menos 8 caracteres')
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error('La confirmación de contraseña no coincide')
+        }
+      }
+
+      const shouldUpdateCredentials =
+        !!editUserData?.auth_user_id &&
+        (normalizedEmail !== originalEmail || !!newPassword)
+
+      if (shouldUpdateCredentials) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          throw new Error('No se pudo validar la sesión para actualizar credenciales')
+        }
+
+        const credentialsRes = await fetch('/api/administracion/usuarios/credenciales', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            usuarioNominaId: editUserData.id,
+            authUserId: editUserData.auth_user_id,
+            correo: normalizedEmail,
+            nuevaPassword: newPassword || undefined,
+          }),
+        })
+
+        if (!credentialsRes.ok) {
+          const credentialsData = await credentialsRes.json().catch(() => null)
+          throw new Error(credentialsData?.error || 'No fue posible actualizar credenciales de autenticación')
+        }
+      }
 
       const updateData = {
         colaborador: editUserData.nombre,
-        correo_electronico: editUserData.correo,
+        correo_electronico: normalizedEmail,
         telefono: editUserData.telefono,
         rol: editUserData.rol,
         estado: editUserData.estado,
@@ -1938,6 +1991,32 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                       value={editUserData.correo}
                       onChange={(e) => setEditUserData({ ...editUserData, correo: e.target.value })}
                       className="mt-1 border-2 focus:border-blue-500 transition-colors px-3 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-password">Nueva contraseña</Label>
+                    <Input
+                      id="edit-password"
+                      type="password"
+                      value={editUserData.nueva_password || ''}
+                      onChange={(e) => setEditUserData({ ...editUserData, nueva_password: e.target.value })}
+                      className="mt-1 border-2 focus:border-blue-500 transition-colors px-3 py-2"
+                      placeholder="Dejar vacío para no cambiar"
+                      minLength={8}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-confirm-password">Confirmar nueva contraseña</Label>
+                    <Input
+                      id="edit-confirm-password"
+                      type="password"
+                      value={editUserData.confirmar_password || ''}
+                      onChange={(e) => setEditUserData({ ...editUserData, confirmar_password: e.target.value })}
+                      className="mt-1 border-2 focus:border-blue-500 transition-colors px-3 py-2"
+                      placeholder="Repite la nueva contraseña"
+                      minLength={8}
                     />
                   </div>
 

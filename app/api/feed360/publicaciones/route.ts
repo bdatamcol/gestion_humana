@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
     const tematica_id = searchParams.get('tematica_id');
     const search = searchParams.get('search');
+    const search_user = searchParams.get('search_user');
     const sort = searchParams.get('sort');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -53,6 +54,25 @@ export async function GET(req: NextRequest) {
 
     if (tematica_id) {
       query = query.eq('tematica_id', tematica_id);
+    }
+
+    if (search_user) {
+      const { data: usuariosMatch, error: usuariosMatchError } = await supabase
+        .from('usuario_nomina')
+        .select('id')
+        .ilike('colaborador', `%${search_user}%`)
+        .limit(200);
+
+      if (usuariosMatchError) {
+        return NextResponse.json({ error: usuariosMatchError.message }, { status: 500 });
+      }
+
+      const usuarioIds = (usuariosMatch || []).map((u: any) => u.id).filter(Boolean);
+      if (usuarioIds.length === 0) {
+        return NextResponse.json([]);
+      }
+
+      query = query.in('usuario_id', usuarioIds);
     }
 
     if (search) {

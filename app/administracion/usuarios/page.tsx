@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronDown, ChevronUp, Search, X, Eye, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Plus, Edit, Table as TableIcon, Download } from "lucide-react"
+import { ChevronDown, ChevronUp, Search, X, Eye, ArrowUpDown, ChevronLeft, ChevronRight, Loader2, Plus, Edit, Table as TableIcon, Download, ArrowRightLeft } from "lucide-react"
 import { ProfileCard } from "@/components/ui/profile-card"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -88,6 +88,14 @@ export default function Usuarios() {
   const [availableBosses, setAvailableBosses] = useState<any[]>([])
   const [selectedBossIds, setSelectedBossIds] = useState<string[]>([])
   const [bossSearchTerm, setBossSearchTerm] = useState('')
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false)
+  const [allBossesForReassign, setAllBossesForReassign] = useState<any[]>([])
+  const [jefeOrigenId, setJefeOrigenId] = useState<string>('')
+  const [jefeDestinoId, setJefeDestinoId] = useState<string>('')
+  const [subordinadosPreview, setSubordinadosPreview] = useState<any[]>([])
+  const [reassignLoading, setReassignLoading] = useState(false)
+  const [reassignError, setReassignError] = useState('')
+  const [reassignSuccess, setReassignSuccess] = useState('')
   
   const handleExportUsers = async () => {
     try {
@@ -560,6 +568,128 @@ export default function Usuarios() {
     setIsAddUserModalOpen(true)
     setAddUserError('')
     setAddUserSuccess(false)
+  }
+
+  const loadAllBossesForReassign = async () => {
+    const supabase = createSupabaseClient()
+    const { data: bosses } = await supabase
+      .from('usuario_nomina')
+      .select('id, auth_user_id, colaborador, rol, estado')
+      .eq('estado', 'activo')
+      .in('rol', ['jefe', 'administrador'])
+      .order('colaborador', { ascending: true })
+    setAllBossesForReassign(bosses || [])
+  }
+
+  const handleOpenReassignModal = async () => {
+    await loadAllBossesForReassign()
+    setJefeOrigenId('')
+    setJefeDestinoId('')
+    setSubordinadosPreview([])
+    setReassignError('')
+    setReassignSuccess('')
+    setIsReassignModalOpen(true)
+  }
+
+  const handleJefeOrigenChange = async (jefeId: string) => {
+    setJefeOrigenId(jefeId)
+    setJefeDestinoId('')
+    setSubordinadosPreview([])
+    setReassignError('')
+
+    if (!jefeId) return
+
+    const supabase = createSupabaseClient()
+    const { data, error } = await supabase
+      .from('usuario_jefes')
+      .select('usuario_id')
+      .eq('jefe_id', jefeId)
+
+    if (error) {
+      setReassignError('Error al cargar subordinados')
+      return
+    }
+
+    const subordinadosIds = (data || []).map((s: any) => s.usuario_id)
+
+    if (subordinadosIds.length === 0) {
+      setSubordinadosPreview([])
+      return
+    }
+
+    const { data: subordinadosData, error: subordinadosError } = await supabase
+      .from('usuario_nomina')
+      .select('auth_user_id, colaborador, estado')
+      .in('auth_user_id', subordinadosIds)
+
+    if (subordinadosError) {
+      setReassignError('Error al cargar datos de subordinados')
+      return
+    }
+
+    const activos = (subordinadosData || []).filter((s: any) => s.estado === 'activo')
+    setSubordinadosPreview(activos)
+  }
+
+  const handleReassignBosses = async () => {
+    if (!jefeOrigenId || !jefeDestinoId) {
+      setReassignError('Seleccione ambos jefes')
+      return
+    }
+
+    if (jefeOrigenId === jefeDestinoId) {
+      setReassignError('El jefe origen y destino no pueden ser el mismo')
+      return
+    }
+
+    if (subordinadosPreview.length === 0) {
+      setReassignError('El jefe origen no tiene subordinados activos para reasignar')
+      return
+    }
+
+    setReassignLoading(true)
+    setReassignError('')
+    setReassignSuccess('')
+
+    try {
+      const supabase = createSupabaseClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        setReassignError('No autorizado')
+        return
+      }
+
+      const response = await fetch('/api/administracion/usuarios/reasignar-jefes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          jefe_origen_id: jefeOrigenId,
+          jefe_destino_id: jefeDestinoId,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setReassignError(result.error || 'Error al reasignar')
+        return
+      }
+
+      setReassignSuccess(`${result.subordinados_reasignados} subordinado(s) reasignado(s) exitosamente`)
+      setJefeOrigenId('')
+      setJefeDestinoId('')
+      setSubordinadosPreview([])
+      await loadAllBossesForReassign()
+      await fetchUsers()
+    } catch (err: any) {
+      setReassignError(err.message || 'Error al reasignar')
+    } finally {
+      setReassignLoading(false)
+    }
   }
 
 
@@ -1228,6 +1358,10 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                     >
                       <TableIcon className="h-4 w-4" />
                       Vista Dinámica
+                    </Button>
+                    <Button onClick={handleOpenReassignModal} variant="outline" className="flex items-center gap-2">
+                      <ArrowRightLeft className="h-4 w-4" />
+                      Reasignar Jefes
                     </Button>
                     <Button onClick={handleAddUser} className="flex items-center gap-2 btn-custom">
                       <Plus className="h-4 w-4" />
@@ -2408,6 +2542,100 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                 </div>
               </form>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isReassignModalOpen} onOpenChange={setIsReassignModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reasignar Jefes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {reassignError && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm">
+                {reassignError}
+              </div>
+            )}
+            {reassignSuccess && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative text-sm">
+                {reassignSuccess}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="jefe-origen">Jefe Actual (Origen)</Label>
+              <Select value={jefeOrigenId} onValueChange={handleJefeOrigenChange}>
+                <SelectTrigger className="border-2 focus:border-blue-500">
+                  <SelectValue placeholder="Seleccionar jefe origen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allBossesForReassign.map((boss) => (
+                    <SelectItem key={boss.auth_user_id} value={boss.auth_user_id}>
+                      {boss.colaborador} {boss.rol === 'administrador' && '(Admin)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {subordinadosPreview.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-sm font-medium text-blue-800 mb-2">
+                  {subordinadosPreview.length} subordinado(s) activo(s) serán reasignados:
+                </p>
+                <ul className="text-sm text-blue-700 space-y-1 max-h-32 overflow-y-auto">
+                  {subordinadosPreview.map((sub: any) => (
+                    <li key={sub.auth_user_id} className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                      {sub.colaborador}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="jefe-destino">Nuevo Jefe (Destino)</Label>
+              <Select value={jefeDestinoId} onValueChange={setJefeDestinoId} disabled={!jefeOrigenId}>
+                <SelectTrigger className="border-2 focus:border-blue-500">
+                  <SelectValue placeholder="Seleccionar jefe destino" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allBossesForReassign
+                    .filter((boss) => boss.auth_user_id !== jefeOrigenId)
+                    .map((boss) => (
+                      <SelectItem key={boss.auth_user_id} value={boss.auth_user_id}>
+                        {boss.colaborador} {boss.rol === 'administrador' && '(Admin)'}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsReassignModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleReassignBosses}
+                disabled={reassignLoading || !jefeOrigenId || !jefeDestinoId || subordinadosPreview.length === 0}
+                className="btn-custom"
+              >
+                {reassignLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Reasignando...
+                  </>
+                ) : (
+                  'Confirmar Reasignación'
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

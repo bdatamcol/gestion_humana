@@ -2569,7 +2569,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                 <SelectTrigger className="border-2 focus:border-blue-500">
                   <SelectValue placeholder="Seleccionar jefe origen" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent style={{ maxHeight: '300px', overflowY: 'auto' }}>
                   {allBossesForReassign.map((boss) => (
                     <SelectItem key={boss.auth_user_id} value={boss.auth_user_id}>
                       {boss.colaborador} {boss.rol === 'administrador' && '(Admin)'}
@@ -2584,7 +2584,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                 <p className="text-sm font-medium text-blue-800 mb-2">
                   {subordinadosPreview.length} subordinado(s) activo(s) serán reasignados:
                 </p>
-                <ul className="text-sm text-blue-700 space-y-1 max-h-32 overflow-y-auto">
+                <ul className="text-sm text-blue-700 space-y-1 max-h-40 overflow-y-auto">
                   {subordinadosPreview.map((sub: any) => (
                     <li key={sub.auth_user_id} className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
@@ -2601,7 +2601,7 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                 <SelectTrigger className="border-2 focus:border-blue-500">
                   <SelectValue placeholder="Seleccionar jefe destino" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent style={{ maxHeight: '300px', overflowY: 'auto' }}>
                   {allBossesForReassign
                     .filter((boss) => boss.auth_user_id !== jefeOrigenId)
                     .map((boss) => (

@@ -4,13 +4,13 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createSupabaseClient } from "@/lib/supabase"
 // AdminSidebar removido - ya está en el layout
-import { Card, CardContent} from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AlertCircle, CheckCircle2, Search, X, ChevronDown, ChevronUp, MessageSquare, Eye, Clock, XCircle, CheckCircle } from "lucide-react"
+import { AlertCircle, CheckCircle2, Search, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, MessageSquare, Eye, Clock, XCircle, CheckCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FileDown } from "lucide-react";
@@ -42,6 +42,7 @@ interface Usuario {
   fecha_ingreso?: string
   empresa_id?: string
   empresas?: Empresa
+  sedes?: { nombre: string }
 }
 
 interface SolicitudPermiso {
@@ -95,13 +96,19 @@ export default function AdminSolicitudesPermisos() {
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [selectedEstado, setSelectedEstado] = useState<string>("all") 
-  const [selectedEmpresa, setSelectedEmpresa] = useState<string>("all") 
+  const [selectedSede, setSelectedSede] = useState<string>("all") 
   const [selectedTipoPermiso, setSelectedTipoPermiso] = useState<string>("all") 
-  const [empresas, setEmpresas] = useState<any[]>([]); // Cambiar 'any' por el tipo correcto una vez que se resuelva el problema de tipado
+  const [sedes, setSedes] = useState<any[]>([]);
   const [sortConfig, setSortConfig] = useState<{
     key: string
     direction: "asc" | "desc"
   } | null>(null)
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [paginatedSolicitudes, setPaginatedSolicitudes] = useState<SolicitudPermiso[]>([])
+  const [totalPages, setTotalPages] = useState(1)
   
   // Referencia para el timeout de búsqueda
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
@@ -240,6 +247,7 @@ export default function AdminSolicitudesPermisos() {
                 fecha_ingreso,
                 empresa_id,
                 empresas:empresas(nombre),
+                sedes:sede_id(nombre),
                 cargos:cargo_id(nombre)
               `)
               .in('auth_user_id', userIds)
@@ -379,23 +387,23 @@ export default function AdminSolicitudesPermisos() {
           setSolicitudes(solicitudesCompletas as SolicitudPermiso[] || [])
           setFilteredSolicitudes(solicitudesCompletas as SolicitudPermiso[] || [])
           
-          // Extraer empresas únicas para el filtro
-          const uniqueEmpresas = Array.from(
+          // Extraer sedes únicas para el filtro
+          const uniqueSedes = Array.from(
             new Set(
               usuariosResult.data
                 ?.filter(usuario => {
-                  if (!usuario.empresas) return false;
-                  const empresas = usuario.empresas as EmpresaData;
-                  return !!empresas.nombre;
+                  if (!usuario.sedes) return false;
+                  const sedes = usuario.sedes as { nombre?: string };
+                  return !!sedes.nombre;
                 })
                 .map(usuario => {
-                  const empresas = usuario.empresas as { nombre?: string };
-                  return empresas.nombre;
+                  const sedes = usuario.sedes as { nombre?: string };
+                  return sedes.nombre;
                 })
                 .filter((nombre): nombre is string => typeof nombre === 'string')
             )
           )
-          setEmpresas(uniqueEmpresas)
+          setSedes(uniqueSedes)
           
           // Obtener conteos de mensajes no leídos para cada solicitud
           solicitudesCompletas.forEach(s => {
@@ -407,7 +415,7 @@ export default function AdminSolicitudesPermisos() {
           // Si no hay datos, inicializar con arrays vacíos
           setSolicitudes([])
           setFilteredSolicitudes([])
-          setEmpresas([])
+          setSedes([])
         }
       } catch (err) {
         console.error("Error al obtener solicitudes:", err)
@@ -448,7 +456,7 @@ export default function AdminSolicitudesPermisos() {
 
     // Establecer un nuevo timeout para aplicar la búsqueda después de 300ms
     searchTimeout.current = setTimeout(() => {
-      applyFilters(value, selectedEstado, selectedEmpresa, selectedTipoPermiso, sortConfig)
+      applyFilters(value, selectedEstado, selectedSede, selectedTipoPermiso, sortConfig)
     }, 300)
   }
   
@@ -456,7 +464,7 @@ export default function AdminSolicitudesPermisos() {
   const applyFilters = (
     search: string,
     estado: string,
-    empresa: string,
+    sede: string,
     tipoPermiso: string,
     sort: { key: string; direction: "asc" | "desc" } | null,
   ) => {
@@ -469,7 +477,7 @@ export default function AdminSolicitudesPermisos() {
         (solicitud) =>
           solicitud.usuario?.colaborador?.toLowerCase().includes(lowerCaseSearchTerm) ||
           solicitud.usuario?.cedula?.toLowerCase().includes(lowerCaseSearchTerm) ||
-          solicitud.usuario?.empresas?.nombre?.toLowerCase().includes(lowerCaseSearchTerm)
+          solicitud.usuario?.sedes?.nombre?.toLowerCase().includes(lowerCaseSearchTerm)
       )
     }
 
@@ -478,9 +486,9 @@ export default function AdminSolicitudesPermisos() {
       result = result.filter((solicitud) => solicitud.estado === estado)
     }
 
-    // Aplicar filtro de empresa
-    if (empresa && empresa !== "all") {
-      result = result.filter((solicitud) => solicitud.usuario?.empresas?.nombre === empresa)
+    // Aplicar filtro de sede
+    if (sede && sede !== "all") {
+      result = result.filter((solicitud) => solicitud.usuario?.sedes?.nombre === sede)
     }
 
     // Aplicar filtro de tipo de permiso
@@ -529,17 +537,70 @@ export default function AdminSolicitudesPermisos() {
 
     setSearchLoading(true)
     searchTimeout.current = setTimeout(() => {
-      applyFilters(searchTerm, selectedEstado, selectedEmpresa, selectedTipoPermiso, sortConfig)
+      applyFilters(searchTerm, selectedEstado, selectedSede, selectedTipoPermiso, sortConfig)
     }, 300)
-  }, [selectedEstado, selectedEmpresa, selectedTipoPermiso, sortConfig, solicitudes])
+  }, [selectedEstado, selectedSede, selectedTipoPermiso, sortConfig, solicitudes])
   
   const clearFilters = () => {
     setSearchTerm("")
     setSelectedEstado("all")
-    setSelectedEmpresa("all")
+    setSelectedSede("all")
     setSelectedTipoPermiso("all")
     setSortConfig(null)
+    setCurrentPage(1)
   }
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
+  }
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  const getPageNumbers = () => {
+    const pageNumbers = []
+    const maxPagesToShow = 5
+
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i)
+      }
+    } else {
+      let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2))
+      let endPage = startPage + maxPagesToShow - 1
+
+      if (endPage > totalPages) {
+        endPage = totalPages
+        startPage = Math.max(1, endPage - maxPagesToShow + 1)
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i)
+      }
+    }
+
+    return pageNumbers
+  }
+
+  useEffect(() => {
+    const total = Math.ceil(filteredSolicitudes.length / itemsPerPage)
+    setTotalPages(total || 1)
+
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    setPaginatedSolicitudes(filteredSolicitudes.slice(startIndex, endIndex))
+  }, [filteredSolicitudes, currentPage, itemsPerPage])
 
   const aprobarSolicitud = async (solicitudId: string, usuarioData: any) => {
     try {
@@ -1047,7 +1108,7 @@ export default function AdminSolicitudesPermisos() {
                           type="button"
                           onClick={() => {
                             setSearchTerm("")
-                            applyFilters("", selectedEstado, selectedEmpresa, selectedTipoPermiso, sortConfig)
+                            applyFilters("", selectedEstado, selectedSede, selectedTipoPermiso, sortConfig)
                           }}
                           className="absolute right-2.5 top-2.5"
                         >
@@ -1069,14 +1130,14 @@ export default function AdminSolicitudesPermisos() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* Empresa */}
+                  {/* Sede */}
                   <div className="w-full md:w-1/5">
-                    <Label htmlFor="empresa" className="mb-2 block">Empresa</Label>
-                    <Select value={selectedEmpresa} onValueChange={setSelectedEmpresa}>
-                      <SelectTrigger id="empresa"><SelectValue placeholder="Todas las empresas" /></SelectTrigger>
+                    <Label htmlFor="sede" className="mb-2 block">Sede</Label>
+                    <Select value={selectedSede} onValueChange={setSelectedSede}>
+                      <SelectTrigger id="sede"><SelectValue placeholder="Todas las sedes" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Todas las empresas</SelectItem>
-                        {empresas.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                        <SelectItem value="all">Todas las sedes</SelectItem>
+                        {sedes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1146,14 +1207,14 @@ export default function AdminSolicitudesPermisos() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : filteredSolicitudes.length === 0 ? (
+                    ) : paginatedSolicitudes.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={11} className="text-center py-4">
                           No hay solicitudes que coincidan con los filtros.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredSolicitudes.map((solicitud) => (
+                      paginatedSolicitudes.map((solicitud) => (
                         <TableRow key={solicitud.id}>
                           <TableCell>{formatDate(solicitud.fecha_solicitud)}</TableCell>
                           <TableCell>
@@ -1285,6 +1346,68 @@ export default function AdminSolicitudesPermisos() {
                     )}
                   </TableBody>
                 </Table>
+
+                {/* Paginación */}
+                {!loading && !searchLoading && filteredSolicitudes.length > 0 && (
+                  <CardFooter className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t">
+                    <div className="flex items-center mb-4 sm:mb-0">
+                      <span className="text-sm text-muted-foreground mr-2">Mostrar</span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(value) => {
+                          setItemsPerPage(Number.parseInt(value))
+                          setCurrentPage(1)
+                        }}
+                      >
+                        <SelectTrigger className="w-[80px]">
+                          <SelectValue placeholder="25" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground ml-2">por página</span>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <div className="text-sm text-muted-foreground mr-4">
+                        Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
+                        {Math.min(currentPage * itemsPerPage, filteredSolicitudes.length)} de {filteredSolicitudes.length}{" "}
+                        solicitudes
+                      </div>
+
+                      <Button variant="outline" size="icon" onClick={goToPreviousPage} disabled={currentPage === 1}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex items-center">
+                        {getPageNumbers().map((page) => (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            className="mx-1 h-8 w-8 p-0"
+                            onClick={() => goToPage(page)}
+                          >
+                            {page}
+                          </Button>
+                        ))}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardFooter>
+                )}
               </CardContent>
             </Card>
           </div>

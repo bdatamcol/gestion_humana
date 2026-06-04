@@ -58,6 +58,7 @@ export default function Perfil() {
           .from("usuario_nomina")
           .select("colaborador")
           .in("auth_user_id", jefeIds)
+          .eq("estado", "activo")
 
         if (jefesData && jefesData.length > 0) {
           jefeNombre = jefesData.map((jefe: any) => jefe.colaborador).join(", ")

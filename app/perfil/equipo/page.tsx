@@ -88,6 +88,7 @@ export default function EquipoPage() {
             .from("usuario_nomina")
             .select("auth_user_id, colaborador")
             .in("auth_user_id", uniqueBossIds)
+            .eq("estado", "activo")
 
           bossNameById = (bossesData || []).reduce((acc: Record<string, string>, boss: any) => {
             acc[boss.auth_user_id] = boss.colaborador

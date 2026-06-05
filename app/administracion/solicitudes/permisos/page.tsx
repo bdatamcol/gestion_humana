@@ -299,8 +299,9 @@ export default function AdminSolicitudesPermisos() {
               aprobacionesMap[key] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
             }
             aprobacionesMap[key].total += 1
-            if (ap.estado === 'aprobado') aprobacionesMap[key].aprobadas += 1
-            else if (ap.estado === 'rechazado') aprobacionesMap[key].rechazadas += 1
+            const estadoLower = (ap.estado || '').toString().trim().toLowerCase()
+            if (estadoLower === 'aprobado') aprobacionesMap[key].aprobadas += 1
+            else if (estadoLower === 'rechazado') aprobacionesMap[key].rechazadas += 1
             else aprobacionesMap[key].pendientes += 1
 
             // Agregar detalle del jefe
@@ -1260,9 +1261,9 @@ export default function AdminSolicitudesPermisos() {
                               <div className="flex flex-col gap-1">
                                 {solicitud.aprobaciones.detalles?.map((detalle, idx) => (
                                   <div key={idx} className="flex items-center gap-2 text-xs" title={`${detalle.jefe_nombre}: ${detalle.estado}`}>
-                                    {detalle.estado === 'aprobado' ? (
+                                    {(detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? (
                                       <CheckCircle className="h-3 w-3 text-green-600" />
-                                    ) : detalle.estado === 'rechazado' ? (
+                                    ) : (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? (
                                       <XCircle className="h-3 w-3 text-red-600" />
                                     ) : (
                                       <Clock className="h-3 w-3 text-yellow-600" />
@@ -1549,15 +1550,15 @@ export default function AdminSolicitudesPermisos() {
                       <div key={idx} className="flex items-center justify-between bg-white border p-3 rounded-md shadow-sm">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-full ${
-                            detalle.estado === 'aprobado' ? 'bg-green-100' : 
-                            detalle.estado === 'rechazado' ? 'bg-red-100' : 'bg-yellow-100'
+                            (detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? 'bg-green-100' : 
+                            (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? 'bg-red-100' : 'bg-yellow-100'
                           }`}>
-                            {detalle.estado === 'aprobado' ? (
+                            {(detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? (
                               <CheckCircle className={`h-4 w-4 ${
-                                detalle.estado === 'aprobado' ? 'text-green-600' : 
-                                detalle.estado === 'rechazado' ? 'text-red-600' : 'text-yellow-600'
+                                (detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? 'text-green-600' : 
+                                (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? 'text-red-600' : 'text-yellow-600'
                               }`} />
-                            ) : detalle.estado === 'rechazado' ? (
+                            ) : (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? (
                               <XCircle className="h-4 w-4 text-red-600" />
                             ) : (
                               <Clock className="h-4 w-4 text-yellow-600" />

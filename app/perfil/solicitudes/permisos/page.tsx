@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, withAuthRetry, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +26,10 @@ export default function SolicitudPermisos() {
   const [showComentariosModal, setShowComentariosModal] = useState(false)
   const [solicitudComentariosId, setSolicitudComentariosId] = useState<string | undefined>(undefined)
   const [unseenCounts, setUnseenCounts] = useState<Record<string, number>>({})
-  const [userId, setUserId] = useState<string | null>(null)
+  // userId centralizado via AuthProvider.
+  const { userId: authUserId } = useAuth()
+  // Alias local para no reescribir todas las referencias existentes.
+  const userId = authUserId
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedDetailsSolicitud, setSelectedDetailsSolicitud] = useState<any>(null)
 
@@ -58,8 +62,9 @@ export default function SolicitudPermisos() {
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
+    if (!authUserId) return
     const supabase = createSupabaseClient()
-    
+
     // Suscribirse a cambios en la tabla de permisos
     const channel = supabase
       .channel('user_permisos_changes')
@@ -69,7 +74,7 @@ export default function SolicitudPermisos() {
           event: '*',
           schema: 'public',
           table: 'solicitudes_permisos',
-          filter: `usuario_id=eq.${userData?.auth_user_id}`
+          filter: `usuario_id=eq.${authUserId}`
         },
         (payload) => {
           // Actualizar la lista de solicitudes cuando haya cambios
@@ -86,12 +91,59 @@ export default function SolicitudPermisos() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'permisos_aprobaciones'
+        },
+        (payload) => {
+          const updated = payload.new as { solicitud_id?: string; estado?: string }
+          if (!updated?.solicitud_id) return
+          setSolicitudes(prev => {
+            const target = prev.find(sol => sol.id === updated.solicitud_id)
+            if (!target) return prev
+            return prev.map(sol => {
+              if (sol.id !== updated.solicitud_id) return sol
+              if (!sol.aprobaciones) return sol
+              const detalles = sol.aprobaciones.detalles?.map((d: any) =>
+                d.jefe_id === (payload.new as any).jefe_id
+                  ? { ...d, estado: updated.estado }
+                  : d
+              )
+              const aprobadas = detalles?.filter((d: any) => d.estado === 'aprobado').length ?? sol.aprobaciones.aprobadas
+              const rechazadas = detalles?.filter((d: any) => d.estado === 'rechazado').length ?? sol.aprobaciones.rechazadas
+              const pendientes = detalles?.filter((d: any) => d.estado === 'pendiente').length ?? sol.aprobaciones.pendientes
+              return {
+                ...sol,
+                aprobaciones: { ...sol.aprobaciones, detalles, aprobadas, rechazadas, pendientes }
+              }
+            })
+          })
+          setSelectedDetailsSolicitud((prev: any) => {
+            if (!prev || prev.id !== updated.solicitud_id || !prev.aprobaciones) return prev
+            const detalles = prev.aprobaciones.detalles?.map((d: any) =>
+              d.jefe_id === (payload.new as any).jefe_id
+                ? { ...d, estado: updated.estado }
+                : d
+            )
+            const aprobadas = detalles?.filter((d: any) => d.estado === 'aprobado').length ?? prev.aprobaciones.aprobadas
+            const rechazadas = detalles?.filter((d: any) => d.estado === 'rechazado').length ?? prev.aprobaciones.rechazadas
+            const pendientes = detalles?.filter((d: any) => d.estado === 'pendiente').length ?? prev.aprobaciones.pendientes
+            return {
+              ...prev,
+              aprobaciones: { ...prev.aprobaciones, detalles, aprobadas, rechazadas, pendientes }
+            }
+          })
+        }
+      )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userData])
+  }, [authUserId])
 
   // Obtener conteo de mensajes no leídos
   const fetchUnseenCount = async (solId: string) => {
@@ -156,20 +208,17 @@ export default function SolicitudPermisos() {
 
   // Verificar autenticación y obtener datos del usuario
   useEffect(() => {
+    // Esperar a que AuthProvider termine de validar la sesion.
+    if (authUserId === null) {
+      setInitialLoading(false)
+      return
+    }
+    const userId = authUserId
+    let cancelled = false
+
     const checkAuth = async () => {
       setInitialLoading(true)
       const supabase = createSupabaseClient()
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
-
-      if (error || !session) {
-        setInitialLoading(false)
-        return
-      }
-
-      setUserId(session.user.id)
 
       // Obtener datos del usuario
       const { data: userData, error: userError } = await supabase
@@ -179,7 +228,7 @@ export default function SolicitudPermisos() {
           empresas:empresa_id(nombre, razon_social, nit),
           sedes:sede_id(nombre)
         `)
-        .eq("auth_user_id", session.user.id)
+        .eq("auth_user_id", userId)
         .single()
 
       if (userError) {
@@ -192,7 +241,7 @@ export default function SolicitudPermisos() {
       const { data: solicitudesData, error: solicitudesError } = await supabase
         .from('solicitudes_permisos')
         .select('*')
-        .eq('usuario_id', session.user.id)
+        .eq('usuario_id', userId)
         .order('fecha_solicitud', { ascending: false })
 
       if (solicitudesError) {
@@ -207,6 +256,7 @@ export default function SolicitudPermisos() {
             .from('permisos_aprobaciones')
             .select('solicitud_id, estado')
             .in('solicitud_id', solIds)
+          
           aprobacionesMap = {}
           solIds.forEach(id => {
             aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }
@@ -226,14 +276,14 @@ export default function SolicitudPermisos() {
       }
 
       setUserData(userData)
-      setEsJefe(userData?.rol === 'jefe')
+      setEsJefe(normRol(userData?.rol) === 'jefe')
 
       // Si es jefe, cargar solicitudes del equipo
-      if (userData?.rol === 'jefe') {
+      if (normRol(userData?.rol) === 'jefe') {
         const { data: subordinates, error: subordinatesError } = await supabase
           .from('usuario_jefes')
           .select('usuario_id')
-          .eq('jefe_id', session.user.id)
+          .eq('jefe_id', userId)
         if (subordinatesError) {
           console.error("Error al obtener subordinados:", subordinatesError)
           setError("No fue posible cargar las solicitudes del equipo.")
@@ -283,10 +333,16 @@ export default function SolicitudPermisos() {
           })
           // Obtener aprobaciones para las solicitudes del equipo
           const solIdsEquipo = enrichedTeam.map(s => s.id)
-          const { data: todasAprobaciones, error: todasAprobacionesError } = await supabase
-            .from('permisos_aprobaciones')
-            .select('solicitud_id, estado, jefe_id')
-            .in('solicitud_id', solIdsEquipo)
+          let todasAprobaciones = [] as any[]
+          let todasAprobacionesError = null
+          if (solIdsEquipo.length > 0) {
+            const result = await supabase
+              .from('permisos_aprobaciones')
+              .select('solicitud_id, estado, jefe_id')
+              .in('solicitud_id', solIdsEquipo)
+            todasAprobaciones = result.data || []
+            todasAprobacionesError = result.error
+          }
           if (todasAprobacionesError) {
             console.error("Error al obtener aprobaciones del equipo:", todasAprobacionesError)
             setError("No fue posible cargar el estado de aprobaciones.")
@@ -294,6 +350,23 @@ export default function SolicitudPermisos() {
             setInitialLoading(false)
             return
           }
+
+          // Fuente de verdad para "soy aprobador de este subordinado":
+          // usuario_jefes. Esto evita mostrar "Sin asignacion" cuando la
+          // fila en permisos_aprobaciones aun no se ha creado (caso
+          // tipico cuando la asignacion del jefe fue posterior a la
+          // solicitud). La migracion 043 hace backfill, pero
+          // defendemos aqui en frontend por si llega a desincronizarse.
+          const { data: misRelaciones, error: misRelacionesError } = await supabase
+            .from('usuario_jefes')
+            .select('usuario_id')
+            .eq('jefe_id', userId)
+          if (misRelacionesError) {
+            console.error("Error al obtener relaciones de jefe:", misRelacionesError)
+          }
+          const subordinadosAsignados = new Set(
+            (misRelaciones || []).map((r: any) => r.usuario_id)
+          )
 
           // Obtener nombres de los jefes
           const jefesIds = [...new Set(todasAprobaciones?.map((a: any) => a.jefe_id) || [])]
@@ -324,10 +397,22 @@ export default function SolicitudPermisos() {
 
           setSolicitudesEquipo(
             enrichedTeam.map(s => {
-                const miAprobacion = todasAprobaciones?.find((a: any) => a.solicitud_id === s.id && a.jefe_id === session.user.id)
-                return { 
-                    ...s, 
-                    estado_aprobacion_jefe: (miAprobacion?.estado || 'sin_asignacion') as EstadoAprobacionJefe,
+                // Primero buscar la fila existente en permisos_aprobaciones
+                const miAprobacion = todasAprobaciones?.find((a: any) => a.solicitud_id === s.id && a.jefe_id === userId)
+                let estadoJefe: EstadoAprobacionJefe
+                if (miAprobacion?.estado) {
+                  estadoJefe = miAprobacion.estado as EstadoAprobacionJefe
+                } else if (subordinadosAsignados.has(s.usuario_id)) {
+                  // El jefe SI es aprobador del solicitante (segun usuario_jefes)
+                  // pero la fila en permisos_aprobaciones no existe todavia.
+                  // Mostrar 'pendiente' para que los botones se habiliten.
+                  estadoJefe = 'pendiente'
+                } else {
+                  estadoJefe = 'sin_asignacion'
+                }
+                return {
+                    ...s,
+                    estado_aprobacion_jefe: estadoJefe,
                     aprobaciones: {
                         detalles: aprobacionesPorSol[s.id] || []
                     }
@@ -341,8 +426,11 @@ export default function SolicitudPermisos() {
       setInitialLoading(false)
     }
 
-    checkAuth()
-  }, [])
+    void checkAuth()
+    return () => {
+      cancelled = true
+    }
+  }, [authUserId])
 
   const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
 
@@ -380,8 +468,9 @@ export default function SolicitudPermisos() {
       setSuccess('')
       setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      // userId viene del AuthProvider, no de una llamada a Supabase.
+      const userId = authUserId
+      if (!userId) {
         setError('No se pudo validar tu sesión. Recarga la página e intenta nuevamente.')
         setIsResolvingSolicitud(false)
         return
@@ -401,7 +490,7 @@ export default function SolicitudPermisos() {
         .from('permisos_aprobaciones')
         .update({ estado: 'aprobado', fecha_resolucion: new Date().toISOString() })
         .eq('solicitud_id', solicitudId)
-        .eq('jefe_id', session.user.id)
+        .eq('jefe_id', userId)
         .eq('estado', 'pendiente')
         .select('id')
         .maybeSingle()
@@ -409,7 +498,7 @@ export default function SolicitudPermisos() {
       if (!updateData) {
         throw new Error('No se pudo registrar la aprobacion. Verifica que tengas una aprobacion pendiente asignada.')
       }
-      actualizarEstadoAprobacionLocal(solicitudId, session.user.id, 'aprobado')
+      actualizarEstadoAprobacionLocal(solicitudId, userId, 'aprobado')
       setSuccess('Aprobación registrada.')
     } catch (e: any) {
       console.error(e)
@@ -427,8 +516,8 @@ export default function SolicitudPermisos() {
       setSuccess('')
       setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      const userId = authUserId
+      if (!userId) {
         setError('No se pudo validar tu sesión. Recarga la página e intenta nuevamente.')
         setIsResolvingSolicitud(false)
         return
@@ -449,7 +538,7 @@ export default function SolicitudPermisos() {
         .from('permisos_aprobaciones')
         .update({ estado: 'rechazado', fecha_resolucion: new Date().toISOString(), motivo_rechazo: motivo })
         .eq('solicitud_id', solicitudId)
-        .eq('jefe_id', session.user.id)
+        .eq('jefe_id', userId)
         .eq('estado', 'pendiente')
         .select('id')
         .maybeSingle()
@@ -457,7 +546,7 @@ export default function SolicitudPermisos() {
       if (!updateData) {
         throw new Error('No se pudo registrar el rechazo. Verifica que tengas una aprobacion pendiente asignada.')
       }
-      actualizarEstadoAprobacionLocal(solicitudId, session.user.id, 'rechazado')
+      actualizarEstadoAprobacionLocal(solicitudId, userId, 'rechazado')
       setSuccess('Rechazo registrado.')
     } catch (e: any) {
       console.error(e)
@@ -494,11 +583,12 @@ export default function SolicitudPermisos() {
     try {
       setIsSubmittingSolicitud(true)
       setError("")
-      
+
       const supabase = createSupabaseClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
+      // userId viene del AuthProvider, sin llamada extra a Supabase.
+      const userId = authUserId
+
+      if (!userId) {
         setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
         setIsSubmittingSolicitud(false)
         return
@@ -508,9 +598,9 @@ export default function SolicitudPermisos() {
       const { data: userData, error: userError } = await supabase
         .from("usuario_nomina")
         .select("colaborador")
-        .eq("auth_user_id", session.user.id)
+        .eq("auth_user_id", userId)
         .single()
-      
+
       if (userError) {
         console.error("Error al obtener datos del usuario:", userError)
       }
@@ -519,7 +609,7 @@ export default function SolicitudPermisos() {
       const { data, error } = await supabase
         .from('solicitudes_permisos')
         .insert([{
-          usuario_id: session.user.id,
+          usuario_id: userId,
           tipo_permiso: formData.tipoPermiso,
           fecha_inicio: formData.fechaInicio,
           fecha_fin: formData.fechaFin,
@@ -563,7 +653,7 @@ export default function SolicitudPermisos() {
             },
             body: JSON.stringify({
               solicitudId: data.id,
-              usuarioId: session.user.id
+              usuarioId: userId
             })
           })
 
@@ -577,7 +667,7 @@ export default function SolicitudPermisos() {
         const { data: solicitudesData } = await supabase
           .from('solicitudes_permisos')
           .select('*')
-          .eq('usuario_id', session.user.id)
+          .eq('usuario_id', userId)
           .order('fecha_solicitud', { ascending: false })
 
         const sols = solicitudesData || []

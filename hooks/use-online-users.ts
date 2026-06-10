@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createSupabaseClient } from '@/lib/supabase'
+import { useAuth } from '@/hooks/use-auth'
 
 interface OnlineUser {
   user_id: string
@@ -23,20 +24,19 @@ export function useOnlineUsers() {
   const [error, setError] = useState<string | null>(null)
   
   const supabase = createSupabaseClient()
+  const { userId, accessToken, loading: authLoading } = useAuth()
 
   // Función para enviar heartbeat
   const sendHeartbeat = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
+      if (!accessToken) {
         return
       }
 
       const response = await fetch('/api/online-users', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
@@ -47,21 +47,19 @@ export function useOnlineUsers() {
     } catch (error) {
       console.error('Error al enviar heartbeat:', error)
     }
-  }, [supabase])
+  }, [accessToken])
 
   // Función para eliminar usuario cuando sale de la plataforma
   const removeUserOnline = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
+      if (!accessToken) {
         return
       }
 
       // Usar sendBeacon si está disponible para mayor confiabilidad
       if (navigator.sendBeacon) {
         const data = new FormData()
-        data.append('token', session.access_token)
+        data.append('token', accessToken)
         
         // Crear una URL con método DELETE simulado
         const url = new URL('/api/online-users', window.location.origin)
@@ -74,7 +72,7 @@ export function useOnlineUsers() {
           fetch('/api/online-users', {
             method: 'DELETE',
             headers: {
-              'Authorization': `Bearer ${session.access_token}`,
+              'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json'
             },
             keepalive: true
@@ -85,7 +83,7 @@ export function useOnlineUsers() {
         await fetch('/api/online-users', {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${session.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
           keepalive: true
@@ -94,14 +92,12 @@ export function useOnlineUsers() {
     } catch (error) {
       console.error('Error al eliminar usuario online:', error)
     }
-  }, [supabase])
+  }, [accessToken])
 
   // Función para obtener usuarios en línea
   const fetchOnlineUsers = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
+      if (!accessToken) {
         setLoading(false)
         setOnlineCount(0)
         setOnlineUsers([])
@@ -111,7 +107,7 @@ export function useOnlineUsers() {
       const response = await fetch('/api/online-users', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
@@ -137,7 +133,7 @@ export function useOnlineUsers() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [accessToken])
 
   // Efecto para configurar heartbeat y polling
   useEffect(() => {
@@ -160,19 +156,12 @@ export function useOnlineUsers() {
       fetchInterval = setInterval(fetchOnlineUsers, 25000)
     }
 
-    // Verificar si hay sesión activa
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session) {
-        startHeartbeat()
-        startFetching()
-      } else {
-        setLoading(false)
-      }
+    if (!authLoading && userId && accessToken) {
+      startHeartbeat()
+      startFetching()
+    } else if (!authLoading) {
+      setLoading(false)
     }
-
-    checkSession()
 
     // Limpiar intervalos al desmontar
     return () => {
@@ -183,7 +172,7 @@ export function useOnlineUsers() {
         clearInterval(fetchInterval)
       }
     }
-  }, [sendHeartbeat, fetchOnlineUsers, supabase])
+  }, [sendHeartbeat, fetchOnlineUsers, authLoading, userId, accessToken])
 
   // Efecto para manejar la salida del usuario de la plataforma
   useEffect(() => {
@@ -236,6 +225,9 @@ export function useOnlineUsers() {
 
   // Suscripción a cambios en tiempo real (opcional)
   useEffect(() => {
+    if (!userId || !accessToken) {
+      return
+    }
     const channel = supabase
       .channel('online-users-changes')
       .on(
@@ -255,7 +247,7 @@ export function useOnlineUsers() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase, fetchOnlineUsers])
+  }, [supabase, fetchOnlineUsers, userId, accessToken])
 
   return {
     onlineCount,

@@ -5,9 +5,32 @@ import { useRouter } from "next/navigation"
 import { AdminSidebar } from "@/components/ui/admin-sidebar"
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
 import { OnlineUsersIndicator } from "@/components/ui/online-users-indicator"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
+
+const DEBUG_SERVER_URL = "http://127.0.0.1:7778/event"
+const DEBUG_SESSION_ID = "auth-refresh-loop"
+const DEBUG_RUN_ID = "post-fix"
+
+// #region debug-point B:admin-layout-helper
+const reportDebugEvent = (hypothesisId: string, location: string, msg: string, data: Record<string, unknown> = {}) => {
+  fetch(DEBUG_SERVER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: DEBUG_RUN_ID,
+      hypothesisId,
+      location,
+      msg: `[DEBUG] ${msg}`,
+      data,
+      ts: Date.now(),
+    }),
+  }).catch(() => {})
+}
+// #endregion
 
 export default function AdministracionLayout({
   children,
@@ -17,62 +40,91 @@ export default function AdministracionLayout({
   const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // Sesion centralizada via AuthProvider (ver components/auth).
+  const { userId, loading: authLoading } = useAuth()
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = createSupabaseClient()
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
-
-      if (error || !session) {
-        router.push("/")
-        return
-      }
-
-      // Obtener datos del usuario desde la tabla usuario_nomina
-      const { data: userData, error: userError } = await supabase
-        .from("usuario_nomina")
-        .select(`
-          *,
-          empresas:empresa_id(nombre),
-          sedes:sede_id(nombre),
-          eps:eps_id(nombre),
-          afp:afp_id(nombre),
-          cesantias:cesantias_id(nombre),
-          caja_de_compensacion:caja_de_compensacion_id(nombre),
-          cargos:cargo_id(id, nombre)
-        `)
-        .eq("auth_user_id", session.user.id)
-        .single()
-
-      const currentUser = userData as any
-
-      if (userError) {
-        console.error("Error al obtener datos del usuario:", userError)
-        router.push("/")
-        return
-      }
-
-      // Verificar que el usuario tenga permisos de administración
-      if (currentUser.rol !== 'administrador') {
-        router.push("/")
-        return
-      }
-
-      // Verificar si el usuario está activo
-      if (currentUser.estado !== 'activo') {
-        router.push("/")
-        return
-      }
-
-      setUserData(currentUser)
-      setLoading(false)
+    if (authLoading) {
+      return
+    }
+    if (userId === null) {
+      router.replace("/")
+      return
     }
 
-    checkAuth()
-  }, [])
+    let cancelled = false
+    const checkAuth = async () => {
+      try {
+        const supabase = createSupabaseClient()
+        // #region debug-point B:admin-layout-start
+        reportDebugEvent("B", "app/administracion/layout.tsx:checkAuth", "AdministracionLayout checkAuth start", {
+          userId,
+          authLoading,
+        })
+        // #endregion
+
+        // Obtener datos del usuario desde la tabla usuario_nomina
+        const { data: userData, error: userError } = await supabase
+          .from("usuario_nomina")
+          .select(`
+            *,
+            empresas:empresa_id(nombre),
+            sedes:sede_id(nombre),
+            eps:eps_id(nombre),
+            afp:afp_id(nombre),
+            cesantias:cesantias_id(nombre),
+            caja_de_compensacion:caja_de_compensacion_id(nombre),
+            cargos:cargo_id(id, nombre)
+          `)
+          .eq("auth_user_id", userId)
+          .single()
+
+        const currentUser = userData as any
+
+        if (cancelled) return
+
+        if (userError || !currentUser) {
+          // #region debug-point B:admin-layout-user-error
+          reportDebugEvent("B", "app/administracion/layout.tsx:checkAuth", "AdministracionLayout user query failed", {
+            error: userError?.message ?? 'missing-user',
+          })
+          // #endregion
+          console.error("Error al obtener datos del usuario:", userError)
+          setLoading(false)
+          return
+        }
+        // #region debug-point B:admin-layout-user-ok
+        reportDebugEvent("B", "app/administracion/layout.tsx:checkAuth", "AdministracionLayout user query resolved", {
+          role: currentUser.rol ?? null,
+          estado: currentUser.estado ?? null,
+        })
+        // #endregion
+
+        // Verificar que el usuario tenga permisos de administración
+        if (normRol(currentUser.rol) !== 'administrador') {
+          router.push("/")
+          return
+        }
+
+        // Verificar si el usuario está activo
+        if (currentUser.estado !== 'activo') {
+          router.push("/")
+          return
+        }
+
+        setUserData(currentUser)
+      } catch (err) {
+        console.error("Error inesperado en checkAuth:", err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void checkAuth()
+    return () => {
+      cancelled = true
+    }
+  }, [userId, authLoading, router])
 
   if (loading) {
     return (

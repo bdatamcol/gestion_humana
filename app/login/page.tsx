@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserCircle2, Lock, AlertCircle, Eye, EyeOff } from "lucide-react"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, clearSupabaseCaches, normRol, setSupabaseRawSession } from "@/lib/supabase"
 
 export default function Login() {
   const router = useRouter()
@@ -25,11 +24,11 @@ export default function Login() {
 
   useEffect(() => {
     const checkSession = async () => {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-      )
-
+      // Usamos el singleton compartido (lib/supabase) para evitar
+      // multiples GoTrueClient en el mismo navegador. La sesion ya
+      // esta validada por AuthProvider (useAuth); aqui solo decidimos
+      // a donde redirigir.
+      const supabase = createSupabaseClient()
       const {
         data: { session },
         error,
@@ -53,7 +52,7 @@ export default function Login() {
             return
           }
 
-          if (currentUser.rol === "administrador") {
+          if (normRol(currentUser.rol) === "administrador") {
             router.push("/administracion/bienvenido")
           } else {
             router.push("/perfil/bienvenido")
@@ -110,6 +109,12 @@ export default function Login() {
       if (error) throw error
 
       if (data.user) {
+        // Limpiar caches de refresh del singleton antes de redirigir.
+        // Asi el siguiente signOut+signIn de un usuario distinto no
+        // hereda un lock obsoleto que pueda disparar 429s.
+        clearSupabaseCaches()
+        setSupabaseRawSession(data.session ?? null)
+
         // Obtener el rol y estado del usuario
         const { data: userData, error: userError } = await supabase
           .from("usuario_nomina")
@@ -129,7 +134,7 @@ export default function Login() {
         }
 
         // Redirigir según el rol
-        if (currentUser.rol === "administrador") {
+        if (normRol(currentUser.rol) === "administrador") {
           router.push("/administracion/bienvenido")
         } else {
           router.push("/perfil/bienvenido")

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Search, Users, X } from "lucide-react"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import { getAvatarUrl } from "@/lib/avatar-utils"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -19,28 +20,27 @@ export default function EquipoPage() {
   const [isBoss, setIsBoss] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Sesion centralizada.
+  const { userId } = useAuth()
 
   useEffect(() => {
+    if (userId === null) {
+      setError("No fue posible validar la sesión.")
+      setLoading(false)
+      return
+    }
+    let cancelled = false
     const loadTeam = async () => {
       const supabase = createSupabaseClient()
 
       try {
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession()
-
-        if (sessionError || !session) {
-          setError("No fue posible validar la sesión.")
-          setLoading(false)
-          return
-        }
-
         const { data: currentUser, error: currentUserError } = await supabase
           .from("usuario_nomina")
           .select("rol")
-          .eq("auth_user_id", session.user.id)
+          .eq("auth_user_id", userId)
           .single()
+
+        if (cancelled) return
 
         if (currentUserError) {
           setError("No fue posible validar los permisos.")
@@ -48,7 +48,7 @@ export default function EquipoPage() {
           return
         }
 
-        if ((currentUser as any)?.rol !== "jefe") {
+        if (normRol((currentUser as any)?.rol) !== "jefe") {
           setIsBoss(false)
           setLoading(false)
           return
@@ -59,7 +59,7 @@ export default function EquipoPage() {
         const { data: relationships, error: relationshipsError } = await supabase
           .from("usuario_jefes")
           .select("usuario_id")
-          .eq("jefe_id", session.user.id)
+          .eq("jefe_id", userId)
 
         if (relationshipsError) {
           setError("No fue posible cargar el equipo a cargo.")
@@ -153,17 +153,22 @@ export default function EquipoPage() {
           jefeNombre: bossNamesByUserId[member.auth_user_id]?.join(", ") || "No asignado",
         }))
 
+        if (cancelled) return
         setTeamMembers(membersWithBoss)
       } catch (err) {
+        if (cancelled) return
         console.error("Error cargando el equipo:", err)
         setError("Ocurrió un error al cargar el equipo.")
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    loadTeam()
-  }, [])
+    void loadTeam()
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
   const filteredMembers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()

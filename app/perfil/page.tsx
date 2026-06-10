@@ -3,22 +3,25 @@
 import { useEffect, useState } from "react"
 import { ProfileCard } from "@/components/ui/profile-card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { createSupabaseClient, getAuthUserId } from "@/lib/supabase"
+import { createSupabaseClient } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import { parseLocalDate } from "@/lib/date-utils"
 
 export default function Perfil() {
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // Sesion centralizada via AuthProvider.
+  const { userId } = useAuth()
 
   useEffect(() => {
+    if (userId === null) {
+      // Esperando validacion del AuthProvider.
+      return
+    }
+
+    let cancelled = false
     const loadUserData = async () => {
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
-
-      if (!userId) {
-        setLoading(false)
-        return
-      }
 
       // Obtener datos del usuario desde la tabla usuario_nomina con relaciones
       const { data: userNomina, error: userError } = await supabase
@@ -35,6 +38,8 @@ export default function Perfil() {
         `)
         .eq("auth_user_id", userId)
         .single()
+
+      if (cancelled) return
 
       if (userError) {
         console.error("Error al obtener datos del usuario:", userError)
@@ -141,11 +146,14 @@ export default function Perfil() {
       setLoading(false)
     }
 
-    loadUserData().catch((err) => {
+    void loadUserData().catch((err) => {
       console.error("Error inesperado cargando perfil:", err)
       setLoading(false)
     })
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
   if (loading) {
     return (

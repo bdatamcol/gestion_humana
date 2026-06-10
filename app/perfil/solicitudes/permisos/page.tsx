@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
+import { createSupabaseClient, withAuthRetry, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +26,10 @@ export default function SolicitudPermisos() {
   const [showComentariosModal, setShowComentariosModal] = useState(false)
   const [solicitudComentariosId, setSolicitudComentariosId] = useState<string | undefined>(undefined)
   const [unseenCounts, setUnseenCounts] = useState<Record<string, number>>({})
-  const [userId, setUserId] = useState<string | null>(null)
+  // userId centralizado via AuthProvider.
+  const { userId: authUserId } = useAuth()
+  // Alias local para no reescribir todas las referencias existentes.
+  const userId = authUserId
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedDetailsSolicitud, setSelectedDetailsSolicitud] = useState<any>(null)
 
@@ -58,6 +62,7 @@ export default function SolicitudPermisos() {
 
   // Suscribirse a cambios en tiempo real
   useEffect(() => {
+    if (!authUserId) return
     const supabase = createSupabaseClient()
 
     // Suscribirse a cambios en la tabla de permisos
@@ -69,7 +74,7 @@ export default function SolicitudPermisos() {
           event: '*',
           schema: 'public',
           table: 'solicitudes_permisos',
-          filter: `usuario_id=eq.${userData?.auth_user_id}`
+          filter: `usuario_id=eq.${authUserId}`
         },
         (payload) => {
           // Actualizar la lista de solicitudes cuando haya cambios
@@ -138,7 +143,7 @@ export default function SolicitudPermisos() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userData])
+  }, [authUserId])
 
   // Obtener conteo de mensajes no leídos
   const fetchUnseenCount = async (solId: string) => {
@@ -203,17 +208,17 @@ export default function SolicitudPermisos() {
 
   // Verificar autenticación y obtener datos del usuario
   useEffect(() => {
+    // Esperar a que AuthProvider termine de validar la sesion.
+    if (authUserId === null) {
+      setInitialLoading(false)
+      return
+    }
+    const userId = authUserId
+    let cancelled = false
+
     const checkAuth = async () => {
       setInitialLoading(true)
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
-
-      if (!userId) {
-        setInitialLoading(false)
-        return
-      }
-
-      setUserId(userId)
 
       // Obtener datos del usuario
       const { data: userData, error: userError } = await supabase
@@ -247,10 +252,13 @@ export default function SolicitudPermisos() {
         const solIds = sols.map(s => s.id)
         let aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number }> = {}
         if (solIds.length > 0) {
-          const { data: approvals } = await supabase
-            .from('permisos_aprobaciones')
-            .select('solicitud_id, estado')
-            .in('solicitud_id', solIds)
+          // withAuthRetry: protege contra 400 por JWT al borde.
+          const { data: approvals } = await withAuthRetry(() =>
+            supabase
+              .from('permisos_aprobaciones')
+              .select('solicitud_id, estado')
+              .in('solicitud_id', solIds)
+          )
           aprobacionesMap = {}
           solIds.forEach(id => {
             aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }
@@ -327,10 +335,12 @@ export default function SolicitudPermisos() {
           })
           // Obtener aprobaciones para las solicitudes del equipo
           const solIdsEquipo = enrichedTeam.map(s => s.id)
-          const { data: todasAprobaciones, error: todasAprobacionesError } = await supabase
-            .from('permisos_aprobaciones')
-            .select('solicitud_id, estado, jefe_id')
-            .in('solicitud_id', solIdsEquipo)
+          const { data: todasAprobaciones, error: todasAprobacionesError } = await withAuthRetry(() =>
+            supabase
+              .from('permisos_aprobaciones')
+              .select('solicitud_id, estado, jefe_id')
+              .in('solicitud_id', solIdsEquipo)
+          )
           if (todasAprobacionesError) {
             console.error("Error al obtener aprobaciones del equipo:", todasAprobacionesError)
             setError("No fue posible cargar el estado de aprobaciones.")
@@ -414,8 +424,11 @@ export default function SolicitudPermisos() {
       setInitialLoading(false)
     }
 
-    checkAuth()
-  }, [])
+    void checkAuth()
+    return () => {
+      cancelled = true
+    }
+  }, [authUserId])
 
   const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
 
@@ -453,7 +466,8 @@ export default function SolicitudPermisos() {
       setSuccess('')
       setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
+      // userId viene del AuthProvider, no de una llamada a Supabase.
+      const userId = authUserId
       if (!userId) {
         setError('No se pudo validar tu sesión. Recarga la página e intenta nuevamente.')
         setIsResolvingSolicitud(false)
@@ -470,14 +484,18 @@ export default function SolicitudPermisos() {
         throw new Error('No tienes una aprobacion asignada para esta solicitud.')
       }
 
-      const { data: updateData, error } = await supabase
-        .from('permisos_aprobaciones')
-        .update({ estado: 'aprobado', fecha_resolucion: new Date().toISOString() })
-        .eq('solicitud_id', solicitudId)
-        .eq('jefe_id', userId)
-        .eq('estado', 'pendiente')
-        .select('id')
-        .maybeSingle()
+      // withAuthRetry: si falla con 400/401 (JWT al borde), refresca
+      // una vez y reintenta. Capa 3 del fix de sesiones.
+      const { data: updateData, error } = await withAuthRetry(() =>
+        supabase
+          .from('permisos_aprobaciones')
+          .update({ estado: 'aprobado', fecha_resolucion: new Date().toISOString() })
+          .eq('solicitud_id', solicitudId)
+          .eq('jefe_id', userId)
+          .eq('estado', 'pendiente')
+          .select('id')
+          .maybeSingle()
+      )
       if (error) throw error
       if (!updateData) {
         throw new Error('No se pudo registrar la aprobacion. Verifica que tengas una aprobacion pendiente asignada.')
@@ -500,7 +518,7 @@ export default function SolicitudPermisos() {
       setSuccess('')
       setIsResolvingSolicitud(true)
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
+      const userId = authUserId
       if (!userId) {
         setError('No se pudo validar tu sesión. Recarga la página e intenta nuevamente.')
         setIsResolvingSolicitud(false)
@@ -518,14 +536,16 @@ export default function SolicitudPermisos() {
         throw new Error('No tienes una aprobacion asignada para esta solicitud.')
       }
 
-      const { data: updateData, error } = await supabase
-        .from('permisos_aprobaciones')
-        .update({ estado: 'rechazado', fecha_resolucion: new Date().toISOString(), motivo_rechazo: motivo })
-        .eq('solicitud_id', solicitudId)
-        .eq('jefe_id', userId)
-        .eq('estado', 'pendiente')
-        .select('id')
-        .maybeSingle()
+      const { data: updateData, error } = await withAuthRetry(() =>
+        supabase
+          .from('permisos_aprobaciones')
+          .update({ estado: 'rechazado', fecha_resolucion: new Date().toISOString(), motivo_rechazo: motivo })
+          .eq('solicitud_id', solicitudId)
+          .eq('jefe_id', userId)
+          .eq('estado', 'pendiente')
+          .select('id')
+          .maybeSingle()
+      )
       if (error) throw error
       if (!updateData) {
         throw new Error('No se pudo registrar el rechazo. Verifica que tengas una aprobacion pendiente asignada.')
@@ -569,7 +589,8 @@ export default function SolicitudPermisos() {
       setError("")
 
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
+      // userId viene del AuthProvider, sin llamada extra a Supabase.
+      const userId = authUserId
 
       if (!userId) {
         setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
@@ -658,10 +679,12 @@ export default function SolicitudPermisos() {
         const aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number }> = {}
 
         if (solIds.length > 0) {
-          const { data: approvals } = await supabase
-            .from('permisos_aprobaciones')
-            .select('solicitud_id, estado')
-            .in('solicitud_id', solIds)
+          const { data: approvals } = await withAuthRetry(() =>
+            supabase
+              .from('permisos_aprobaciones')
+              .select('solicitud_id, estado')
+              .in('solicitud_id', solIds)
+          )
 
           solIds.forEach(id => {
             aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }

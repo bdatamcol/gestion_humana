@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { AdminSidebar } from "@/components/ui/admin-sidebar"
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
 import { OnlineUsersIndicator } from "@/components/ui/online-users-indicator"
-import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
+import { createSupabaseClient, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 
@@ -17,17 +18,22 @@ export default function AdministracionLayout({
   const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // Sesion centralizada via AuthProvider (ver components/auth).
+  const { userId, loading: authLoading } = useAuth()
 
   useEffect(() => {
+    if (authLoading) {
+      return
+    }
+    if (userId === null) {
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
     const checkAuth = async () => {
       try {
         const supabase = createSupabaseClient()
-        const userId = await getAuthUserId(supabase)
-
-        if (!userId) {
-          router.push("/")
-          return
-        }
 
         // Obtener datos del usuario desde la tabla usuario_nomina
         const { data: userData, error: userError } = await supabase
@@ -46,6 +52,8 @@ export default function AdministracionLayout({
           .single()
 
         const currentUser = userData as any
+
+        if (cancelled) return
 
         if (userError || !currentUser) {
           console.error("Error al obtener datos del usuario:", userError)
@@ -69,12 +77,15 @@ export default function AdministracionLayout({
       } catch (err) {
         console.error("Error inesperado en checkAuth:", err)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    checkAuth()
-  }, [router])
+    void checkAuth()
+    return () => {
+      cancelled = true
+    }
+  }, [userId, authLoading, router])
 
   if (loading) {
     return (

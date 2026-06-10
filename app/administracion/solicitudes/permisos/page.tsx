@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { createSupabaseClient, getAuthUserId as getAuthUserIdShared } from "@/lib/supabase"
+import { createSupabaseClient, withAuthRetry } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 // AdminSidebar removido - ya está en el layout
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -91,8 +92,7 @@ export default function AdminSolicitudesPermisos() {
   const [showComentariosModal, setShowComentariosModal] = useState<boolean>(false)
   const [solicitudComentariosId, setSolicitudComentariosId] = useState<string | undefined>(undefined)
   const [unseenCounts, setUnseenCounts] = useState<Record<string, number>>({})
-  const [adminId, setAdminId] = useState<string | null>(null)
-  
+
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [selectedEstado, setSelectedEstado] = useState<string>("all") 
@@ -109,23 +109,26 @@ export default function AdminSolicitudesPermisos() {
   const [itemsPerPage, setItemsPerPage] = useState(25)
   const [paginatedSolicitudes, setPaginatedSolicitudes] = useState<SolicitudPermiso[]>([])
   const [totalPages, setTotalPages] = useState(1)
-  
+  // Sesion centralizada via AuthProvider.
+  // Importante: `loading` distingue "AuthProvider validando" de
+  // "no hay sesion". Sin esto, el primer render mostraba el error
+  // de "no se pudo validar tu sesion" incluso durante la carga
+  // normal de la sesion.
+  const { userId: adminUserId, loading: authLoading } = useAuth()
+
   // Referencia para el timeout de búsqueda
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  const getAuthUserId = (supabase: ReturnType<typeof createSupabaseClient>) =>
-    getAuthUserIdShared(supabase)
-
   // Obtener conteo de mensajes no leídos para una solicitud
   const fetchUnseenCount = async (solId: string) => {
-    if (!adminId) return
+    if (!adminUserId) return
     const supabase = createSupabaseClient()
     const { count, error } = await supabase
       .from("comentarios_permisos")
       .select("*", { head: true, count: "exact" })
       .eq("solicitud_id", solId)
       .eq("visto_admin", false)
-      .neq("usuario_id", adminId)
+      .neq("usuario_id", adminUserId)
 
     if (!error) {
       setUnseenCounts(prev => ({ ...prev, [solId]: count || 0 }))
@@ -134,7 +137,7 @@ export default function AdminSolicitudesPermisos() {
 
   // Marcar comentarios como leídos y abrir modal
   const markReadAndOpen = async (solId: string) => {
-    if (!adminId) return
+    if (!adminUserId) return
     const supabase = createSupabaseClient()
 
     // Actualizar en BD
@@ -143,7 +146,7 @@ export default function AdminSolicitudesPermisos() {
       .update({ visto_admin: true })
       .eq("solicitud_id", solId)
       .eq("visto_admin", false)
-      .neq("usuario_id", adminId)
+      .neq("usuario_id", adminUserId)
 
     // Limpiar contador local
     setUnseenCounts(prev => ({ ...prev, [solId]: 0 }))
@@ -155,7 +158,7 @@ export default function AdminSolicitudesPermisos() {
 
   // Suscribirse a nuevos comentarios
   useEffect(() => {
-    if (!adminId) return
+    if (!adminUserId) return
     const supabase = createSupabaseClient()
 
     const channel = supabase
@@ -164,7 +167,7 @@ export default function AdminSolicitudesPermisos() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "comentarios_permisos" },
         ({ new: n }: any) => {
-          if (n.usuario_id !== adminId) {
+          if (n.usuario_id !== adminUserId) {
             setUnseenCounts(prev => ({
               ...prev,
               [n.solicitud_id]: (prev[n.solicitud_id] || 0) + 1,
@@ -175,25 +178,28 @@ export default function AdminSolicitudesPermisos() {
       .subscribe()
 
     return () => void supabase.removeChannel(channel)
-  }, [adminId])
+  }, [adminUserId])
 
   // Obtener todas las solicitudes
   useEffect(() => {
+    // Esperar a que AuthProvider termine de validar la sesion. Mientras
+    // loading=true y userId=null, todavia no sabemos si hay sesion.
+    if (authLoading) {
+      // Mantener loading=true en la pagina mientras el provider valida.
+      return
+    }
+    // AuthProvider ya valido. Si userId es null, NO hay sesion.
+    if (adminUserId === null) {
+      setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+      setLoading(false)
+      return
+    }
+    let cancelled = false
     const fetchSolicitudes = async () => {
       setLoading(true)
       try {
         const supabase = createSupabaseClient()
-        
-        const adminUserId = await getAuthUserId(supabase)
-        if (!adminUserId) {
-          setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
-          setLoading(false)
-          return
-        }
-        
-        // Guardar ID del administrador para uso en comentarios
-        setAdminId(adminUserId)
-        
+
         // Ejecutar consultas en paralelo para mejor rendimiento
         const [solicitudesResult] = await Promise.all([
           supabase
@@ -409,8 +415,11 @@ export default function AdminSolicitudesPermisos() {
       }
     }
 
-    fetchSolicitudes()
-  }, [router])
+    void fetchSolicitudes()
+    return () => {
+      cancelled = true
+    }
+  }, [adminUserId, authLoading])
 
   const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
   
@@ -595,10 +604,9 @@ export default function AdminSolicitudesPermisos() {
 
       setLoading(true)
       setError("")
-      
+
       const supabase = createSupabaseClient()
-      const adminUserId = await getAuthUserId(supabase)
-      
+      // adminUserId viene del AuthProvider.
       if (!adminUserId) {
         setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
         setLoading(false)
@@ -945,10 +953,9 @@ export default function AdminSolicitudesPermisos() {
     try {
       setLoading(true);
       setError("");
-      
+
       const supabase = createSupabaseClient();
-      const adminUserId = await getAuthUserId(supabase)
-      
+      // adminUserId viene del AuthProvider.
       if (!adminUserId) {
         setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.");
         setLoading(false);

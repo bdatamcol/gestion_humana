@@ -8,7 +8,7 @@ import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield
 import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
-import { createSupabaseClient, normRol } from "@/lib/supabase"
+import { createSupabaseClient, clearSupabaseCaches, normRol } from "@/lib/supabase"
 import { usePermissions } from "@/hooks/use-permissions"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -150,6 +150,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
     const supabase = createSupabaseClient()
     const { error } = await supabase.auth.signOut()
     if (!error) {
+      clearSupabaseCaches()
       router.push("/")
     }
   }
@@ -356,6 +357,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                             <Link
                               key={subItem.name}
                               href={subItem.href}
+                              prefetch={false}
                               onClick={() => setSidebarOpen(false)}
                               className={cn(
                                 subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
@@ -378,6 +380,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                   ) : (
                     <Link
                       href={item.href || "#"}
+                      prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       className={cn(
                         item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
@@ -401,6 +404,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
               <div className="mt-auto pt-4">
                 <Link
                   href={reporteFallasItem.href}
+                  prefetch={false}
                   onClick={() => setSidebarOpen(false)}
                   className={cn(
                     reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
@@ -473,6 +477,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                             <Link
                               key={subItem.name}
                               href={subItem.href}
+                              prefetch={false}
                               className={cn(
                                 subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                                 "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
@@ -494,6 +499,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                   ) : (
                     <Link
                       href={item.href || "#"}
+                      prefetch={false}
                       className={cn(
                         item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                         "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
@@ -517,6 +523,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
             <div className="pt-4 border-t border-gray-100">
               <Link
                 href={reporteFallasItem.href}
+                prefetch={false}
                 className={cn(
                   reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
                   "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",

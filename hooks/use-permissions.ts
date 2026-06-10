@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { createSupabaseClient, getAuthUserId, normRol } from '@/lib/supabase'
+import { createSupabaseClient, normRol } from '@/lib/supabase'
+import { useAuth } from '@/hooks/use-auth'
 
 interface UserData {
   id: string
@@ -11,12 +12,24 @@ export function usePermissions() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Sesion centralizada via AuthProvider.
+  const { userId } = useAuth()
 
   useEffect(() => {
-    loadUserData()
-  }, [])
+    // Esperar a que AuthProvider termine.
+    if (userId === null) {
+      setLoading(true)
+      return
+    }
+    let cancelled = false
+    void loadUserData(cancelled)
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 
-  const loadUserData = async () => {
+  const loadUserData = async (cancelled = false) => {
     try {
       setLoading(true)
       setError(null)
@@ -25,12 +38,6 @@ export function usePermissions() {
       // (el warning "Multiple GoTrueClient instances detected" provenia
       // de este hook creando su propio cliente ademas del singleton).
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
-
-      if (!userId) {
-        setUserData(null)
-        return
-      }
 
       // Obtener datos del usuario
       const { data: user, error: userError } = await supabase
@@ -38,6 +45,8 @@ export function usePermissions() {
         .select('id, rol, estado')
         .eq('auth_user_id', userId)
         .single()
+
+      if (cancelled) return
 
       if (userError) {
         console.error('Error al obtener datos del usuario:', userError)
@@ -52,7 +61,7 @@ export function usePermissions() {
       setError(err instanceof Error ? err.message : 'Error desconocido')
       setUserData(null)
     } finally {
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     }
   }
 

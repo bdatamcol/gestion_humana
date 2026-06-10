@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserCircle2, Lock, AlertCircle, Eye, EyeOff } from "lucide-react"
-import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
+import { createSupabaseClient, clearSupabaseCaches, normRol } from "@/lib/supabase"
 
 export default function Login() {
   const router = useRouter()
@@ -25,11 +25,10 @@ export default function Login() {
   useEffect(() => {
     const checkSession = async () => {
       // Usamos el singleton compartido (lib/supabase) para evitar
-      // multiples GoTrueClient en el mismo navegador.
+      // multiples GoTrueClient en el mismo navegador. La sesion ya
+      // esta validada por AuthProvider (useAuth); aqui solo decidimos
+      // a donde redirigir.
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
-      if (!userId) return
-
       const {
         data: { session },
         error,
@@ -110,6 +109,11 @@ export default function Login() {
       if (error) throw error
 
       if (data.user) {
+        // Limpiar caches de refresh del singleton antes de redirigir.
+        // Asi el siguiente signOut+signIn de un usuario distinto no
+        // hereda un lock obsoleto que pueda disparar 429s.
+        clearSupabaseCaches()
+
         // Obtener el rol y estado del usuario
         const { data: userData, error: userError } = await supabase
           .from("usuario_nomina")

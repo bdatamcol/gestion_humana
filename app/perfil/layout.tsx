@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/ui/sidebar"
 import { OnlineUsersIndicator } from "@/components/ui/online-users-indicator"
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
-import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
+import { createSupabaseClient, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function PerfilLayout({
   children,
@@ -15,16 +16,28 @@ export default function PerfilLayout({
   const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // useAuth se encarga de cargar y refrescar el userId de forma
+  // centralizada (ver components/auth/auth-provider.tsx). Antes cada
+  // layout llamaba a getAuthUserId independientemente, lo que causaba
+  // multiples POST /auth/v1/token por navegacion -> 429.
+  const { userId, loading: authLoading } = useAuth()
 
   useEffect(() => {
+    // Esperar a que AuthProvider termine de validar la sesion.
+    if (authLoading) {
+      // AuthProvider todavia esta validando. Mantenemos loading=true.
+      return
+    }
+    if (userId === null) {
+      // AuthProvider confirmo que no hay sesion. No redirigimos desde
+      // el layout: el middleware o la pagina de login se encargan.
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
     const checkAuth = async () => {
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
-
-      if (!userId) {
-        router.push("/")
-        return
-      }
 
       try {
         // Obtener datos del usuario desde la tabla usuario_nomina
@@ -44,6 +57,8 @@ export default function PerfilLayout({
           .single()
 
         const currentUser = userData as any
+
+        if (cancelled) return
 
         if (userError || !currentUser) {
           console.error("Error al obtener datos del usuario:", userError)
@@ -66,12 +81,15 @@ export default function PerfilLayout({
       } catch (err) {
         console.error("Error inesperado en checkAuth:", err)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    checkAuth()
-  }, [router])
+    void checkAuth()
+    return () => {
+      cancelled = true
+    }
+  }, [userId, authLoading, router])
 
   if (loading) {
     return (

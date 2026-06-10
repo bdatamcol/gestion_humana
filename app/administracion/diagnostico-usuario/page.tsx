@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, User, Users, Shield, FileText, AlertCircle } from "lucide-react"
-import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
+import { createSupabaseClient, withAuthRetry, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 
 interface DiagnosticoUsuario {
   usuario: {
@@ -40,24 +41,30 @@ export default function DiagnosticoUsuarioPage() {
   const [data, setData] = useState<DiagnosticoUsuario | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentUserIsAdmin, setCurrentUserIsAdmin] = useState<boolean | null>(null)
+  // Sesion centralizada.
+  const { userId } = useAuth()
 
   useEffect(() => {
+    if (userId === null) {
+      setCurrentUserIsAdmin(false)
+      return
+    }
+    let cancelled = false
     const checkAdmin = async () => {
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
-      if (!userId) {
-        setCurrentUserIsAdmin(false)
-        return
-      }
       const { data: u } = await supabase
         .from("usuario_nomina")
         .select("rol")
         .eq("auth_user_id", userId)
         .single()
+      if (cancelled) return
       setCurrentUserIsAdmin(normRol((u as any)?.rol) === "administrador")
     }
-    checkAdmin()
-  }, [])
+    void checkAdmin()
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
   const buscar = async () => {
     const term = searchTerm.trim()
@@ -71,7 +78,6 @@ export default function DiagnosticoUsuarioPage() {
 
     try {
       const supabase = createSupabaseClient()
-      const userId = await getAuthUserId(supabase)
       if (!userId) {
         setError("Sesion no valida.")
         return

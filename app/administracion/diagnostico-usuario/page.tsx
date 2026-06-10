@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, User, Users, Shield, FileText, AlertCircle } from "lucide-react"
-import { createSupabaseClient, withAuthRetry, normRol } from "@/lib/supabase"
+import { createSupabaseClient, normRol } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 
 interface DiagnosticoUsuario {

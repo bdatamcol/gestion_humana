@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { createSupabaseClient } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/use-auth'
 
 interface Notificacion {
   id: string
@@ -32,10 +33,10 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
   const [noLeidasCount, setNoLeidasCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [authUserId, setAuthUserId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const supabase = createSupabaseClient()
   const router = useRouter()
+  const { userId: authUserId, accessToken, loading: authLoading } = useAuth()
 
   // Funciones para manejar animaciones
   const handleOpen = () => {
@@ -66,24 +67,15 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
       setLoading(true)
       setError(null)
 
-      console.log('🔄 Cargando notificaciones...')
-      
-      // Obtener el token de acceso de Supabase
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        console.log('❌ No hay sesión activa')
+      if (authLoading || !authUserId || !accessToken) {
         setError('Sesión no válida. Por favor, inicia sesión nuevamente.')
         return
-      }
-
-      if (authUserId !== session.user.id) {
-        setAuthUserId(session.user.id)
       }
 
       // Solo cargar notificaciones no leídas para el dropdown
       const response = await fetch('/api/notificaciones?limit=10&solo_no_leidas=true', {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
@@ -126,8 +118,10 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
 
   // Cargar notificaciones al montar el componente
   useEffect(() => {
-    cargarNotificaciones()
-  }, [])
+    if (!authLoading && authUserId && accessToken) {
+      cargarNotificaciones()
+    }
+  }, [authLoading, authUserId, accessToken])
 
   // Configurar suscripción en tiempo real
   useEffect(() => {
@@ -157,17 +151,14 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
   // Marcar notificación como leída
   const marcarComoLeida = async (notificacionId: string) => {
     try {
-      // Obtener el token de acceso de Supabase
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        console.log('❌ No hay sesión activa para marcar como leída')
+      if (!accessToken) {
         return
       }
 
       const response = await fetch('/api/notificaciones', {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -193,17 +184,14 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
   // Marcar todas como leídas
   const marcarTodasComoLeidas = async () => {
     try {
-      // Obtener el token de acceso de Supabase
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        console.log('❌ No hay sesión activa para marcar todas como leídas')
+      if (!accessToken) {
         return
       }
 
       const response = await fetch('/api/notificaciones', {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

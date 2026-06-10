@@ -29,9 +29,7 @@ export default function PerfilLayout({
       return
     }
     if (userId === null) {
-      // AuthProvider confirmo que no hay sesion. No redirigimos desde
-      // el layout: el middleware o la pagina de login se encargan.
-      setLoading(false)
+      router.replace("/")
       return
     }
 

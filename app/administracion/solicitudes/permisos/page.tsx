@@ -22,6 +22,28 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
 import { formatLocalDate, parseLocalDate } from "@/lib/date-utils"
 
+const DEBUG_SERVER_URL = "http://127.0.0.1:7778/event"
+const DEBUG_SESSION_ID = "auth-refresh-loop"
+const DEBUG_RUN_ID = "post-fix"
+
+// #region debug-point E:page-helper
+const reportDebugEvent = (hypothesisId: string, location: string, msg: string, data: Record<string, unknown> = {}) => {
+  fetch(DEBUG_SERVER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: DEBUG_RUN_ID,
+      hypothesisId,
+      location,
+      msg: `[DEBUG] ${msg}`,
+      data,
+      ts: Date.now(),
+    }),
+  }).catch(() => {})
+}
+// #endregion
+
 // Tipos para los datos principales
 interface Empresa {
   nombre: string
@@ -123,6 +145,12 @@ export default function AdminSolicitudesPermisos() {
   const fetchUnseenCount = async (solId: string) => {
     if (!adminUserId) return
     const supabase = createSupabaseClient()
+    // #region debug-point E:fetch-unseen-start
+    reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchUnseenCount", "Fetching unseen comment count", {
+      solId,
+      adminUserId,
+    })
+    // #endregion
     const { count, error } = await supabase
       .from("comentarios_permisos")
       .select("*", { head: true, count: "exact" })
@@ -131,6 +159,12 @@ export default function AdminSolicitudesPermisos() {
       .neq("usuario_id", adminUserId)
 
     if (!error) {
+      // #region debug-point E:fetch-unseen-end
+      reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchUnseenCount", "Fetched unseen comment count", {
+        solId,
+        count: count || 0,
+      })
+      // #endregion
       setUnseenCounts(prev => ({ ...prev, [solId]: count || 0 }))
     }
   }
@@ -199,6 +233,12 @@ export default function AdminSolicitudesPermisos() {
       setLoading(true)
       try {
         const supabase = createSupabaseClient()
+        // #region debug-point E:fetch-solicitudes-start
+        reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchSolicitudes", "Starting fetchSolicitudes", {
+          adminUserId,
+          authLoading,
+        })
+        // #endregion
 
         // Ejecutar consultas en paralelo para mejor rendimiento
         const [solicitudesResult] = await Promise.all([
@@ -213,10 +253,20 @@ export default function AdminSolicitudesPermisos() {
         ])
 
         if (solicitudesResult.error) {
+          // #region debug-point E:fetch-solicitudes-error
+          reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchSolicitudes", "solicitudes_permisos query failed", {
+            error: solicitudesResult.error.message,
+          })
+          // #endregion
           console.error("Error al obtener solicitudes:", solicitudesResult.error)
           setError("Error al cargar las solicitudes: " + solicitudesResult.error.message)
           return
         }
+        // #region debug-point E:fetch-solicitudes-base-ok
+        reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchSolicitudes", "Base solicitudes query resolved", {
+          count: solicitudesResult.data?.length ?? 0,
+        })
+        // #endregion
         
         // Si la consulta básica funciona, obtener los datos de usuario en paralelo
         if (solicitudesResult.data && solicitudesResult.data.length > 0) {
@@ -224,9 +274,10 @@ export default function AdminSolicitudesPermisos() {
           const userIds = [...new Set(solicitudesResult.data.map(item => item.usuario_id))]
           const solIds = [...new Set(solicitudesResult.data.map(item => item.id))]
           
-          // Obtener datos de usuarios en paralelo
-          const [usuariosResult, aprobacionesAgg] = await Promise.all([
-            supabase
+          // Obtener datos de usuarios
+          let usuariosResult: any = { data: [], error: null }
+          if (userIds.length > 0) {
+            usuariosResult = await supabase
               .from('usuario_nomina')
               .select(`
                 auth_user_id,
@@ -240,8 +291,11 @@ export default function AdminSolicitudesPermisos() {
                 cargos:cargo_id(nombre)
               `)
               .in('auth_user_id', userIds)
-            ,
-            supabase
+          }
+
+          let aprobacionesAgg: any = { data: [], error: null }
+          if (solIds.length > 0) {
+            aprobacionesAgg = await supabase
               .from('permisos_aprobaciones')
               .select(`
                 solicitud_id, 
@@ -249,7 +303,7 @@ export default function AdminSolicitudesPermisos() {
                 jefe_id
               `)
               .in('solicitud_id', solIds)
-          ])
+          }
           
           if (usuariosResult.error) {
             console.error('Error al obtener datos de usuarios:', usuariosResult.error)

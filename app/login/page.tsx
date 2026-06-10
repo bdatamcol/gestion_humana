@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserCircle2, Lock, AlertCircle, Eye, EyeOff } from "lucide-react"
-import { createSupabaseClient, clearSupabaseCaches, normRol } from "@/lib/supabase"
+import { createSupabaseClient, clearSupabaseCaches, normRol, setSupabaseRawSession } from "@/lib/supabase"
 
 export default function Login() {
   const router = useRouter()
@@ -113,6 +113,7 @@ export default function Login() {
         // Asi el siguiente signOut+signIn de un usuario distinto no
         // hereda un lock obsoleto que pueda disparar 429s.
         clearSupabaseCaches()
+        setSupabaseRawSession(data.session ?? null)
 
         // Obtener el rol y estado del usuario
         const { data: userData, error: userError } = await supabase

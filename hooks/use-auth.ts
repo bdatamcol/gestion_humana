@@ -24,6 +24,7 @@ import { useAuthContext } from "@/components/auth/auth-provider"
 
 export interface UseAuthReturn {
   userId: string | null
+  accessToken: string | null
   loading: boolean
   error: string | null
   refresh: () => Promise<void>

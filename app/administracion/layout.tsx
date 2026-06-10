@@ -10,6 +10,28 @@ import { useAuth } from "@/hooks/use-auth"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 
+const DEBUG_SERVER_URL = "http://127.0.0.1:7778/event"
+const DEBUG_SESSION_ID = "auth-refresh-loop"
+const DEBUG_RUN_ID = "post-fix"
+
+// #region debug-point B:admin-layout-helper
+const reportDebugEvent = (hypothesisId: string, location: string, msg: string, data: Record<string, unknown> = {}) => {
+  fetch(DEBUG_SERVER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: DEBUG_RUN_ID,
+      hypothesisId,
+      location,
+      msg: `[DEBUG] ${msg}`,
+      data,
+      ts: Date.now(),
+    }),
+  }).catch(() => {})
+}
+// #endregion
+
 export default function AdministracionLayout({
   children,
 }: {
@@ -26,7 +48,7 @@ export default function AdministracionLayout({
       return
     }
     if (userId === null) {
-      setLoading(false)
+      router.replace("/")
       return
     }
 
@@ -34,6 +56,12 @@ export default function AdministracionLayout({
     const checkAuth = async () => {
       try {
         const supabase = createSupabaseClient()
+        // #region debug-point B:admin-layout-start
+        reportDebugEvent("B", "app/administracion/layout.tsx:checkAuth", "AdministracionLayout checkAuth start", {
+          userId,
+          authLoading,
+        })
+        // #endregion
 
         // Obtener datos del usuario desde la tabla usuario_nomina
         const { data: userData, error: userError } = await supabase
@@ -56,10 +84,21 @@ export default function AdministracionLayout({
         if (cancelled) return
 
         if (userError || !currentUser) {
+          // #region debug-point B:admin-layout-user-error
+          reportDebugEvent("B", "app/administracion/layout.tsx:checkAuth", "AdministracionLayout user query failed", {
+            error: userError?.message ?? 'missing-user',
+          })
+          // #endregion
           console.error("Error al obtener datos del usuario:", userError)
           setLoading(false)
           return
         }
+        // #region debug-point B:admin-layout-user-ok
+        reportDebugEvent("B", "app/administracion/layout.tsx:checkAuth", "AdministracionLayout user query resolved", {
+          role: currentUser.rol ?? null,
+          estado: currentUser.estado ?? null,
+        })
+        // #endregion
 
         // Verificar que el usuario tenga permisos de administración
         if (normRol(currentUser.rol) !== 'administrador') {

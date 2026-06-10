@@ -252,13 +252,11 @@ export default function SolicitudPermisos() {
         const solIds = sols.map(s => s.id)
         let aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number }> = {}
         if (solIds.length > 0) {
-          // withAuthRetry: protege contra 400 por JWT al borde.
-          const { data: approvals } = await withAuthRetry(() =>
-            supabase
-              .from('permisos_aprobaciones')
-              .select('solicitud_id, estado')
-              .in('solicitud_id', solIds)
-          )
+          const { data: approvals } = await supabase
+            .from('permisos_aprobaciones')
+            .select('solicitud_id, estado')
+            .in('solicitud_id', solIds)
+          
           aprobacionesMap = {}
           solIds.forEach(id => {
             aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }
@@ -335,12 +333,16 @@ export default function SolicitudPermisos() {
           })
           // Obtener aprobaciones para las solicitudes del equipo
           const solIdsEquipo = enrichedTeam.map(s => s.id)
-          const { data: todasAprobaciones, error: todasAprobacionesError } = await withAuthRetry(() =>
-            supabase
+          let todasAprobaciones = [] as any[]
+          let todasAprobacionesError = null
+          if (solIdsEquipo.length > 0) {
+            const result = await supabase
               .from('permisos_aprobaciones')
               .select('solicitud_id, estado, jefe_id')
               .in('solicitud_id', solIdsEquipo)
-          )
+            todasAprobaciones = result.data || []
+            todasAprobacionesError = result.error
+          }
           if (todasAprobacionesError) {
             console.error("Error al obtener aprobaciones del equipo:", todasAprobacionesError)
             setError("No fue posible cargar el estado de aprobaciones.")
@@ -484,18 +486,14 @@ export default function SolicitudPermisos() {
         throw new Error('No tienes una aprobacion asignada para esta solicitud.')
       }
 
-      // withAuthRetry: si falla con 400/401 (JWT al borde), refresca
-      // una vez y reintenta. Capa 3 del fix de sesiones.
-      const { data: updateData, error } = await withAuthRetry(() =>
-        supabase
-          .from('permisos_aprobaciones')
-          .update({ estado: 'aprobado', fecha_resolucion: new Date().toISOString() })
-          .eq('solicitud_id', solicitudId)
-          .eq('jefe_id', userId)
-          .eq('estado', 'pendiente')
-          .select('id')
-          .maybeSingle()
-      )
+      const { data: updateData, error } = await supabase
+        .from('permisos_aprobaciones')
+        .update({ estado: 'aprobado', fecha_resolucion: new Date().toISOString() })
+        .eq('solicitud_id', solicitudId)
+        .eq('jefe_id', userId)
+        .eq('estado', 'pendiente')
+        .select('id')
+        .maybeSingle()
       if (error) throw error
       if (!updateData) {
         throw new Error('No se pudo registrar la aprobacion. Verifica que tengas una aprobacion pendiente asignada.')
@@ -536,16 +534,14 @@ export default function SolicitudPermisos() {
         throw new Error('No tienes una aprobacion asignada para esta solicitud.')
       }
 
-      const { data: updateData, error } = await withAuthRetry(() =>
-        supabase
-          .from('permisos_aprobaciones')
-          .update({ estado: 'rechazado', fecha_resolucion: new Date().toISOString(), motivo_rechazo: motivo })
-          .eq('solicitud_id', solicitudId)
-          .eq('jefe_id', userId)
-          .eq('estado', 'pendiente')
-          .select('id')
-          .maybeSingle()
-      )
+      const { data: updateData, error } = await supabase
+        .from('permisos_aprobaciones')
+        .update({ estado: 'rechazado', fecha_resolucion: new Date().toISOString(), motivo_rechazo: motivo })
+        .eq('solicitud_id', solicitudId)
+        .eq('jefe_id', userId)
+        .eq('estado', 'pendiente')
+        .select('id')
+        .maybeSingle()
       if (error) throw error
       if (!updateData) {
         throw new Error('No se pudo registrar el rechazo. Verifica que tengas una aprobacion pendiente asignada.')
@@ -679,12 +675,10 @@ export default function SolicitudPermisos() {
         const aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number }> = {}
 
         if (solIds.length > 0) {
-          const { data: approvals } = await withAuthRetry(() =>
-            supabase
-              .from('permisos_aprobaciones')
-              .select('solicitud_id, estado')
-              .in('solicitud_id', solIds)
-          )
+          const { data: approvals } = await supabase
+            .from('permisos_aprobaciones')
+            .select('solicitud_id, estado')
+            .in('solicitud_id', solIds)
 
           solIds.forEach(id => {
             aprobacionesMap[id] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0 }

@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UserCircle2, Lock, AlertCircle, Eye, EyeOff } from "lucide-react"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
 
 export default function Login() {
   const router = useRouter()
@@ -25,10 +24,11 @@ export default function Login() {
 
   useEffect(() => {
     const checkSession = async () => {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-      )
+      // Usamos el singleton compartido (lib/supabase) para evitar
+      // multiples GoTrueClient en el mismo navegador.
+      const supabase = createSupabaseClient()
+      const userId = await getAuthUserId(supabase)
+      if (!userId) return
 
       const {
         data: { session },
@@ -53,7 +53,7 @@ export default function Login() {
             return
           }
 
-          if (currentUser.rol === "administrador") {
+          if (normRol(currentUser.rol) === "administrador") {
             router.push("/administracion/bienvenido")
           } else {
             router.push("/perfil/bienvenido")
@@ -129,7 +129,7 @@ export default function Login() {
         }
 
         // Redirigir según el rol
-        if (currentUser.rol === "administrador") {
+        if (normRol(currentUser.rol) === "administrador") {
           router.push("/administracion/bienvenido")
         } else {
           router.push("/perfil/bienvenido")

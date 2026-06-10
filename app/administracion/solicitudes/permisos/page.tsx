@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, getAuthUserId as getAuthUserIdShared } from "@/lib/supabase"
 // AdminSidebar removido - ya está en el layout
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -113,25 +113,8 @@ export default function AdminSolicitudesPermisos() {
   // Referencia para el timeout de búsqueda
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  const getAuthUserId = async (supabase: ReturnType<typeof createSupabaseClient>, retries = 2): Promise<string | null> => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.id) {
-        return session.user.id
-      }
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (!userError && user?.id) {
-        return user.id
-      }
-
-      if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
-      }
-    }
-
-    return null
-  }
+  const getAuthUserId = (supabase: ReturnType<typeof createSupabaseClient>) =>
+    getAuthUserIdShared(supabase)
 
   // Obtener conteo de mensajes no leídos para una solicitud
   const fetchUnseenCount = async (solId: string) => {
@@ -912,19 +895,40 @@ export default function AdminSolicitudesPermisos() {
         if (error) throw error;
 
         setSuccess("Solicitud aprobada y permiso generado correctamente.");
+        const fechaResolucion = new Date().toISOString();
         setSolicitudes(solicitudes.map(s => s.id === solicitudId ? {
           ...s,
           estado: 'aprobado',
           admin_id: adminUserId,
-          fecha_resolucion: new Date().toISOString(),
-          pdf_url: urlData.publicUrl
+          fecha_resolucion: fechaResolucion,
+          pdf_url: urlData.publicUrl,
+          aprobaciones: s.aprobaciones ? {
+            ...s.aprobaciones,
+            pendientes: 0,
+            aprobadas: s.aprobaciones.total ?? s.aprobaciones.aprobadas,
+            detalles: s.aprobaciones.detalles?.map(d =>
+              d.estado === 'pendiente'
+                ? { ...d, estado: 'aprobado' }
+                : d
+            )
+          } : s.aprobaciones
         } : s));
         setFilteredSolicitudes(filteredSolicitudes.map(s => s.id === solicitudId ? {
           ...s,
           estado: 'aprobado',
           admin_id: adminUserId,
-          fecha_resolucion: new Date().toISOString(),
-          pdf_url: urlData.publicUrl
+          fecha_resolucion: fechaResolucion,
+          pdf_url: urlData.publicUrl,
+          aprobaciones: s.aprobaciones ? {
+            ...s.aprobaciones,
+            pendientes: 0,
+            aprobadas: s.aprobaciones.total ?? s.aprobaciones.aprobadas,
+            detalles: s.aprobaciones.detalles?.map(d =>
+              d.estado === 'pendiente'
+                ? { ...d, estado: 'aprobado' }
+                : d
+            )
+          } : s.aprobaciones
         } : s));
       } catch (err: any) {
         throw err;

@@ -1,4 +1,8 @@
 -- 039_fix_permisos_aprobaciones_integrity.sql
+-- ESTA ES LA VERSION CANONICA.
+-- db/migrations/20260312_fix_permisos_aprobaciones_integrity.sql es
+-- un duplicado byte-a-byte de este archivo y puede ignorarse de forma
+-- segura. Todos los objetos son DROP IF EXISTS / CREATE OR REPLACE.
 -- Objetivo: robustecer el flujo de aprobaciones de permisos por jefes
 -- 1) Backfill de aprobaciones faltantes
 -- 2) Sincronizacion automatica al asignar/quitar jefes

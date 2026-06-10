@@ -8,6 +8,7 @@ import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield
 import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { createSupabaseClient, normRol } from "@/lib/supabase"
 import { usePermissions } from "@/hooks/use-permissions"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { createClient } from "@supabase/supabase-js"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 
@@ -29,11 +29,6 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 interface SidebarProps {
   userName?: string
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-)
 
 type SidebarContext = {
   state: "expanded" | "collapsed"
@@ -152,6 +147,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
   const { userData: permissionsData, loading: permissionsLoading } = usePermissions()
 
   const handleSignOut = async () => {
+    const supabase = createSupabaseClient()
     const { error } = await supabase.auth.signOut()
     if (!error) {
       router.push("/")
@@ -164,7 +160,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
   const menuItems = [
     { name: "Bienvenido", href: "/perfil/bienvenido", icon: Newspaper, current: currentPath === "/perfil/bienvenido" },
     { name: "Mis datos", href: "/perfil", icon: Info, current: currentPath === "/perfil" },
-    ...(permissionsData?.rol === "jefe"
+    ...(normRol(permissionsData?.rol) === "jefe"
       ? [
           {
             name: "Equipo a cargo",

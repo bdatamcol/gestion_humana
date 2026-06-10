@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Search, Users, X } from "lucide-react"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
 import { getAvatarUrl } from "@/lib/avatar-utils"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -23,23 +23,19 @@ export default function EquipoPage() {
   useEffect(() => {
     const loadTeam = async () => {
       const supabase = createSupabaseClient()
+      const userId = await getAuthUserId(supabase)
+
+      if (!userId) {
+        setError("No fue posible validar la sesión.")
+        setLoading(false)
+        return
+      }
 
       try {
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession()
-
-        if (sessionError || !session) {
-          setError("No fue posible validar la sesión.")
-          setLoading(false)
-          return
-        }
-
         const { data: currentUser, error: currentUserError } = await supabase
           .from("usuario_nomina")
           .select("rol")
-          .eq("auth_user_id", session.user.id)
+          .eq("auth_user_id", userId)
           .single()
 
         if (currentUserError) {
@@ -48,7 +44,7 @@ export default function EquipoPage() {
           return
         }
 
-        if ((currentUser as any)?.rol !== "jefe") {
+        if (normRol((currentUser as any)?.rol) !== "jefe") {
           setIsBoss(false)
           setLoading(false)
           return
@@ -59,7 +55,7 @@ export default function EquipoPage() {
         const { data: relationships, error: relationshipsError } = await supabase
           .from("usuario_jefes")
           .select("usuario_id")
-          .eq("jefe_id", session.user.id)
+          .eq("jefe_id", userId)
 
         if (relationshipsError) {
           setError("No fue posible cargar el equipo a cargo.")

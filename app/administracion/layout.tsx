@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { AdminSidebar } from "@/components/ui/admin-sidebar"
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
 import { OnlineUsersIndicator } from "@/components/ui/online-users-indicator"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, getAuthUserId, normRol } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 
@@ -20,59 +20,61 @@ export default function AdministracionLayout({
 
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createSupabaseClient()
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
+      try {
+        const supabase = createSupabaseClient()
+        const userId = await getAuthUserId(supabase)
 
-      if (error || !session) {
-        router.push("/")
-        return
+        if (!userId) {
+          router.push("/")
+          return
+        }
+
+        // Obtener datos del usuario desde la tabla usuario_nomina
+        const { data: userData, error: userError } = await supabase
+          .from("usuario_nomina")
+          .select(`
+            *,
+            empresas:empresa_id(nombre),
+            sedes:sede_id(nombre),
+            eps:eps_id(nombre),
+            afp:afp_id(nombre),
+            cesantias:cesantias_id(nombre),
+            caja_de_compensacion:caja_de_compensacion_id(nombre),
+            cargos:cargo_id(id, nombre)
+          `)
+          .eq("auth_user_id", userId)
+          .single()
+
+        const currentUser = userData as any
+
+        if (userError || !currentUser) {
+          console.error("Error al obtener datos del usuario:", userError)
+          setLoading(false)
+          return
+        }
+
+        // Verificar que el usuario tenga permisos de administración
+        if (normRol(currentUser.rol) !== 'administrador') {
+          router.push("/")
+          return
+        }
+
+        // Verificar si el usuario está activo
+        if (currentUser.estado !== 'activo') {
+          router.push("/")
+          return
+        }
+
+        setUserData(currentUser)
+      } catch (err) {
+        console.error("Error inesperado en checkAuth:", err)
+      } finally {
+        setLoading(false)
       }
-
-      // Obtener datos del usuario desde la tabla usuario_nomina
-      const { data: userData, error: userError } = await supabase
-        .from("usuario_nomina")
-        .select(`
-          *,
-          empresas:empresa_id(nombre),
-          sedes:sede_id(nombre),
-          eps:eps_id(nombre),
-          afp:afp_id(nombre),
-          cesantias:cesantias_id(nombre),
-          caja_de_compensacion:caja_de_compensacion_id(nombre),
-          cargos:cargo_id(id, nombre)
-        `)
-        .eq("auth_user_id", session.user.id)
-        .single()
-
-      const currentUser = userData as any
-
-      if (userError) {
-        console.error("Error al obtener datos del usuario:", userError)
-        router.push("/")
-        return
-      }
-
-      // Verificar que el usuario tenga permisos de administración
-      if (currentUser.rol !== 'administrador') {
-        router.push("/")
-        return
-      }
-
-      // Verificar si el usuario está activo
-      if (currentUser.estado !== 'activo') {
-        router.push("/")
-        return
-      }
-
-      setUserData(currentUser)
-      setLoading(false)
     }
 
     checkAuth()
-  }, [])
+  }, [router])
 
   if (loading) {
     return (

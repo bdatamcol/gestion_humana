@@ -40,7 +40,7 @@ const reportDebugEvent = (hypothesisId: string, location: string, msg: string, d
       data,
       ts: Date.now(),
     }),
-  }).catch(() => {})
+  }).catch(() => { })
 }
 // #endregion
 
@@ -117,15 +117,15 @@ export default function AdminSolicitudesPermisos() {
 
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState<string>("")
-  const [selectedEstado, setSelectedEstado] = useState<string>("all") 
-  const [selectedSede, setSelectedSede] = useState<string>("all") 
-  const [selectedTipoPermiso, setSelectedTipoPermiso] = useState<string>("all") 
+  const [selectedEstado, setSelectedEstado] = useState<string>("all")
+  const [selectedSede, setSelectedSede] = useState<string>("all")
+  const [selectedTipoPermiso, setSelectedTipoPermiso] = useState<string>("all")
   const [sedes, setSedes] = useState<any[]>([]);
   const [sortConfig, setSortConfig] = useState<{
     key: string
     direction: "asc" | "desc"
   } | null>(null)
-  
+
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
@@ -267,13 +267,13 @@ export default function AdminSolicitudesPermisos() {
           count: solicitudesResult.data?.length ?? 0,
         })
         // #endregion
-        
+
         // Si la consulta básica funciona, obtener los datos de usuario en paralelo
         if (solicitudesResult.data && solicitudesResult.data.length > 0) {
           // Obtener IDs únicos de usuarios
           const userIds = [...new Set(solicitudesResult.data.map(item => item.usuario_id))]
           const solIds = [...new Set(solicitudesResult.data.map(item => item.id))]
-          
+
           // Obtener datos de usuarios
           let usuariosResult: any = { data: [], error: null }
           if (userIds.length > 0) {
@@ -304,7 +304,7 @@ export default function AdminSolicitudesPermisos() {
               `)
               .in('solicitud_id', solIds)
           }
-          
+
           if (usuariosResult.error) {
             console.error('Error al obtener datos de usuarios:', usuariosResult.error)
             setError('Error al cargar datos de usuarios: ' + usuariosResult.error.message)
@@ -314,13 +314,13 @@ export default function AdminSolicitudesPermisos() {
           // Obtener nombres de jefes para las aprobaciones
           const jefesIds = [...new Set(aprobacionesAgg.data?.map(a => a.jefe_id) || [])]
           let jefesMap: Record<string, string> = {}
-          
+
           if (jefesIds.length > 0) {
             const { data: jefesData } = await supabase
               .from('usuario_nomina')
               .select('auth_user_id, colaborador')
               .in('auth_user_id', jefesIds)
-            
+
             if (jefesData) {
               jefesMap = jefesData.reduce((acc, curr) => {
                 acc[curr.auth_user_id as string] = curr.colaborador as string
@@ -328,14 +328,14 @@ export default function AdminSolicitudesPermisos() {
               }, {} as Record<string, string>)
             }
           }
-          
+
           // Construir resumen de aprobaciones por solicitud
           const aprobacionesMap: Record<string, { total: number; aprobadas: number; rechazadas: number; pendientes: number; detalles: any[] }> = {}
           const aprobacionesData = aprobacionesAgg.data || []
           solIds.forEach(id => {
             aprobacionesMap[id as string] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
           })
-          
+
           for (const ap of aprobacionesData as any[]) {
             const key = ap.solicitud_id
             if (!aprobacionesMap[key]) {
@@ -358,13 +358,13 @@ export default function AdminSolicitudesPermisos() {
 
           // Si hay solicitudes sin aprobaciones (antiguas), buscar jefes actuales y simular estado pendiente
           const solicitudesSinAprobaciones = solIds.filter(id => !aprobacionesMap[id as string] || aprobacionesMap[id as string].total === 0)
-          
+
           if (solicitudesSinAprobaciones.length > 0) {
             // Obtener jefes actuales de los usuarios de estas solicitudes
             const usuariosSinAprobaciones = [...new Set(solicitudesResult.data
               .filter(s => solicitudesSinAprobaciones.includes(s.id))
               .map(s => s.usuario_id))]
-              
+
             const { data: jefesActuales, error: errorJefes } = await supabase
               .from('usuario_jefes')
               .select(`
@@ -372,17 +372,17 @@ export default function AdminSolicitudesPermisos() {
                 jefe_id
               `)
               .in('usuario_id', usuariosSinAprobaciones)
-              
+
             if (!errorJefes && jefesActuales) {
               // Obtener nombres para estos jefes si no están en el mapa
               const nuevosJefesIds = [...new Set(jefesActuales.map((j: any) => j.jefe_id))].filter(id => !jefesMap[id])
-              
+
               if (nuevosJefesIds.length > 0) {
                 const { data: nuevosJefesData } = await supabase
                   .from('usuario_nomina')
                   .select('auth_user_id, colaborador')
                   .in('auth_user_id', nuevosJefesIds)
-                
+
                 if (nuevosJefesData) {
                   nuevosJefesData.forEach(j => {
                     jefesMap[j.auth_user_id as string] = j.colaborador as string
@@ -394,13 +394,13 @@ export default function AdminSolicitudesPermisos() {
                 // Encontrar solicitudes de este usuario que no tienen aprobaciones
                 const solicitudesUsuario = solicitudesResult.data
                   .filter(s => s.usuario_id === rel.usuario_id && solicitudesSinAprobaciones.includes(s.id))
-                
+
                 solicitudesUsuario.forEach(s => {
                   const key = s.id
                   if (!aprobacionesMap[key as string]) {
                     aprobacionesMap[key as string] = { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, detalles: [] }
                   }
-                  
+
                   // Verificar si ya existe este jefe en los detalles (por si acaso)
                   const existe = aprobacionesMap[key as string].detalles.some(d => d.jefe_id === rel.jefe_id)
                   if (!existe) {
@@ -416,7 +416,7 @@ export default function AdminSolicitudesPermisos() {
               })
             }
           }
-          
+
           // Combinar los datos
           const solicitudesCompletas = solicitudesResult.data.map(solicitud => {
             const usuario = usuariosResult.data?.find(u => u.auth_user_id === solicitud.usuario_id)
@@ -426,11 +426,11 @@ export default function AdminSolicitudesPermisos() {
               aprobaciones: aprobacionesMap[solicitud.id as string] || undefined
             }
           })
-          
+
           // Guardar todas las solicitudes
           setSolicitudes(solicitudesCompletas as SolicitudPermiso[] || [])
           setFilteredSolicitudes(solicitudesCompletas as SolicitudPermiso[] || [])
-          
+
           // Extraer sedes únicas para el filtro
           const uniqueSedes = Array.from(
             new Set(
@@ -448,7 +448,7 @@ export default function AdminSolicitudesPermisos() {
             )
           )
           setSedes(uniqueSedes)
-          
+
           // Obtener conteos de mensajes no leídos para cada solicitud
           solicitudesCompletas.forEach(s => {
             if (typeof s.id === 'string') {
@@ -476,7 +476,7 @@ export default function AdminSolicitudesPermisos() {
   }, [adminUserId, authLoading])
 
   const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
-  
+
   // Función para ordenar
   const requestSort = (key: string) => {
     let direction: "asc" | "desc" = "asc"
@@ -487,7 +487,7 @@ export default function AdminSolicitudesPermisos() {
 
     setSortConfig({ key, direction })
   }
-  
+
   // Aplicar filtros y ordenamiento con debounce para la búsqueda
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -506,7 +506,7 @@ export default function AdminSolicitudesPermisos() {
       applyFilters(value, selectedEstado, selectedSede, selectedTipoPermiso, sortConfig)
     }, 300)
   }
-  
+
   // Función para aplicar todos los filtros
   const applyFilters = (
     search: string,
@@ -575,7 +575,7 @@ export default function AdminSolicitudesPermisos() {
     setFilteredSolicitudes(result)
     setSearchLoading(false) // Ocultar el preloader
   }
-  
+
   // Efecto para aplicar filtros cuando cambian los selectores o el ordenamiento
   useEffect(() => {
     if (searchTimeout.current) {
@@ -587,7 +587,7 @@ export default function AdminSolicitudesPermisos() {
       applyFilters(searchTerm, selectedEstado, selectedSede, selectedTipoPermiso, sortConfig)
     }, 300)
   }, [selectedEstado, selectedSede, selectedTipoPermiso, sortConfig, solicitudes])
-  
+
   const clearFilters = () => {
     setSearchTerm("")
     setSelectedEstado("all")
@@ -713,9 +713,9 @@ export default function AdminSolicitudesPermisos() {
       permisoContainer.style.fontFamily = "Arial, sans-serif"
       permisoContainer.style.position = "absolute"
       permisoContainer.style.left = "-9999px"
-      
+
       const fechaActual = formatDate(new Date())
-      
+
       // Formatear las fechas para el PDF
       const fechaInicio = parseLocalDate(solicitudData.fecha_inicio as string)
       const fechaFin = parseLocalDate(solicitudData.fecha_fin as string)
@@ -725,7 +725,7 @@ export default function AdminSolicitudesPermisos() {
       const diaFin = fechaFin.getDate()
       const mesFin = fechaFin.getMonth() + 1
       const anioFin = fechaFin.getFullYear()
-      
+
       // Helper para formatear nombre (Primer Nombre + Primer Apellido)
       const formatName = (fullName: string) => {
         if (!fullName) return "";
@@ -742,18 +742,18 @@ export default function AdminSolicitudesPermisos() {
       const solicitudEnState = solicitudes.find(s => s.id === solicitudId);
       let jefeNombre = "";
       if (solicitudEnState && solicitudEnState.aprobaciones && solicitudEnState.aprobaciones.detalles && solicitudEnState.aprobaciones.detalles.length > 0) {
-         // Preferimos el jefe que aprobó, si no, el primero
-         const jefe = solicitudEnState.aprobaciones.detalles.find(d => d.estado === 'aprobado') || solicitudEnState.aprobaciones.detalles[0];
-         jefeNombre = jefe.jefe_nombre;
+        // Preferimos el jefe que aprobó, si no, el primero
+        const jefe = solicitudEnState.aprobaciones.detalles.find(d => d.estado === 'aprobado') || solicitudEnState.aprobaciones.detalles[0];
+        jefeNombre = jefe.jefe_nombre;
       }
-      
+
       const nombreSolicitante = formatName(usuarioData.colaborador || '');
       const nombreJefe = formatName(jefeNombre);
       const nombreRH = formatName("LISSETTE VANESSA CALDERON CUELLAR");
 
       // Determinar el tipo de permiso en español
       let tipoPermisoTexto = "";
-      switch(solicitudData.tipo_permiso) {
+      switch (solicitudData.tipo_permiso) {
         case "no_remunerado":
           tipoPermisoTexto = "Permiso no remunerado";
           break;
@@ -766,7 +766,7 @@ export default function AdminSolicitudesPermisos() {
         default:
           tipoPermisoTexto = "Permiso";
       }
-      
+
       // Preparar el contenido del PDF
       let permisoHTML = `
         <div style="width: 215.9mm; height: 279.4mm; padding: 20px; font-family: Arial, sans-serif;">
@@ -882,7 +882,7 @@ export default function AdminSolicitudesPermisos() {
           </div>
         </div>
       `;
-      
+
       permisoContainer.innerHTML = permisoHTML;
 
       document.body.appendChild(permisoContainer);
@@ -909,11 +909,11 @@ export default function AdminSolicitudesPermisos() {
 
       // Convertir canvas a imagen con alta calidad
       const imgData = canvas.toDataURL("image/jpeg", 1.0);
-      
+
       // Obtener dimensiones exactas del PDF
       const pdfWidth = pdf.internal.pageSize.getWidth(); // 215.9mm
       const pdfHeight = pdf.internal.pageSize.getHeight(); // 279.4mm
-      
+
       // Añadir imagen al PDF ajustando al tamaño exacto de carta
       pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
 
@@ -921,7 +921,7 @@ export default function AdminSolicitudesPermisos() {
       try {
         const pdfBlob = pdf.output("blob");
         const fileName = `permisos/${solicitudId}.pdf`;
-        
+
         const { data: uploadData, error: uploadError } = await supabase
           .storage
           .from('permisos')
@@ -1003,6 +1003,147 @@ export default function AdminSolicitudesPermisos() {
     }
   };
 
+  // Regenera el PDF de una solicitud YA APROBADA sin re-validar jefes.
+  // Util cuando solicitudes_permisos.estado = 'aprobado' pero pdf_url es null
+  // (por ejemplo, cuando el trigger de la BD propaga la aprobacion sin pasar
+  // por la funcion client-side de aprobacion).
+  const regenerarPDF = async (solicitudId: string, usuarioData: any) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const supabase = createSupabaseClient();
+      if (!adminUserId) {
+        setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.");
+        return;
+      }
+
+      // 1) Obtener datos actualizados de la solicitud
+      const { data: solicitudData, error: solicitudError } = await supabase
+        .from('solicitudes_permisos')
+        .select('*')
+        .eq('id', solicitudId)
+        .single();
+      if (solicitudError) throw solicitudError;
+
+      // 2) Obtener nombre del jefe inmediato desde permisos_aprobaciones
+      let jefeNombre = "";
+      const { data: aprobaciones } = await supabase
+        .from('permisos_aprobaciones')
+        .select('jefe_id, estado')
+        .eq('solicitud_id', solicitudId);
+      if (aprobaciones && aprobaciones.length > 0) {
+        const jefe = (aprobaciones as any[]).find((a) => a.estado === 'aprobado') || aprobaciones[0];
+        const { data: jefeData } = await supabase
+          .from('usuario_nomina')
+          .select('colaborador')
+          .eq('auth_user_id', jefe.jefe_id)
+          .single();
+        if (jefeData) jefeNombre = jefeData.colaborador;
+      }
+
+      // 3) Crear contenedor temporal para renderizar el PDF
+      const permisoContainer = document.createElement("div");
+      permisoContainer.style.width = "215.9mm";
+      permisoContainer.style.height = "279.4mm";
+      permisoContainer.style.padding = "0";
+      permisoContainer.style.margin = "0";
+      permisoContainer.style.overflow = "hidden";
+      permisoContainer.style.fontFamily = "Arial, sans-serif";
+      permisoContainer.style.position = "absolute";
+      permisoContainer.style.left = "-9999px";
+
+      const fechaActual = formatDate(new Date());
+      const fechaInicio = parseLocalDate(solicitudData.fecha_inicio as string);
+      const fechaFin = parseLocalDate(solicitudData.fecha_fin as string);
+      const diaInicio = fechaInicio.getDate();
+      const mesInicio = fechaInicio.getMonth() + 1;
+      const anioInicio = fechaInicio.getFullYear();
+      const diaFin = fechaFin.getDate();
+      const mesFin = fechaFin.getMonth() + 1;
+      const anioFin = fechaFin.getFullYear();
+
+      const nombreSolicitante = usuarioData?.colaborador || '';
+      const nombreJefe = jefeNombre;
+      const nombreRH = "LISSETTE VANESSA CALDERON CUELLAR";
+
+      let tipoPermisoTexto = "Permiso";
+      if (solicitudData.tipo_permiso === 'no_remunerado') tipoPermisoTexto = "Permiso no remunerado";
+      else if (solicitudData.tipo_permiso === 'remunerado') tipoPermisoTexto = "Permiso Remunerado";
+      else if (solicitudData.tipo_permiso === 'actividad_interna') tipoPermisoTexto = "Actividad Interna";
+
+      // 4) HTML del PDF
+      const permisoHTML = `
+        <div style="width: 215.9mm; height: 279.4mm; padding: 20px; font-family: Arial, sans-serif;">
+          <div style="border: 1px solid #000; padding: 10px;">
+            <div style="text-align: center; font-weight: bold; margin-bottom: 10px;">SOLICITUD Y REGISTRO DE PERMISOS</div>
+            <div style="margin-bottom: 10px;"><strong>Ciudad:</strong> ${usuarioData?.empresas?.ciudad || 'No especificada'} &nbsp;&nbsp; <strong>Fecha:</strong> ${fechaActual}</div>
+            <div style="margin-bottom: 10px;"><strong>Funcionario:</strong> ${nombreSolicitante} &nbsp;&nbsp; <strong>Cargo:</strong> ${usuarioData?.cargos?.nombre || ''}</div>
+            <div style="margin-bottom: 10px;"><strong>Tipo:</strong> ${tipoPermisoTexto}</div>
+            <div style="margin-bottom: 10px;"><strong>Periodo:</strong> del ${diaInicio}/${mesInicio}/${anioInicio} al ${diaFin}/${mesFin}/${anioFin} &nbsp;&nbsp; <strong>Hora:</strong> ${solicitudData.hora_inicio || '________'} a ${solicitudData.hora_fin || '________'}</div>
+            <div style="margin-bottom: 10px;"><strong>Motivo:</strong> ${solicitudData.motivo || 'No especificado'}</div>
+            <div style="display: flex; justify-content: space-between; margin-top: 60px;">
+              <div style="text-align: center; width: 30%;"><div style="border-top: 1px solid #000; padding-top: 5px;"><strong>${nombreSolicitante}</strong><br/>Firma Solicitante</div></div>
+              <div style="text-align: center; width: 30%;"><div style="border-top: 1px solid #000; padding-top: 5px;"><strong>${nombreJefe}</strong><br/>Vo.Bo. Jefe Inmediato</div></div>
+              <div style="text-align: center; width: 30%;"><div style="border-top: 1px solid #000; padding-top: 5px;"><strong>${nombreRH}</strong><br/>Vo.Bo. Directora Talento Humano</div></div>
+            </div>
+          </div>
+        </div>
+      `;
+      permisoContainer.innerHTML = permisoHTML;
+      document.body.appendChild(permisoContainer);
+
+      // 5) Render a canvas y crear PDF
+      const canvas = await html2canvas(permisoContainer, {
+        scale: 2, useCORS: true, logging: false,
+        width: 816, height: 1056, windowWidth: 816, windowHeight: 1056,
+      });
+      document.body.removeChild(permisoContainer);
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter", compress: true });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+
+      // 6) Subir PDF al bucket 'permisos' de Supabase Storage
+      const pdfBlob = pdf.output("blob");
+      const fileName = `permisos/${solicitudId}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from('permisos')
+        .upload(fileName, pdfBlob, { upsert: true, cacheControl: '3600' });
+      if (uploadError) {
+        if (uploadError.message.includes('row-level security')) {
+          throw new Error('No tienes permisos para subir archivos. Por favor contacta al administrador.');
+        }
+        throw uploadError;
+      }
+
+      const { data: urlData } = supabase.storage.from('permisos').getPublicUrl(fileName);
+      const newPdfUrl = urlData.publicUrl;
+
+      // 7) Actualizar SOLO el campo pdf_url en la BD
+      const { error: updateError } = await supabase
+        .from('solicitudes_permisos')
+        .update({ pdf_url: newPdfUrl })
+        .eq('id', solicitudId);
+      if (updateError) throw updateError;
+
+      // 8) Actualizar estado local
+      setSolicitudes((prev) => prev.map((s) => (s.id === solicitudId ? { ...s, pdf_url: newPdfUrl } : s)));
+      setFilteredSolicitudes((prev) => prev.map((s) => (s.id === solicitudId ? { ...s, pdf_url: newPdfUrl } : s)));
+
+      // 9) Abrir el PDF generado
+      window.open(newPdfUrl, '_blank');
+      setSuccess('PDF regenerado correctamente.');
+    } catch (err: any) {
+      console.error('Error al regenerar PDF:', err);
+      setError(err?.message || 'Error al regenerar el PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const rechazarSolicitud = async (solicitudId: string, motivo: string) => {
     try {
       setLoading(true);
@@ -1030,17 +1171,17 @@ export default function AdminSolicitudesPermisos() {
 
       setSuccess("Solicitud rechazada correctamente.");
       setSolicitudes(solicitudes.map(s => s.id === solicitudId ? {
-        ...s, 
-        estado: 'rechazado', 
-        admin_id: adminUserId, 
-        fecha_resolucion: new Date().toISOString(), 
+        ...s,
+        estado: 'rechazado',
+        admin_id: adminUserId,
+        fecha_resolucion: new Date().toISOString(),
         motivo_rechazo: motivo
       } : s));
       setFilteredSolicitudes(filteredSolicitudes.map(s => s.id === solicitudId ? {
-        ...s, 
-        estado: 'rechazado', 
-        admin_id: adminUserId, 
-        fecha_resolucion: new Date().toISOString(), 
+        ...s,
+        estado: 'rechazado',
+        admin_id: adminUserId,
+        fecha_resolucion: new Date().toISOString(),
         motivo_rechazo: motivo
       } : s));
     } catch (err) {
@@ -1293,8 +1434,8 @@ export default function AdminSolicitudesPermisos() {
                             {solicitud.tipo_permiso === 'no_remunerado'
                               ? 'No remunerado'
                               : solicitud.tipo_permiso === 'remunerado'
-                              ? 'Remunerado'
-                              : 'Actividad interna'}
+                                ? 'Remunerado'
+                                : 'Actividad interna'}
                           </TableCell>
                           <TableCell>
                             <div>
@@ -1314,14 +1455,19 @@ export default function AdminSolicitudesPermisos() {
                                 solicitud.estado === 'aprobado'
                                   ? 'bg-green-100 text-green-800'
                                   : solicitud.estado === 'rechazado'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
                               }
                             >
                               {solicitud.estado.charAt(0).toUpperCase() + solicitud.estado.slice(1)}
                             </Badge>
                           </TableCell>
                           <TableCell>
+                            {(() => {
+                              console.log('[DEBUG aprobaciones]', solicitud.id, JSON.parse(JSON.stringify(solicitud.aprobaciones)));
+                              console.log('PDF:', solicitud.pdf_url);
+                              return null;
+                            })()}
                             {solicitud.aprobaciones ? (
                               <div className="flex flex-col gap-1">
                                 {solicitud.aprobaciones.detalles?.map((detalle, idx) => (
@@ -1368,9 +1514,20 @@ export default function AdminSolicitudesPermisos() {
                               ) : solicitud.estado === 'aprobado' ? (
                                 <Button
                                   size="sm"
-                                  onClick={() => window.open(solicitud.pdf_url, '_blank')}
+                                  onClick={() => {
+                                    if (solicitud.pdf_url) {
+                                      window.open(solicitud.pdf_url, '_blank');
+                                    } else {
+                                      // PDF no generado aun (caso comun: aprobaciones
+                                      // propagadas por el trigger de la BD). Regenerar
+                                      // al vuelo sin re-validar jefes.
+                                      regenerarPDF(solicitud.id, solicitud.usuario);
+                                    }
+                                  }}
+                                  title={solicitud.pdf_url ? 'Descargar PDF' : 'PDF no generado. Clic para regenerarlo.'}
                                 >
-                                  <FileDown className="h-4 w-4 mr-1" />Ver PDF
+                                  <FileDown className="h-4 w-4 mr-1" />
+                                  {solicitud.pdf_url ? 'Ver PDF' : 'Generar PDF'}
                                 </Button>
                               ) : (
                                 <Button
@@ -1499,7 +1656,7 @@ export default function AdminSolicitudesPermisos() {
               Información completa de la solicitud de permiso.
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedDetailsSolicitud && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1521,7 +1678,7 @@ export default function AdminSolicitudesPermisos() {
                     <p>{selectedDetailsSolicitud.usuario?.empresas?.nombre || 'No disponible'}</p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Tipo de Permiso</h4>
@@ -1534,8 +1691,8 @@ export default function AdminSolicitudesPermisos() {
                         selectedDetailsSolicitud.estado === 'aprobado'
                           ? 'bg-green-100 text-green-800'
                           : selectedDetailsSolicitud.estado === 'rechazado'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800'
                       }
                     >
                       {selectedDetailsSolicitud.estado.charAt(0).toUpperCase() + selectedDetailsSolicitud.estado.slice(1)}
@@ -1587,18 +1744,18 @@ export default function AdminSolicitudesPermisos() {
                   <h4 className="font-semibold mb-2">Documento de Soporte</h4>
                   <div className="bg-muted/30 p-4 rounded-md flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                       {selectedDetailsSolicitud.soporte_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                         <Eye className="h-5 w-5 text-blue-500" />
-                       ) : (
-                         <FileDown className="h-5 w-5 text-blue-500" />
-                       )}
-                       <span className="text-sm text-gray-700 truncate max-w-[200px]">
-                         {selectedDetailsSolicitud.soporte_url.split('/').pop()}
-                       </span>
+                      {selectedDetailsSolicitud.soporte_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                        <Eye className="h-5 w-5 text-blue-500" />
+                      ) : (
+                        <FileDown className="h-5 w-5 text-blue-500" />
+                      )}
+                      <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                        {selectedDetailsSolicitud.soporte_url.split('/').pop()}
+                      </span>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => window.open(selectedDetailsSolicitud.soporte_url, '_blank')}
                     >
                       Ver documento
@@ -1614,15 +1771,13 @@ export default function AdminSolicitudesPermisos() {
                     {selectedDetailsSolicitud.aprobaciones.detalles?.map((detalle, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-white border p-3 rounded-md shadow-sm">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-full ${
-                            (detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? 'bg-green-100' : 
-                            (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? 'bg-red-100' : 'bg-yellow-100'
-                          }`}>
+                          <div className={`p-2 rounded-full ${(detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? 'bg-green-100' :
+                              (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? 'bg-red-100' : 'bg-yellow-100'
+                            }`}>
                             {(detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? (
-                              <CheckCircle className={`h-4 w-4 ${
-                                (detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? 'text-green-600' : 
-                                (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? 'text-red-600' : 'text-yellow-600'
-                              }`} />
+                              <CheckCircle className={`h-4 w-4 ${(detalle.estado || '').toString().trim().toLowerCase() === 'aprobado' ? 'text-green-600' :
+                                  (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? 'text-red-600' : 'text-yellow-600'
+                                }`} />
                             ) : (detalle.estado || '').toString().trim().toLowerCase() === 'rechazado' ? (
                               <XCircle className="h-4 w-4 text-red-600" />
                             ) : (

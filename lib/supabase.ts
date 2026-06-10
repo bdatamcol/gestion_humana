@@ -19,8 +19,13 @@ const DEBUG_SESSION_ID = 'auth-refresh-loop'
 const DEBUG_RUN_ID = 'post-fix'
 
 // #region debug-point A:supabase-debug-helper
+// DEBUG DESACTIVADO TEMPORALMENTE: el Debug Server en 127.0.0.1:7778 no esta
+// corriendo, lo que provoca ERR_INSUFFICIENT_RESOURCES al inundar la red con
+// POST fallidos. Reactivar cuando se levante el servidor de debug.
+const DEBUG_ENABLED = false
 const reportDebugEvent = (hypothesisId: string, location: string, msg: string, data: Record<string, unknown> = {}) => {
   if (typeof window === 'undefined') return
+  if (!DEBUG_ENABLED) return
   fetch(DEBUG_SERVER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

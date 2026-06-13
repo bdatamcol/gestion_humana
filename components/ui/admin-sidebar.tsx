@@ -3,7 +3,7 @@ import * as React from "react"
 import { useState, useEffect } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings, Search } from "lucide-react"
 import { FaUser, FaBuilding, FaFileAlt, FaCalendarAlt, FaIdCard, FaChartPie, FaHeart, FaRunning, FaHardHat, FaBalanceScale } from 'react-icons/fa'
 import { useRouter } from "next/navigation"
 
@@ -297,20 +297,28 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
       });
       
       // 14. Reporte de Fallas
-      items.push({ 
-        name: "Reporte de Fallas", 
-        href: "/administracion/reporte-fallas", 
-        icon: AlertTriangle, 
-        current: currentPath === "/administracion/reporte-fallas" 
+      items.push({
+        name: "Reporte de Fallas",
+        href: "/administracion/reporte-fallas",
+        icon: AlertTriangle,
+        current: currentPath === "/administracion/reporte-fallas"
+      });
+
+      // 15. Diagnostico de usuario (soporte)
+      items.push({
+        name: "Diagnostico",
+        href: "/administracion/diagnostico-usuario",
+        icon: Search,
+        current: currentPath === "/administracion/diagnostico-usuario"
       });
     }
-    
-    // 15. Mis datos - Siempre incluir al final
-    items.push({ 
-      name: "Mis datos", 
-      href: "/administracion/perfil", 
-      icon: Info, 
-      current: currentPath === "/administracion/perfil" 
+
+    // 16. Mis datos - Siempre incluir al final
+    items.push({
+      name: "Mis datos",
+      href: "/administracion/perfil",
+      icon: Info,
+      current: currentPath === "/administracion/perfil"
     });
     
     return items;
@@ -416,6 +424,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
                             <Link
                               key={subItem.name}
                               href={subItem.href}
+                              prefetch={false}
                               className={cn(
                                 subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                                 "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
@@ -437,6 +446,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
                   ) : item.href ? (
                     <Link
                       href={item.href}
+                      prefetch={false}
                       className={cn(
                         item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                         "group flex items-center px-2 py-2 text-base font-medium rounded-md",
@@ -511,6 +521,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
                             <Link
                               key={subItem.name}
                               href={subItem.href}
+                              prefetch={false}
                               className={cn(
                                 subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                                 "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
@@ -532,6 +543,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
                   ) : item.href ? (
                     <Link
                       href={item.href}
+                      prefetch={false}
                       className={cn(
                         item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                         "group flex items-center px-2 py-2 text-sm font-medium rounded-md",

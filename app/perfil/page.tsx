@@ -4,23 +4,24 @@ import { useEffect, useState } from "react"
 import { ProfileCard } from "@/components/ui/profile-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { createSupabaseClient } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 import { parseLocalDate } from "@/lib/date-utils"
 
 export default function Perfil() {
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // Sesion centralizada via AuthProvider.
+  const { userId } = useAuth()
 
   useEffect(() => {
-    const loadUserData = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
+    if (userId === null) {
+      // Esperando validacion del AuthProvider.
+      return
+    }
 
-      if (error || !session) {
-        return
-      }
+    let cancelled = false
+    const loadUserData = async () => {
+      const supabase = createSupabaseClient()
 
       // Obtener datos del usuario desde la tabla usuario_nomina con relaciones
       const { data: userNomina, error: userError } = await supabase
@@ -35,11 +36,14 @@ export default function Perfil() {
           caja_de_compensacion:caja_de_compensacion_id(nombre),
           cargos:cargo_id(id, nombre)
         `)
-        .eq("auth_user_id", session.user.id)
+        .eq("auth_user_id", userId)
         .single()
+
+      if (cancelled) return
 
       if (userError) {
         console.error("Error al obtener datos del usuario:", userError)
+        setLoading(false)
         return
       }
 
@@ -47,7 +51,7 @@ export default function Perfil() {
       const { data: relacionesJefes } = await supabase
         .from("usuario_jefes")
         .select("jefe_id")
-        .eq("usuario_id", session.user.id)
+        .eq("usuario_id", userId)
 
       let jefeNombre = "No asignado"
 
@@ -70,7 +74,7 @@ export default function Perfil() {
       const { data: vacacionesActivas } = await supabase
         .from("solicitudes_vacaciones")
         .select("*")
-        .eq("usuario_id", session.user.id)
+        .eq("usuario_id", userId)
         .eq("estado", "aprobado")
         .lte("fecha_inicio", today)
         .gte("fecha_fin", today)
@@ -79,29 +83,29 @@ export default function Perfil() {
       const { data: todasVacacionesAprobadas } = await supabase
         .from("solicitudes_vacaciones")
         .select("fecha_inicio, fecha_fin")
-        .eq("usuario_id", session.user.id)
+        .eq("usuario_id", userId)
         .eq("estado", "aprobado")
         .order("fecha_inicio", { ascending: false })
 
       let estadoVacaciones = "sin_vacaciones"
       let rangoVacaciones = null
-      
+
       if (todasVacacionesAprobadas && todasVacacionesAprobadas.length > 0) {
         const currentYear = new Date().getFullYear()
-        
+
         // Buscar vacaciones del año actual
         const vacacionesEsteAno = todasVacacionesAprobadas.filter((v: any) => {
           const fechaInicio = parseLocalDate(v.fecha_inicio)
           return fechaInicio.getFullYear() === currentYear
         })
-        
+
         if (vacacionesEsteAno.length > 0) {
           const proximasVacaciones: any = vacacionesEsteAno[0]
           const fechaInicio = parseLocalDate(proximasVacaciones.fecha_inicio)
           const fechaFin = parseLocalDate(proximasVacaciones.fecha_fin)
           const ahora = new Date()
           const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
-          
+
           if (fechaFin < hoy) {
             // Ya tomó vacaciones este año
             estadoVacaciones = "ya_tomo"
@@ -142,8 +146,14 @@ export default function Perfil() {
       setLoading(false)
     }
 
-    loadUserData()
-  }, [])
+    void loadUserData().catch((err) => {
+      console.error("Error inesperado cargando perfil:", err)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
   if (loading) {
     return (

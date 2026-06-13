@@ -1,0 +1,6 @@
+
+{"sessionId": "auth-refresh-loop", "runId": "post-fix", "hypothesisId": "D", "location": "lib/supabase.ts:createSupabaseClient", "msg": "[DEBUG] Reusing existing Supabase client", "data": {}, "ts": 1781134824704}
+{"sessionId": "auth-refresh-loop", "runId": "post-fix", "hypothesisId": "E", "location": "app/administracion/solicitudes/permisos/page.tsx:fetchUnseenCount", "msg": "[DEBUG] Fetching unseen comment count", "data": {"solId": "e259e035-6be7-49a8-bf91-2d0c41339ccd", "adminUserId": "0638878f-c63a-4f58-bbab-ebd119705f3d"}, "ts": 1781134824705}
+{"sessionId": "auth-refresh-loop", "runId": "post-fix", "hypothesisId": "D", "location": "lib/supabase.ts:createSupabaseClient", "msg": "[DEBUG] Reusing existing Supabase client", "data": {}, "ts": 1781134824706}
+{"sessionId": "auth-refresh-loop", "runId": "post-fix", "hypothesisId": "E", "location": "app/administracion/solicitudes/permisos/page.tsx:fetchUnseenCount", "msg": "[DEBUG] Fetching unseen comment count", "data": {"solId": "285f3d63-8334-449b-8cde-287c1a1d8f21", "adminUserId": "0638878f-c63a-4f58-bbab-ebd119705f3d"}, "ts": 1781134824707}
+{"sessionId": "auth-refresh-loop", "runId": "post-fix", "hypothesisId": "D", "location": "lib/supabase.ts:createSupabaseClient", "msg": "[DEBUG] Reusing existing Supabase client", "data": {}, "ts": 1781134824707}

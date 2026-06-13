@@ -8,6 +8,7 @@ import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield
 import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { createSupabaseClient, clearSupabaseCaches, normRol } from "@/lib/supabase"
 import { usePermissions } from "@/hooks/use-permissions"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { createClient } from "@supabase/supabase-js"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 
@@ -29,11 +29,6 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 interface SidebarProps {
   userName?: string
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-)
 
 type SidebarContext = {
   state: "expanded" | "collapsed"
@@ -152,8 +147,10 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
   const { userData: permissionsData, loading: permissionsLoading } = usePermissions()
 
   const handleSignOut = async () => {
+    const supabase = createSupabaseClient()
     const { error } = await supabase.auth.signOut()
     if (!error) {
+      clearSupabaseCaches()
       router.push("/")
     }
   }
@@ -164,7 +161,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
   const menuItems = [
     { name: "Bienvenido", href: "/perfil/bienvenido", icon: Newspaper, current: currentPath === "/perfil/bienvenido" },
     { name: "Mis datos", href: "/perfil", icon: Info, current: currentPath === "/perfil" },
-    ...(permissionsData?.rol === "jefe"
+    ...(normRol(permissionsData?.rol) === "jefe"
       ? [
           {
             name: "Equipo a cargo",
@@ -360,6 +357,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                             <Link
                               key={subItem.name}
                               href={subItem.href}
+                              prefetch={false}
                               onClick={() => setSidebarOpen(false)}
                               className={cn(
                                 subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
@@ -382,6 +380,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                   ) : (
                     <Link
                       href={item.href || "#"}
+                      prefetch={false}
                       onClick={() => setSidebarOpen(false)}
                       className={cn(
                         item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
@@ -405,6 +404,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
               <div className="mt-auto pt-4">
                 <Link
                   href={reporteFallasItem.href}
+                  prefetch={false}
                   onClick={() => setSidebarOpen(false)}
                   className={cn(
                     reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
@@ -477,6 +477,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                             <Link
                               key={subItem.name}
                               href={subItem.href}
+                              prefetch={false}
                               className={cn(
                                 subItem.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                                 "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
@@ -498,6 +499,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                   ) : (
                     <Link
                       href={item.href || "#"}
+                      prefetch={false}
                       className={cn(
                         item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                         "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
@@ -521,6 +523,7 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
             <div className="pt-4 border-t border-gray-100">
               <Link
                 href={reporteFallasItem.href}
+                prefetch={false}
                 className={cn(
                   reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
                   "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",

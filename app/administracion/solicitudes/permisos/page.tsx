@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, withAuthRetry } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 // AdminSidebar removido - ya está en el layout
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Skeleton } from "@/components/ui/skeleton"
 import { ComentariosPermisos } from "@/components/permisos/comentarios-permisos"
 import { formatLocalDate, parseLocalDate } from "@/lib/date-utils"
+
+const DEBUG_SERVER_URL = "http://127.0.0.1:7778/event"
+const DEBUG_SESSION_ID = "auth-refresh-loop"
+const DEBUG_RUN_ID = "post-fix"
+
+// #region debug-point E:page-helper
+const reportDebugEvent = (hypothesisId: string, location: string, msg: string, data: Record<string, unknown> = {}) => {
+  fetch(DEBUG_SERVER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: DEBUG_RUN_ID,
+      hypothesisId,
+      location,
+      msg: `[DEBUG] ${msg}`,
+      data,
+      ts: Date.now(),
+    }),
+  }).catch(() => {})
+}
+// #endregion
 
 // Tipos para los datos principales
 interface Empresa {
@@ -91,8 +114,7 @@ export default function AdminSolicitudesPermisos() {
   const [showComentariosModal, setShowComentariosModal] = useState<boolean>(false)
   const [solicitudComentariosId, setSolicitudComentariosId] = useState<string | undefined>(undefined)
   const [unseenCounts, setUnseenCounts] = useState<Record<string, number>>({})
-  const [adminId, setAdminId] = useState<string | null>(null)
-  
+
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [selectedEstado, setSelectedEstado] = useState<string>("all") 
@@ -109,49 +131,47 @@ export default function AdminSolicitudesPermisos() {
   const [itemsPerPage, setItemsPerPage] = useState(25)
   const [paginatedSolicitudes, setPaginatedSolicitudes] = useState<SolicitudPermiso[]>([])
   const [totalPages, setTotalPages] = useState(1)
-  
+  // Sesion centralizada via AuthProvider.
+  // Importante: `loading` distingue "AuthProvider validando" de
+  // "no hay sesion". Sin esto, el primer render mostraba el error
+  // de "no se pudo validar tu sesion" incluso durante la carga
+  // normal de la sesion.
+  const { userId: adminUserId, loading: authLoading } = useAuth()
+
   // Referencia para el timeout de búsqueda
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  const getAuthUserId = async (supabase: ReturnType<typeof createSupabaseClient>, retries = 2): Promise<string | null> => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.id) {
-        return session.user.id
-      }
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (!userError && user?.id) {
-        return user.id
-      }
-
-      if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
-      }
-    }
-
-    return null
-  }
-
   // Obtener conteo de mensajes no leídos para una solicitud
   const fetchUnseenCount = async (solId: string) => {
-    if (!adminId) return
+    if (!adminUserId) return
     const supabase = createSupabaseClient()
+    // #region debug-point E:fetch-unseen-start
+    reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchUnseenCount", "Fetching unseen comment count", {
+      solId,
+      adminUserId,
+    })
+    // #endregion
     const { count, error } = await supabase
       .from("comentarios_permisos")
       .select("*", { head: true, count: "exact" })
       .eq("solicitud_id", solId)
       .eq("visto_admin", false)
-      .neq("usuario_id", adminId)
+      .neq("usuario_id", adminUserId)
 
     if (!error) {
+      // #region debug-point E:fetch-unseen-end
+      reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchUnseenCount", "Fetched unseen comment count", {
+        solId,
+        count: count || 0,
+      })
+      // #endregion
       setUnseenCounts(prev => ({ ...prev, [solId]: count || 0 }))
     }
   }
 
   // Marcar comentarios como leídos y abrir modal
   const markReadAndOpen = async (solId: string) => {
-    if (!adminId) return
+    if (!adminUserId) return
     const supabase = createSupabaseClient()
 
     // Actualizar en BD
@@ -160,7 +180,7 @@ export default function AdminSolicitudesPermisos() {
       .update({ visto_admin: true })
       .eq("solicitud_id", solId)
       .eq("visto_admin", false)
-      .neq("usuario_id", adminId)
+      .neq("usuario_id", adminUserId)
 
     // Limpiar contador local
     setUnseenCounts(prev => ({ ...prev, [solId]: 0 }))
@@ -172,7 +192,7 @@ export default function AdminSolicitudesPermisos() {
 
   // Suscribirse a nuevos comentarios
   useEffect(() => {
-    if (!adminId) return
+    if (!adminUserId) return
     const supabase = createSupabaseClient()
 
     const channel = supabase
@@ -181,7 +201,7 @@ export default function AdminSolicitudesPermisos() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "comentarios_permisos" },
         ({ new: n }: any) => {
-          if (n.usuario_id !== adminId) {
+          if (n.usuario_id !== adminUserId) {
             setUnseenCounts(prev => ({
               ...prev,
               [n.solicitud_id]: (prev[n.solicitud_id] || 0) + 1,
@@ -192,25 +212,34 @@ export default function AdminSolicitudesPermisos() {
       .subscribe()
 
     return () => void supabase.removeChannel(channel)
-  }, [adminId])
+  }, [adminUserId])
 
   // Obtener todas las solicitudes
   useEffect(() => {
+    // Esperar a que AuthProvider termine de validar la sesion. Mientras
+    // loading=true y userId=null, todavia no sabemos si hay sesion.
+    if (authLoading) {
+      // Mantener loading=true en la pagina mientras el provider valida.
+      return
+    }
+    // AuthProvider ya valido. Si userId es null, NO hay sesion.
+    if (adminUserId === null) {
+      setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
+      setLoading(false)
+      return
+    }
+    let cancelled = false
     const fetchSolicitudes = async () => {
       setLoading(true)
       try {
         const supabase = createSupabaseClient()
-        
-        const adminUserId = await getAuthUserId(supabase)
-        if (!adminUserId) {
-          setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
-          setLoading(false)
-          return
-        }
-        
-        // Guardar ID del administrador para uso en comentarios
-        setAdminId(adminUserId)
-        
+        // #region debug-point E:fetch-solicitudes-start
+        reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchSolicitudes", "Starting fetchSolicitudes", {
+          adminUserId,
+          authLoading,
+        })
+        // #endregion
+
         // Ejecutar consultas en paralelo para mejor rendimiento
         const [solicitudesResult] = await Promise.all([
           supabase
@@ -224,10 +253,20 @@ export default function AdminSolicitudesPermisos() {
         ])
 
         if (solicitudesResult.error) {
+          // #region debug-point E:fetch-solicitudes-error
+          reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchSolicitudes", "solicitudes_permisos query failed", {
+            error: solicitudesResult.error.message,
+          })
+          // #endregion
           console.error("Error al obtener solicitudes:", solicitudesResult.error)
           setError("Error al cargar las solicitudes: " + solicitudesResult.error.message)
           return
         }
+        // #region debug-point E:fetch-solicitudes-base-ok
+        reportDebugEvent("E", "app/administracion/solicitudes/permisos/page.tsx:fetchSolicitudes", "Base solicitudes query resolved", {
+          count: solicitudesResult.data?.length ?? 0,
+        })
+        // #endregion
         
         // Si la consulta básica funciona, obtener los datos de usuario en paralelo
         if (solicitudesResult.data && solicitudesResult.data.length > 0) {
@@ -235,9 +274,10 @@ export default function AdminSolicitudesPermisos() {
           const userIds = [...new Set(solicitudesResult.data.map(item => item.usuario_id))]
           const solIds = [...new Set(solicitudesResult.data.map(item => item.id))]
           
-          // Obtener datos de usuarios en paralelo
-          const [usuariosResult, aprobacionesAgg] = await Promise.all([
-            supabase
+          // Obtener datos de usuarios
+          let usuariosResult: any = { data: [], error: null }
+          if (userIds.length > 0) {
+            usuariosResult = await supabase
               .from('usuario_nomina')
               .select(`
                 auth_user_id,
@@ -251,8 +291,11 @@ export default function AdminSolicitudesPermisos() {
                 cargos:cargo_id(nombre)
               `)
               .in('auth_user_id', userIds)
-            ,
-            supabase
+          }
+
+          let aprobacionesAgg: any = { data: [], error: null }
+          if (solIds.length > 0) {
+            aprobacionesAgg = await supabase
               .from('permisos_aprobaciones')
               .select(`
                 solicitud_id, 
@@ -260,7 +303,7 @@ export default function AdminSolicitudesPermisos() {
                 jefe_id
               `)
               .in('solicitud_id', solIds)
-          ])
+          }
           
           if (usuariosResult.error) {
             console.error('Error al obtener datos de usuarios:', usuariosResult.error)
@@ -426,8 +469,11 @@ export default function AdminSolicitudesPermisos() {
       }
     }
 
-    fetchSolicitudes()
-  }, [router])
+    void fetchSolicitudes()
+    return () => {
+      cancelled = true
+    }
+  }, [adminUserId, authLoading])
 
   const formatDate = (date: string | Date | null | undefined) => formatLocalDate(date, "es-CO")
   
@@ -612,10 +658,9 @@ export default function AdminSolicitudesPermisos() {
 
       setLoading(true)
       setError("")
-      
+
       const supabase = createSupabaseClient()
-      const adminUserId = await getAuthUserId(supabase)
-      
+      // adminUserId viene del AuthProvider.
       if (!adminUserId) {
         setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.")
         setLoading(false)
@@ -912,19 +957,40 @@ export default function AdminSolicitudesPermisos() {
         if (error) throw error;
 
         setSuccess("Solicitud aprobada y permiso generado correctamente.");
+        const fechaResolucion = new Date().toISOString();
         setSolicitudes(solicitudes.map(s => s.id === solicitudId ? {
           ...s,
           estado: 'aprobado',
           admin_id: adminUserId,
-          fecha_resolucion: new Date().toISOString(),
-          pdf_url: urlData.publicUrl
+          fecha_resolucion: fechaResolucion,
+          pdf_url: urlData.publicUrl,
+          aprobaciones: s.aprobaciones ? {
+            ...s.aprobaciones,
+            pendientes: 0,
+            aprobadas: s.aprobaciones.total ?? s.aprobaciones.aprobadas,
+            detalles: s.aprobaciones.detalles?.map(d =>
+              d.estado === 'pendiente'
+                ? { ...d, estado: 'aprobado' }
+                : d
+            )
+          } : s.aprobaciones
         } : s));
         setFilteredSolicitudes(filteredSolicitudes.map(s => s.id === solicitudId ? {
           ...s,
           estado: 'aprobado',
           admin_id: adminUserId,
-          fecha_resolucion: new Date().toISOString(),
-          pdf_url: urlData.publicUrl
+          fecha_resolucion: fechaResolucion,
+          pdf_url: urlData.publicUrl,
+          aprobaciones: s.aprobaciones ? {
+            ...s.aprobaciones,
+            pendientes: 0,
+            aprobadas: s.aprobaciones.total ?? s.aprobaciones.aprobadas,
+            detalles: s.aprobaciones.detalles?.map(d =>
+              d.estado === 'pendiente'
+                ? { ...d, estado: 'aprobado' }
+                : d
+            )
+          } : s.aprobaciones
         } : s));
       } catch (err: any) {
         throw err;
@@ -941,10 +1007,9 @@ export default function AdminSolicitudesPermisos() {
     try {
       setLoading(true);
       setError("");
-      
+
       const supabase = createSupabaseClient();
-      const adminUserId = await getAuthUserId(supabase)
-      
+      // adminUserId viene del AuthProvider.
       if (!adminUserId) {
         setError("No se pudo validar tu sesión. Recarga la página e intenta nuevamente.");
         setLoading(false);

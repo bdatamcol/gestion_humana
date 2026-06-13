@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/ui/sidebar"
 import { OnlineUsersIndicator } from "@/components/ui/online-users-indicator"
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
-import { createSupabaseClient } from "@/lib/supabase"
+import { createSupabaseClient, normRol } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function PerfilLayout({
   children,
@@ -15,60 +16,78 @@ export default function PerfilLayout({
   const router = useRouter()
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // useAuth se encarga de cargar y refrescar el userId de forma
+  // centralizada (ver components/auth/auth-provider.tsx). Antes cada
+  // layout llamaba a getAuthUserId independientemente, lo que causaba
+  // multiples POST /auth/v1/token por navegacion -> 429.
+  const { userId, loading: authLoading } = useAuth()
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = createSupabaseClient()
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
-
-      if (error || !session) {
-        router.push("/")
-        return
-      }
-
-      // Obtener datos del usuario desde la tabla usuario_nomina
-      const { data: userData, error: userError } = await supabase
-        .from("usuario_nomina")
-        .select(`
-          *,
-          empresas:empresa_id(nombre),
-          sedes:sede_id(nombre),
-          eps:eps_id(nombre),
-          afp:afp_id(nombre),
-          cesantias:cesantias_id(nombre),
-          caja_de_compensacion:caja_de_compensacion_id(nombre),
-          cargos:cargo_id(id, nombre)
-        `)
-        .eq("auth_user_id", session.user.id)
-        .single()
-
-      const currentUser = userData as any
-
-      if (userError) {
-        console.error("Error al obtener datos del usuario:", userError)
-        router.push("/")
-        return
-      }
-
-      // Permitir acceso a usuarios inactivos para que puedan ver su perfil
-      // Los administradores pueden acceder a su perfil cuando sea necesario
-      // (por ejemplo, desde notificaciones o para ver sus propias solicitudes)
-      // Solo redirigir si están accediendo directamente a /perfil sin una ruta específica
-      if (currentUser.rol === 'administrador' && 
-          window.location.pathname === '/perfil') {
-        router.push("/administracion/bienvenido")
-        return
-      }
-
-      setUserData(currentUser)
-      setLoading(false)
+    // Esperar a que AuthProvider termine de validar la sesion.
+    if (authLoading) {
+      // AuthProvider todavia esta validando. Mantenemos loading=true.
+      return
+    }
+    if (userId === null) {
+      router.replace("/")
+      return
     }
 
-    checkAuth()
-  }, [])
+    let cancelled = false
+    const checkAuth = async () => {
+      const supabase = createSupabaseClient()
+
+      try {
+        // Obtener datos del usuario desde la tabla usuario_nomina
+        const { data: userData, error: userError } = await supabase
+          .from("usuario_nomina")
+          .select(`
+            *,
+            empresas:empresa_id(nombre),
+            sedes:sede_id(nombre),
+            eps:eps_id(nombre),
+            afp:afp_id(nombre),
+            cesantias:cesantias_id(nombre),
+            caja_de_compensacion:caja_de_compensacion_id(nombre),
+            cargos:cargo_id(id, nombre)
+          `)
+          .eq("auth_user_id", userId)
+          .single()
+
+        const currentUser = userData as any
+
+        if (cancelled) return
+
+        if (userError || !currentUser) {
+          console.error("Error al obtener datos del usuario:", userError)
+          setLoading(false)
+          return
+        }
+
+        // Permitir acceso a usuarios inactivos para que puedan ver su perfil
+        // Los administradores pueden acceder a su perfil cuando sea necesario
+        // (por ejemplo, desde notificaciones o para ver sus propias solicitudes)
+        // Solo redirigir si están accediendo directamente a /perfil sin una ruta específica
+        if (normRol(currentUser.rol) === 'administrador' &&
+            typeof window !== 'undefined' &&
+            window.location.pathname === '/perfil') {
+          router.push("/administracion/bienvenido")
+          return
+        }
+
+        setUserData(currentUser)
+      } catch (err) {
+        console.error("Error inesperado en checkAuth:", err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void checkAuth()
+    return () => {
+      cancelled = true
+    }
+  }, [userId, authLoading, router])
 
   if (loading) {
     return (
@@ -120,7 +139,7 @@ export default function PerfilLayout({
       {/* Sidebar - oculto en móvil */}
       <div className="hidden md:block w-64 bg-white shadow-sm border-r border-gray-200 flex-shrink-0">
         <Sidebar userName={userData?.colaborador || 'Usuario'} />
-        {userData?.rol === 'administrador' && (
+        {normRol(userData?.rol) === 'administrador' && (
           <OnlineUsersIndicator />
         )}
       </div>
@@ -151,7 +170,7 @@ export default function PerfilLayout({
           <Sidebar userName={userData?.colaborador || 'Usuario'} />
         </div>
 
-        {userData?.rol === 'jefe' && (
+        {normRol(userData?.rol) === 'jefe' && (
           <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-gray-200 px-4 md:px-6 py-2">
             <div className="flex justify-between items-center">
               <h1 className="text-lg font-semibold text-gray-900">Panel de Jefe</h1>

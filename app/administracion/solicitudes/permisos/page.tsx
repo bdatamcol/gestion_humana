@@ -277,32 +277,64 @@ export default function AdminSolicitudesPermisos() {
           // Obtener datos de usuarios
           let usuariosResult: any = { data: [], error: null }
           if (userIds.length > 0) {
-            usuariosResult = await supabase
-              .from('usuario_nomina')
-              .select(`
-                auth_user_id,
-                colaborador,
-                cedula,
-                cargo_id,
-                fecha_ingreso,
-                empresa_id,
-                empresas:empresas(nombre),
-                sedes:sede_id(nombre),
-                cargos:cargo_id(nombre)
-              `)
-              .in('auth_user_id', userIds)
+            // PostgREST limita `.in()` a ~100 IDs. Chunking para evitar "Bad Request".
+            const CHUNK_SIZE = 100
+            const chunks: string[][] = []
+            for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
+              chunks.push(userIds.slice(i, i + CHUNK_SIZE))
+            }
+            const allUsers: any[] = []
+            let lastError: any = null
+            for (const chunk of chunks) {
+              const res = await supabase
+                .from('usuario_nomina')
+                .select(`
+                  auth_user_id,
+                  colaborador,
+                  cedula,
+                  cargo_id,
+                  fecha_ingreso,
+                  empresa_id,
+                  empresas:empresas(nombre),
+                  sedes:sede_id(nombre),
+                  cargos:cargo_id(nombre)
+                `)
+                .in('auth_user_id', chunk)
+              if (res.error) {
+                lastError = res.error
+                break
+              }
+              if (Array.isArray(res.data)) allUsers.push(...res.data)
+            }
+            usuariosResult = { data: allUsers, error: lastError }
           }
 
           let aprobacionesAgg: any = { data: [], error: null }
           if (solIds.length > 0) {
-            aprobacionesAgg = await supabase
-              .from('permisos_aprobaciones')
-              .select(`
-                solicitud_id, 
-                estado, 
-                jefe_id
-              `)
-              .in('solicitud_id', solIds)
+            // PostgREST limita `.in()` a ~100 IDs. Con 726 IDs da "Bad Request".
+            // Dividir en chunks para evitar el error y mantener toda la data.
+            const CHUNK_SIZE = 100
+            const chunks: string[][] = []
+            for (let i = 0; i < solIds.length; i += CHUNK_SIZE) {
+              chunks.push(solIds.slice(i, i + CHUNK_SIZE))
+            }
+            const allAprobaciones: any[] = []
+            let lastError: any = null
+            for (const chunk of chunks) {
+              const res = await supabase
+                .from('permisos_aprobaciones')
+                .select(`solicitud_id, estado, jefe_id`)
+                .in('solicitud_id', chunk)
+              if (res.error) {
+                lastError = res.error
+                break
+              }
+              if (Array.isArray(res.data)) allAprobaciones.push(...res.data)
+            }
+            aprobacionesAgg = {
+              data: allAprobaciones,
+              error: lastError,
+            }
           }
           
           if (usuariosResult.error) {

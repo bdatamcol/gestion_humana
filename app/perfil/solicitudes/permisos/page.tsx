@@ -494,8 +494,12 @@ export default function SolicitudPermisos() {
         .eq('estado', 'pendiente')
         .select('id')
         .maybeSingle()
-      if (error) throw error
+      if (error) {
+        console.error('[aprobarComoJefe] error de Supabase:', error)
+        throw error
+      }
       if (!updateData) {
+        console.warn('[aprobarComoJefe] updateData vacio. Posible trigger lo bloqueo o no hay fila coincidente.')
         throw new Error('No se pudo registrar la aprobacion. Verifica que tengas una aprobacion pendiente asignada.')
       }
       actualizarEstadoAprobacionLocal(solicitudId, userId, 'aprobado')

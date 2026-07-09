@@ -144,12 +144,10 @@ export const setSupabaseRawSession = (session: any | null) => {
 
 /**
  * Normaliza el campo `rol` de usuario_nomina a lowercase.
- * Defensa contra datos legacy donde el rol pudo haber sido guardado
- * con casing mixto (e.g. 'Jefe', 'JEFE') antes de que la migracion
- * 042 estandarizara la columna.
+ * Reexportado desde `@/lib/roles` para mantener compatibilidad con todos
+ * los `import { normRol } from '@/lib/supabase'` existentes.
  */
-export const normRol = (rol: string | null | undefined): string =>
-  (rol ?? '').toLowerCase().trim();
+export { normRol } from '@/lib/roles';
 
 export const createSupabaseClient = (): SupabaseClient => {
   if (globalThis.__supabaseClient) {

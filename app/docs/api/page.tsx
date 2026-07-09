@@ -35,14 +35,6 @@ export default function ApiGuide() {
                 Envía una notificación a usuarios específicos
               </p>
             </div>
-            <div>
-              <h4 className="font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded mb-2">
-                GET /api/online-users
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Obtiene la lista de usuarios actualmente en línea
-              </p>
-            </div>
           </div>
         </div>
 

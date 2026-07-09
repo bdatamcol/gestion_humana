@@ -5,7 +5,7 @@ import { useState } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
 import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle, Users } from "lucide-react"
-import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard } from 'react-icons/fa'
+import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard, FaGraduationCap } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { createSupabaseClient, clearSupabaseCaches, normRol } from "@/lib/supabase"
@@ -217,6 +217,12 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
       href: "/perfil/comunicados",
       icon: Newspaper,
       current: currentPath === "/perfil/comunicados"
+    },
+    {
+      name: "Capacitaciones",
+      href: "/perfil/capacitaciones",
+      icon: FaGraduationCap,
+      current: currentPath.startsWith("/perfil/capacitaciones")
     },
     {
       name: "Feed360",

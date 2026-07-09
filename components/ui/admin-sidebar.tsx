@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
 import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings, Search } from "lucide-react"
-import { FaUser, FaBuilding, FaFileAlt, FaCalendarAlt, FaIdCard, FaChartPie, FaHeart, FaRunning, FaHardHat, FaBalanceScale } from 'react-icons/fa'
+import { FaUser, FaBuilding, FaFileAlt, FaCalendarAlt, FaIdCard, FaChartPie, FaHeart, FaRunning, FaHardHat, FaBalanceScale, FaGraduationCap } from 'react-icons/fa'
 import { useRouter } from "next/navigation"
 
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -249,6 +249,27 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
             href: "/administracion/normatividad/nuevo",
             icon: Plus,
             current: currentPath === "/administracion/normatividad/nuevo"
+          },
+        ],
+      });
+
+      // 10b. Capacitaciones
+      items.push({
+        name: "Capacitaciones",
+        icon: FaGraduationCap,
+        current: currentPath.includes("/administracion/capacitaciones"),
+        subItems: [
+          {
+            name: "Todos los cursos",
+            href: "/administracion/capacitaciones",
+            icon: FileText,
+            current: currentPath === "/administracion/capacitaciones"
+          },
+          {
+            name: "Nuevo curso",
+            href: "/administracion/capacitaciones/nuevo",
+            icon: Plus,
+            current: currentPath === "/administracion/capacitaciones/nuevo"
           },
         ],
       });

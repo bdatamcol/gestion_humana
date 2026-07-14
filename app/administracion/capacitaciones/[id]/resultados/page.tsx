@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Users, Search, CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
+import { ArrowLeft, Users, Search, CheckCircle2, XCircle, Clock, AlertCircle, Download } from "lucide-react";
 import { authFetch } from "@/lib/authenticated-fetch";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 interface Resumen {
   total: number;
@@ -54,8 +56,18 @@ export default function ResultadosPage() {
   const [filtered, setFiltered] = useState<UsuarioResultado[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFilter, setEstadoFilter] = useState<string>("all");
+  const [empresaFilter, setEmpresaFilter] = useState<string>("all");
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Lista única de empresas presentes en los datos, para alimentar el filtro.
+  const empresasDisponibles = useMemo(() => {
+    const set = new Set<string>();
+    for (const u of usuarios) {
+      if (u.empresa && u.empresa.trim().length > 0) set.add(u.empresa);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+  }, [usuarios]);
 
   useEffect(() => {
     if (!cursoId) return;
@@ -90,8 +102,23 @@ export default function ResultadosPage() {
     if (estadoFilter !== "all") {
       list = list.filter((u) => u.estado === estadoFilter);
     }
+    if (empresaFilter !== "all") {
+      list = list.filter((u) => (u.empresa || "") === empresaFilter);
+    }
     setFiltered(list);
-  }, [searchTerm, estadoFilter, usuarios]);
+  }, [searchTerm, estadoFilter, empresaFilter, usuarios]);
+
+  // Si la empresa seleccionada deja de existir (p. ej. tras recargar datos),
+  // reseteamos el filtro a "all" para no dejar la tabla vacía por inconsistencia.
+  useEffect(() => {
+    if (
+      empresaFilter !== "all" &&
+      empresasDisponibles.length > 0 &&
+      !empresasDisponibles.includes(empresaFilter)
+    ) {
+      setEmpresaFilter("all");
+    }
+  }, [empresaFilter, empresasDisponibles]);
 
   const handleSearch = (v: string) => {
     setSearchTerm(v);
@@ -100,6 +127,79 @@ export default function ResultadosPage() {
   const formatDate = (s: string | null) => {
     if (!s) return "—";
     return new Date(s).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+
+  const handleExport = () => {
+    try {
+      if (filtered.length === 0) {
+        toast.error("No hay datos para exportar con los filtros actuales.");
+        return;
+      }
+      const rows = filtered.map((u) => ({
+        "Nombre de usuario": u.colaborador || "",
+        "Cédula": u.cedula || "",
+        "Cargo": u.cargo || "",
+        "Empresa": u.empresa || "",
+        "Estado": u.estado,
+        "Intentos": u.intentos_realizados > 0
+          ? `${u.intentos_realizados}/${u.max_intentos}`
+          : "0/" + (u.max_intentos || 1),
+        "Calificación": u.calificacion != null ? Number(u.calificacion).toFixed(2) : "",
+        "Fecha": u.fecha_intento ? new Date(u.fecha_intento) : null,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows, {
+        header: [
+          "Nombre de usuario",
+          "Cédula",
+          "Cargo",
+          "Empresa",
+          "Estado",
+          "Intentos",
+          "Calificación",
+          "Fecha",
+        ],
+      });
+      // Dar formato de fecha a la columna Fecha para que Excel la reconozca.
+      const ref = XLSX.utils.decode_range(ws["!ref"] || "A1");
+      for (let r = ref.s.r + 1; r <= ref.e.r; r++) {
+        const cellRef = XLSX.utils.encode_cell({ r, c: 7 });
+        if (ws[cellRef] && ws[cellRef].v instanceof Date) {
+          ws[cellRef].t = "d";
+          ws[cellRef].z = "dd/mm/yyyy";
+        }
+      }
+      // Ancho de columnas aproximado.
+      ws["!cols"] = [
+        { wch: 32 }, // Nombre
+        { wch: 14 }, // Cédula
+        { wch: 24 }, // Cargo
+        { wch: 22 }, // Empresa
+        { wch: 22 }, // Estado
+        { wch: 10 }, // Intentos
+        { wch: 12 }, // Calificación
+        { wch: 14 }, // Fecha
+      ];
+      const wb = XLSX.utils.book_new();
+      const sheetName = (curso?.titulo || "Resultados")
+        .toString()
+        .replace(/[\\/?*[\]:]/g, "")
+        .slice(0, 28);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName || "Resultados");
+
+      const fecha = new Date().toISOString().split("T")[0];
+      const filename = `resultados_${(curso?.titulo || "capacitacion")
+        .toString()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 40)}_${fecha}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+      toast.success("Archivo exportado correctamente");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al exportar los datos");
+    }
   };
 
   const estadoBadge = (estado: string) => {
@@ -177,7 +277,32 @@ export default function ResultadosPage() {
                     <option value="Pendiente de examen">Pendiente examen</option>
                     <option value="Aprobado">Aprobado</option>
                     <option value="Reprobado">Reprobado</option>
+                    <option value="Reprobado (con reintentos)">Reprobado (con reintentos)</option>
                   </select>
+                  <select
+                    className="border rounded px-3 py-2"
+                    value={empresaFilter}
+                    onChange={(e) => setEmpresaFilter(e.target.value)}
+                    disabled={empresasDisponibles.length === 0}
+                    title={empresasDisponibles.length === 0 ? "No hay empresas con usuarios" : "Filtrar por empresa"}
+                  >
+                    <option value="all">Todas las empresas</option>
+                    {empresasDisponibles.map((emp) => (
+                      <option key={emp} value={emp}>
+                        {emp}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleExport}
+                    className="flex items-center gap-2"
+                    title="Exportar la lista filtrada a Excel"
+                  >
+                    <Download className="h-4 w-4" />
+                    Exportar datos
+                  </Button>
                 </div>
 
                 {error && <div className="bg-red-50 text-red-700 px-4 py-2 rounded">{error}</div>}

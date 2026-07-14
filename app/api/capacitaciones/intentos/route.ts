@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   // 1. Verificar que el examen existe y traer curso + nota_aprobacion + config reintentos
   const { data: examen, error: eErr } = await supabase
     .from('capacitaciones_examenes')
-    .select('id, curso_id, capacitaciones_cursos!inner(nota_aprobacion)')
+    .select('id, curso_id, capacitaciones_cursos!inner(nota_aprobacion, permite_reintentos, max_intentos)')
     .eq('id', examen_id)
     .single();
 

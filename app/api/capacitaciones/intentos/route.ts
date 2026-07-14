@@ -167,6 +167,7 @@ export async function POST(req: NextRequest) {
     examen_id,
     calificacion,
     aprobado,
+    numero_intento: numeroIntento,
   };
   let intentoRes = await supabase
     .from('capacitaciones_intentos')
@@ -174,11 +175,17 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  // Si la migración 049 no está aplicada, intentar sin numero_intento.
+  // Si la migración 049 no está aplicada, reintentar sin numero_intento.
   if (intentoRes.error && /column.*does not exist/i.test(intentoRes.error.message || '')) {
+    const payloadLegacy = {
+      usuario_id: authUserId,
+      examen_id,
+      calificacion,
+      aprobado,
+    };
     intentoRes = await supabase
       .from('capacitaciones_intentos')
-      .insert(intentoPayload)
+      .insert(payloadLegacy)
       .select()
       .single();
   }

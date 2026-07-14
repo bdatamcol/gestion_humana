@@ -27,9 +27,17 @@ BEGIN
   END IF;
 END $$;
 
-ALTER TABLE capacitaciones_intentos
-  ADD CONSTRAINT capacitaciones_intentos_usuario_examen_numero_key
-  UNIQUE (usuario_id, examen_id, numero_intento);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'capacitaciones_intentos_usuario_examen_numero_key'
+  ) THEN
+    ALTER TABLE capacitaciones_intentos
+      ADD CONSTRAINT capacitaciones_intentos_usuario_examen_numero_key
+      UNIQUE (usuario_id, examen_id, numero_intento);
+  END IF;
+END $$;
 
 -- 4. Índice para consultas por (usuario, examen, último intento)
 CREATE INDEX IF NOT EXISTS idx_capacitaciones_intentos_usuario_examen_numero

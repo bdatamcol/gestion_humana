@@ -74,6 +74,23 @@ export default function PerfilLayout({
           return
         }
 
+        // Empresa restringida (ej. BOLSA): solo /perfil (Mis datos) y
+        // /perfil/capacitaciones. Cualquier otra ruta bajo /perfil se
+        // redirige a /perfil/capacitaciones.
+        const empresaNombre = (currentUser as any)?.empresas?.nombre
+        if (
+          typeof window !== 'undefined' &&
+          (empresaNombre ?? '').toString().trim().toUpperCase() === 'BOLSA'
+        ) {
+          const path = window.location.pathname
+          const isPerfilRoot = path === '/perfil'
+          const isCapacitaciones = path === '/perfil/capacitaciones' || path.startsWith('/perfil/capacitaciones/')
+          if (!isPerfilRoot && !isCapacitaciones) {
+            router.replace('/perfil/capacitaciones')
+            return
+          }
+        }
+
         setUserData(currentUser)
       } catch (err) {
         console.error("Error inesperado en checkAuth:", err)

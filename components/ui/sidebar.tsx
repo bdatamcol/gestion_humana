@@ -177,23 +177,23 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
       // El menú principal no se marca como activo, solo se expande
       current: false,
       subItems: [
-        { 
-          name: "Certificación Laboral", 
-          href: "/perfil/solicitudes/certificacion-laboral", 
-          icon: Newspaper, 
-          current: currentPath === "/perfil/solicitudes/certificacion-laboral" 
+        {
+          name: "Certificación Laboral",
+          href: "/perfil/solicitudes/certificacion-laboral",
+          icon: Newspaper,
+          current: currentPath === "/perfil/solicitudes/certificacion-laboral"
         },
-        { 
-          name: "Vacaciones", 
-          href: "/perfil/solicitudes/vacaciones", 
-          icon: Calendar, 
-          current: currentPath === "/perfil/solicitudes/vacaciones" 
+        {
+          name: "Vacaciones",
+          href: "/perfil/solicitudes/vacaciones",
+          icon: Calendar,
+          current: currentPath === "/perfil/solicitudes/vacaciones"
         },
-        { 
-          name: "Permisos", 
-          href: "/perfil/solicitudes/permisos", 
-          icon: FaIdCard, 
-          current: currentPath === "/perfil/solicitudes/permisos" 
+        {
+          name: "Permisos",
+          href: "/perfil/solicitudes/permisos",
+          icon: FaIdCard,
+          current: currentPath === "/perfil/solicitudes/permisos"
         },
         // Add more sub-items here if needed
       ],
@@ -203,11 +203,11 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
       icon: FileText,
       current: false,
       subItems: [
-        { 
-          name: "Incapacidades", 
-          href: "/perfil/novedades/incapacidades", 
-          icon: FaFileAlt, 
-          current: currentPath === "/perfil/novedades/incapacidades" 
+        {
+          name: "Incapacidades",
+          href: "/perfil/novedades/incapacidades",
+          icon: FaFileAlt,
+          current: currentPath === "/perfil/novedades/incapacidades"
         },
         // Aquí se pueden agregar más submenús de novedades en el futuro
       ],
@@ -249,6 +249,25 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
     }
     // Aquí se pueden agregar más secciones en el futuro
   ]
+
+  // Empresa restringida (ej. BOLSA): solo Mis datos + Capacitaciones.
+  // Se aplica en el cliente una vez cargado permissionsData para no
+  // romper la lectura para el resto de empresas.
+  const restricted =
+    !permissionsLoading &&
+    (permissionsData?.empresa_nombre ?? '').toString().trim().toUpperCase() === 'BOLSA'
+
+  const visibleMenuItems = restricted
+    ? [
+        { name: "Mis datos", href: "/perfil", icon: Info, current: currentPath === "/perfil" },
+        {
+          name: "Capacitaciones",
+          href: "/perfil/capacitaciones",
+          icon: FaGraduationCap,
+          current: currentPath.startsWith("/perfil/capacitaciones"),
+        },
+      ]
+    : menuItems
 
   // Item separado para reporte de fallas (más sutil)
   const reporteFallasItem = {
@@ -329,12 +348,12 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
             <img src="/logo-h-n.webp" alt="Logo" className="max-w-[150px]" />
             </div>
             <nav className="mt-5 px-2 space-y-1 flex-1">
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <div key={item.name}>
                   {item.subItems ? (
                     <>
                       <button
-                        onClick={() => toggleMenu(menuItems.indexOf(item))}
+                        onClick={() => toggleMenu(visibleMenuItems.indexOf(item))}
                         className={cn(
                           item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                           "group flex items-center justify-between w-full px-2 py-2 text-base font-medium rounded-md",
@@ -353,11 +372,11 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                         <ChevronDown
                           className={cn(
                             "h-5 w-5 text-gray-400 transition-transform duration-200",
-                            expandedMenus[menuItems.indexOf(item)] ? "transform rotate-180" : ""
+                            expandedMenus[visibleMenuItems.indexOf(item)] ? "transform rotate-180" : ""
                           )}
                         />
                       </button>
-                      {expandedMenus[menuItems.indexOf(item)] && (
+                      {expandedMenus[visibleMenuItems.indexOf(item)] && (
                         <div className="pl-8 mt-1 space-y-1">
                           {item.subItems.map((subItem) => (
                             <Link
@@ -406,27 +425,29 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                 </div>
               ))}
               
-              {/* Reporte de Fallas - Posicionado en la parte inferior */}
-              <div className="mt-auto pt-4">
-                <Link
-                  href={reporteFallasItem.href}
-                  prefetch={false}
-                  onClick={() => setSidebarOpen(false)}
-                  className={cn(
-                    reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
-                  )}
-                >
-                  <reporteFallasItem.icon
+              {/* Reporte de Fallas - Posicionado en la parte inferior (oculto para empresas restringidas) */}
+              {!restricted && (
+                <div className="mt-auto pt-4">
+                  <Link
+                    href={reporteFallasItem.href}
+                    prefetch={false}
+                    onClick={() => setSidebarOpen(false)}
                     className={cn(
-                      reporteFallasItem.current ? "text-orange-600" : "text-gray-400 group-hover:text-gray-500",
-                      "mr-3 flex-shrink-0 h-4 w-4",
+                      reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
+                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
                     )}
-                    aria-hidden="true"
-                  />
-                  {reporteFallasItem.name}
-                </Link>
-              </div>
+                  >
+                    <reporteFallasItem.icon
+                      className={cn(
+                        reporteFallasItem.current ? "text-orange-600" : "text-gray-400 group-hover:text-gray-500",
+                        "mr-3 flex-shrink-0 h-4 w-4",
+                      )}
+                      aria-hidden="true"
+                    />
+                    {reporteFallasItem.name}
+                  </Link>
+                </div>
+              )}
           </nav>
         </div>
         <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
@@ -449,12 +470,12 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
           </div>
           <nav className="mt-8 flex-1 px-2 space-y-1 flex flex-col">
             <div className="flex-1 space-y-1">
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <div key={item.name}>
                   {item.subItems ? (
                     <>
                       <button
-                        onClick={() => toggleMenu(menuItems.indexOf(item))}
+                        onClick={() => toggleMenu(visibleMenuItems.indexOf(item))}
                         className={cn(
                           item.current ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                           "group flex items-center justify-between w-full px-2 py-2 text-sm font-medium rounded-md",
@@ -473,11 +494,11 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
                         <ChevronDown
                           className={cn(
                             "h-5 w-5 text-gray-400 transition-transform duration-200",
-                            expandedMenus[menuItems.indexOf(item)] ? "transform rotate-180" : ""
+                            expandedMenus[visibleMenuItems.indexOf(item)] ? "transform rotate-180" : ""
                           )}
                         />
                       </button>
-                      {expandedMenus[menuItems.indexOf(item)] && (
+                      {expandedMenus[visibleMenuItems.indexOf(item)] && (
                         <div className="pl-8 mt-1 space-y-1">
                           {item.subItems.map((subItem) => (
                             <Link
@@ -525,26 +546,28 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
               ))}
             </div>
             
-            {/* Reporte de Fallas - Posicionado en la parte inferior */}
-            <div className="pt-4 border-t border-gray-100">
-              <Link
-                href={reporteFallasItem.href}
-                prefetch={false}
-                className={cn(
-                  reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
-                )}
-              >
-                <reporteFallasItem.icon
+            {/* Reporte de Fallas - Posicionado en la parte inferior (oculto para empresas restringidas) */}
+            {!restricted && (
+              <div className="pt-4 border-t border-gray-100">
+                <Link
+                  href={reporteFallasItem.href}
+                  prefetch={false}
                   className={cn(
-                    reporteFallasItem.current ? "text-orange-600" : "text-gray-400 group-hover:text-gray-500",
-                    "mr-3 flex-shrink-0 h-4 w-4",
+                    reporteFallasItem.current ? "bg-orange-50 text-orange-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700",
+                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
                   )}
-                  aria-hidden="true"
-                />
-                {reporteFallasItem.name}
-              </Link>
-            </div>
+                >
+                  <reporteFallasItem.icon
+                    className={cn(
+                      reporteFallasItem.current ? "text-orange-600" : "text-gray-400 group-hover:text-gray-500",
+                      "mr-3 flex-shrink-0 h-4 w-4",
+                    )}
+                    aria-hidden="true"
+                  />
+                  {reporteFallasItem.name}
+                </Link>
+              </div>
+            )}
           </nav>
         </div>
         <div className="flex-shrink-0 flex border-t border-gray-200 p-4">

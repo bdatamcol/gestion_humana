@@ -6,6 +6,8 @@ interface UserData {
   id: string
   rol: 'usuario' | 'jefe' | 'administrador'
   estado: 'activo' | 'inactivo'
+  empresa_id?: number | null
+  empresa_nombre?: string | null
 }
 
 export function usePermissions() {
@@ -39,10 +41,10 @@ export function usePermissions() {
       // de este hook creando su propio cliente ademas del singleton).
       const supabase = createSupabaseClient()
 
-      // Obtener datos del usuario
+      // Obtener datos del usuario (incluye empresa para reglas especiales como BOLSA)
       const { data: user, error: userError } = await supabase
         .from('usuario_nomina')
-        .select('id, rol, estado')
+        .select('id, rol, estado, empresa_id, empresas:empresa_id(nombre)')
         .eq('auth_user_id', userId)
         .single()
 
@@ -54,7 +56,14 @@ export function usePermissions() {
         return
       }
 
-      setUserData(user)
+      const empresaNombre = (user as any)?.empresas?.nombre ?? null
+      setUserData({
+        id: (user as any).id,
+        rol: (user as any).rol,
+        estado: (user as any).estado,
+        empresa_id: (user as any).empresa_id ?? null,
+        empresa_nombre: empresaNombre,
+      })
 
     } catch (err) {
       console.error('Error en loadUserData:', err)
@@ -111,6 +120,13 @@ export function usePermissions() {
     return normRol(userData?.rol) === 'jefe'
   }
 
+  // Empresa con accesos restringidos (ej. BOLSA: solo Mis datos y Capacitaciones)
+  const RESTRICTED_EMPRESAS = ['BOLSA'] as const
+  const isRestrictedEmpresa = (): boolean => {
+    const nombre = (userData?.empresa_nombre ?? '').toString().trim().toUpperCase()
+    return RESTRICTED_EMPRESAS.includes(nombre as any)
+  }
+
   // Función para refrescar datos
   const refreshPermissions = () => {
     loadUserData()
@@ -125,6 +141,7 @@ export function usePermissions() {
     isAdministrator,
     isAdmin,
     isBoss,
+    isRestrictedEmpresa,
     refreshPermissions
   }
 }

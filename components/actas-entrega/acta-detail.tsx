@@ -32,7 +32,7 @@ interface Review {
   notas_recepcion: string;
 }
 
-export function ActaDetail({ admin = false }: { admin?: boolean }) {
+export function ActaDetail({ admin = false, readOnly = false }: { admin?: boolean; readOnly?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { userId } = useAuth();
@@ -144,7 +144,7 @@ export function ActaDetail({ admin = false }: { admin?: boolean }) {
   if (!acta) return <div className="relative z-10 p-10 text-center">Acta no encontrada.</div>;
   const isSender = acta.entregante_id === userId;
   const isReceiver = acta.receptor_id === userId;
-  const canReceive = isReceiver && acta.estado === "pendiente_recepcion";
+  const canReceive = !readOnly && isReceiver && acta.estado === "pendiente_recepcion";
 
   return (
     <div className="relative z-10 mx-auto max-w-6xl space-y-6 p-4 md:p-8">
@@ -186,7 +186,7 @@ export function ActaDetail({ admin = false }: { admin?: boolean }) {
         })}
       </CardContent></Card>
 
-      {isSender && acta.estado === "borrador" && <Card className="border-amber-200 shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5 text-[#6b2b16]" />Firma y envío</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">Al firmar, los datos y elementos quedarán bloqueados y el receptor será notificado.</p><SignaturePad onChange={setSignature} /><label className="flex items-start gap-3 rounded-lg bg-stone-50 p-4 text-sm"><Checkbox checked={consent} onCheckedChange={(value) => setConsent(value === true)} /><span>Declaro que los elementos relacionados corresponden a la entrega realizada y acepto firmar electrónicamente esta acta.</span></label><Button className="w-full bg-[#441404] hover:bg-[#5c1d0a]" size="lg" disabled={submitting} onClick={send}>{submitting ? "Enviando..." : "Firmar y enviar al receptor"}</Button></CardContent></Card>}
+      {!readOnly && isSender && acta.estado === "borrador" && <Card className="border-amber-200 shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5 text-[#6b2b16]" />Firma y envío</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">Al firmar, los datos y elementos quedarán bloqueados y el receptor será notificado.</p><SignaturePad onChange={setSignature} /><label className="flex items-start gap-3 rounded-lg bg-stone-50 p-4 text-sm"><Checkbox checked={consent} onCheckedChange={(value) => setConsent(value === true)} /><span>Declaro que los elementos relacionados corresponden a la entrega realizada y acepto firmar electrónicamente esta acta.</span></label><Button className="w-full bg-[#441404] hover:bg-[#5c1d0a]" size="lg" disabled={submitting} onClick={send}>{submitting ? "Enviando..." : "Firmar y enviar al receptor"}</Button></CardContent></Card>}
 
       {canReceive && <Card className="border-amber-200 shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5 text-[#6b2b16]" />Decisión y firma de recibido</CardTitle></CardHeader><CardContent className="space-y-4"><div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900"><AlertTriangle className="mr-2 inline h-4 w-4" />Revisa todos los elementos. Los estados distintos de “Bueno” requieren una nota; cada elemento recibido requiere una fotografía.</div><SignaturePad onChange={setSignature} /><label className="flex items-start gap-3 rounded-lg bg-stone-50 p-4 text-sm"><Checkbox checked={consent} onCheckedChange={(value) => setConsent(value === true)} /><span>Declaro que revisé los elementos, registré su estado real y acepto firmar electrónicamente esta acta de recibido.</span></label><div className="flex flex-col gap-3 sm:flex-row"><Button variant="destructive" className="sm:w-1/3" onClick={() => setShowReject((value) => !value)}>Rechazar entrega</Button><Button className="bg-emerald-700 hover:bg-emerald-800 sm:flex-1" disabled={submitting} onClick={accept}><CheckCircle2 className="mr-2 h-4 w-4" />{submitting ? "Procesando..." : "Firmar y aceptar entrega"}</Button></div>{showReject && <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4"><Label>Motivo del rechazo *</Label><Textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Explica claramente por qué no puedes aceptar la entrega" /><Button variant="destructive" disabled={submitting || rejectReason.trim().length < 10} onClick={reject}>Confirmar rechazo</Button></div>}</CardContent></Card>}
 

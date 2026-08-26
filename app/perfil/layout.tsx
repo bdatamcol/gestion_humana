@@ -74,6 +74,11 @@ export default function PerfilLayout({
           return
         }
 
+        if (normRol(currentUser.rol) === 'gestor_actas') {
+          router.replace('/administracion/actas-entrega')
+          return
+        }
+
         // Empresa restringida (ej. BOLSA): solo /perfil (Mis datos) y
         // /perfil/capacitaciones. Cualquier otra ruta bajo /perfil se
         // redirige a /perfil/capacitaciones.

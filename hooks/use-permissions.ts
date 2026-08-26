@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 
 interface UserData {
   id: string
-  rol: 'usuario' | 'jefe' | 'administrador'
+  rol: 'usuario' | 'jefe' | 'administrador' | 'gestor_actas'
   estado: 'activo' | 'inactivo'
   empresa_id?: number | null
   empresa_nombre?: string | null

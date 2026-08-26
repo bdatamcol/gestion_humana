@@ -212,7 +212,7 @@ export default function Usuarios() {
               caja_de_compensacion:caja_de_compensacion_id(id, nombre),
               cargos:cargo_id(id, nombre)
             `)
-            .in("rol", ["usuario", "jefe"]),
+            .in("rol", ["usuario", "jefe", "gestor_actas"]),
           // Empresas
           supabase
             .from("empresas")
@@ -783,7 +783,7 @@ const fetchUsers = async () => {
           caja_de_compensacion:caja_de_compensacion_id(id, nombre),
           cargos:cargo_id(id, nombre)
         `)
-        .in("rol", ["usuario", "jefe"]),
+        .in("rol", ["usuario", "jefe", "gestor_actas"]),
       supabase
         .from("solicitudes_vacaciones")
         .select("usuario_id")
@@ -1460,8 +1460,9 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Todos los roles</SelectItem>
-                            <SelectItem value="usuario">Usuario</SelectItem>
-                            <SelectItem value="jefe">Jefe</SelectItem>
+                             <SelectItem value="usuario">Usuario</SelectItem>
+                             <SelectItem value="jefe">Jefe</SelectItem>
+                             <SelectItem value="gestor_actas">Gestor de actas</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1807,9 +1808,10 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                       <SelectValue placeholder="Seleccionar rol" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="usuario">Usuario</SelectItem>
-                      <SelectItem value="jefe">Jefe</SelectItem>
-                      <SelectItem value="administrador">Administrador</SelectItem>
+                       <SelectItem value="usuario">Usuario</SelectItem>
+                       <SelectItem value="jefe">Jefe</SelectItem>
+                       <SelectItem value="administrador">Administrador</SelectItem>
+                       <SelectItem value="gestor_actas">Gestor de actas</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2173,9 +2175,10 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                         <SelectValue placeholder="Seleccionar rol" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="usuario">Usuario</SelectItem>
-                        <SelectItem value="jefe">Jefe</SelectItem>
-                        <SelectItem value="administrador">Administrador</SelectItem>
+                         <SelectItem value="usuario">Usuario</SelectItem>
+                         <SelectItem value="jefe">Jefe</SelectItem>
+                         <SelectItem value="administrador">Administrador</SelectItem>
+                         <SelectItem value="gestor_actas">Gestor de actas</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

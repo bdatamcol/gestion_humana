@@ -27,11 +27,12 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 interface AdminSidebarProps {
   userName?: string
+  role?: string
 }
 
 const supabase = createSupabaseClient()
 
-export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) {
+export function AdminSidebar({ userName = "Administrador", role = "administrador" }: AdminSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<{[key: string]: boolean}>({})
   const router = useRouter()
@@ -47,6 +48,15 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
   // Generar menuItems dinámicamente basado en rol
   const menuItems = React.useMemo(() => {
     const items = [];
+
+    if (role.toLowerCase().trim() === 'gestor_actas') {
+      return [{
+        name: "Actas de entrega",
+        href: "/administracion/actas-entrega",
+        icon: ClipboardCheck,
+        current: currentPath.includes("/administracion/actas-entrega")
+      }];
+    }
     
     // 1. Escritorio - Siempre incluir
     items.push({ 
@@ -350,7 +360,7 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
     });
     
     return items;
-  }, [currentPath]);
+  }, [currentPath, role]);
   
   // Inicializar el estado de expansión basado en la ruta actual
   useEffect(() => {

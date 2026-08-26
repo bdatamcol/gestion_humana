@@ -8,6 +8,7 @@ const CONSENTIMIENTO = "Declaro que los elementos relacionados corresponden a la
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
+  if (ctx.isActasManager) return NextResponse.json({ error: "Acceso de solo consulta" }, { status: 403 });
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const signature = decodeSignature(body?.firma);

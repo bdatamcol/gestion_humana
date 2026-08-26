@@ -54,6 +54,8 @@ export default function Login() {
 
           if (normRol(currentUser.rol) === "administrador") {
             router.push("/administracion/bienvenido")
+          } else if (normRol(currentUser.rol) === "gestor_actas") {
+            router.push("/administracion/actas-entrega")
           } else {
             router.push("/perfil/bienvenido")
           }
@@ -136,6 +138,8 @@ export default function Login() {
         // Redirigir según el rol
         if (normRol(currentUser.rol) === "administrador") {
           router.push("/administracion/bienvenido")
+        } else if (normRol(currentUser.rol) === "gestor_actas") {
+          router.push("/administracion/actas-entrega")
         } else {
           router.push("/perfil/bienvenido")
         }

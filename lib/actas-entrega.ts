@@ -52,6 +52,8 @@ export async function requireActiveUser(request: NextRequest) {
     authUserId: authData.user.id,
     profile: profile as any,
     isAdmin: normRol(profile.rol) === "administrador",
+    isActasManager: normRol(profile.rol) === "gestor_actas",
+    canViewAllActas: ["administrador", "gestor_actas"].includes(normRol(profile.rol)),
   };
 }
 

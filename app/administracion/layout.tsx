@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { AdminSidebar } from "@/components/ui/admin-sidebar"
 import { NotificationsDropdown } from "@/components/ui/notifications-dropdown"
 import { createSupabaseClient, normRol } from "@/lib/supabase"
@@ -37,6 +37,7 @@ export default function AdministracionLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   // Sesion centralizada via AuthProvider (ver components/auth).
@@ -99,8 +100,8 @@ export default function AdministracionLayout({
         })
         // #endregion
 
-        // Verificar que el usuario tenga permisos de administración
-        if (normRol(currentUser.rol) !== 'administrador') {
+        const role = normRol(currentUser.rol)
+        if (!['administrador', 'gestor_actas'].includes(role)) {
           router.push("/")
           return
         }
@@ -108,6 +109,11 @@ export default function AdministracionLayout({
         // Verificar si el usuario está activo
         if (currentUser.estado !== 'activo') {
           router.push("/")
+          return
+        }
+
+        if (role === 'gestor_actas' && !pathname.startsWith('/administracion/actas-entrega')) {
+          router.replace('/administracion/actas-entrega')
           return
         }
 
@@ -123,7 +129,7 @@ export default function AdministracionLayout({
     return () => {
       cancelled = true
     }
-  }, [userId, authLoading, router])
+  }, [userId, authLoading, router, pathname])
 
   if (loading) {
     return (
@@ -146,11 +152,15 @@ export default function AdministracionLayout({
     )
   }
 
+  if (!userData) return null
+
+  const isActasManager = normRol(userData.rol) === 'gestor_actas'
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar persistente */}
       <div className="w-64 bg-white shadow-sm border-r border-gray-200 flex-shrink-0">
-        <AdminSidebar userName={userData?.colaborador || 'Administrador'} />
+        <AdminSidebar userName={userData?.colaborador || 'Administrador'} role={userData?.rol} />
       </div>
       
       {/* Contenido principal */}
@@ -179,14 +189,14 @@ export default function AdministracionLayout({
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <h1 className="text-lg font-semibold text-gray-900">
-                Panel de Administración
+                 {isActasManager ? 'Gestión de Actas' : 'Panel de Administración'}
               </h1>
             </div>
             <div className="flex items-center gap-4">
-              <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors">
+              {!isActasManager && <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors">
                 <NotificationsDropdown />
-              </div>
-              <Link href="/administracion/perfil" className="flex items-center font-medium text-base gap-2 text-sm text-gray-800 hover:text-gray-950 transition-colors cursor-pointer">
+              </div>}
+              {isActasManager ? <div className="flex items-center font-medium text-base gap-2 text-sm text-gray-800">
                 <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors p-1">
                   <Avatar className="h-8 w-8">
                   <AvatarImage 
@@ -199,7 +209,14 @@ export default function AdministracionLayout({
                     </AvatarFallback>
                   </Avatar>
                 </div>
-              </Link>
+              </div> : <Link href="/administracion/perfil" className="flex items-center font-medium text-base gap-2 text-sm text-gray-800 hover:text-gray-950 transition-colors cursor-pointer">
+                <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors p-1">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={userData?.avatar_path ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatar/${userData.avatar_path}` : '/img/default-avatar.svg'} alt={userData?.colaborador || 'Administrador'} className="object-cover" />
+                    <AvatarFallback className="bg-blue-500 text-white text-xs">{(userData?.colaborador || 'Administrador').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </div>
+              </Link>}
             </div>
           </div>
         </div>

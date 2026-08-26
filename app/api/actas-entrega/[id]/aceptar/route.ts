@@ -19,6 +19,7 @@ const CONSENTIMIENTO = "Declaro que revis√© los elementos relacionados, registr√
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
+  if (ctx.isActasManager) return NextResponse.json({ error: "Acceso de solo consulta" }, { status: 403 });
   const { id } = await params;
   const parsed = schema.safeParse(await request.json().catch(() => null));
   const signature = parsed.success ? decodeSignature(parsed.data.firma) : null;

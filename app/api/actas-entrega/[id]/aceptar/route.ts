@@ -14,7 +14,7 @@ const schema = z.object({
     notas_recepcion: z.string().trim().max(2000).optional().nullable(),
   })).min(1),
 });
-const CONSENTIMIENTO = "Declaro que revisé los elementos relacionados, registré su estado real y acepto firmar electrónicamente esta acta de recibido.";
+const CONSENTIMIENTO_ANTERIOR = "Declaro que revisé los elementos relacionados, registré su estado real y acepto firmar electrónicamente esta acta de recibido.";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireActiveUser(request);
@@ -28,6 +28,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: acta } = await ctx.admin.from("actas_entrega").select("*").eq("id", id).single();
   if (!acta || acta.receptor_id !== ctx.authUserId || acta.estado !== "pendiente_recepcion") {
     return NextResponse.json({ error: "El acta no está disponible para recepción" }, { status: 403 });
+  }
+  if (!acta.receptor_documento?.trim()) {
+    return NextResponse.json({ error: "Debes tener una cédula registrada para firmar el acta" }, { status: 400 });
   }
   const { data: storedItems } = await ctx.admin.from("actas_entrega_items").select("*").eq("acta_id", id).order("orden");
   if (!storedItems || storedItems.length !== parsed.data.items.length || storedItems.some((item: any) => !parsed.data.items.some((input) => input.id === item.id))) {
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     usuario_id: ctx.authUserId,
     rol_firmante: "receptor",
     storage_path: upload.public_id,
-    consentimiento: CONSENTIMIENTO,
+    consentimiento: acta.manifiesto || CONSENTIMIENTO_ANTERIOR,
     contenido_hash: hashActaPayload(acta, finalItems),
     ip: metadata.ip,
     user_agent: metadata.userAgent,

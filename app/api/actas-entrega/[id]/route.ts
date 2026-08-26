@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireActiveUser } from "@/lib/actas-entrega";
+import { ACTA_MANIFIESTO, requireActiveUser } from "@/lib/actas-entrega";
 import { getActaImageUrl } from "@/lib/actas-entrega-cloudinary";
 
 const updateSchema = z.object({
@@ -59,9 +59,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (parsed.data.receptor_id === ctx.authUserId) return NextResponse.json({ error: "Receptor inválido" }, { status: 400 });
   const { data: receptor } = await ctx.admin
     .from("usuario_nomina")
-    .select("auth_user_id, colaborador, cedula, estado, cargos:cargo_id(nombre)")
+    .select("auth_user_id, colaborador, cedula, estado, empresa_id, cargos:cargo_id(nombre), empresas:empresa_id(nombre)")
     .eq("auth_user_id", parsed.data.receptor_id).eq("estado", "activo").single();
   if (!receptor) return NextResponse.json({ error: "Receptor inválido" }, { status: 400 });
+  const empresa = Array.isArray((receptor as any).empresas) ? (receptor as any).empresas[0]?.nombre : (receptor as any).empresas?.nombre;
+  if (!receptor.empresa_id || !empresa) return NextResponse.json({ error: "El receptor debe tener una empresa asignada" }, { status: 400 });
 
   await ctx.admin.from("actas_entrega_items").delete().eq("acta_id", id);
   const { error: itemsError } = await ctx.admin.from("actas_entrega_items").insert(parsed.data.items.map((item, orden) => ({
@@ -79,6 +81,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     receptor_nombre: receptor.colaborador,
     receptor_documento: receptor.cedula || null,
     receptor_cargo: cargo || "Sin información",
+    empresa_id: receptor.empresa_id,
+    empresa_nombre: empresa,
+    manifiesto: acta.manifiesto || ACTA_MANIFIESTO,
   }).eq("id", id).eq("estado", "borrador");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await ctx.admin.from("actas_entrega_eventos").insert({ acta_id: id, actor_id: ctx.authUserId, tipo: "borrador_actualizado" });

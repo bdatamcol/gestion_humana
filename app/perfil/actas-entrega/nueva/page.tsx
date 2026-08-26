@@ -63,7 +63,7 @@ export default function NuevaActaEntregaPage() {
   return (
     <div className="relative z-10 mx-auto max-w-5xl space-y-6 p-4 md:p-8">
       <Button variant="ghost" onClick={() => router.back()}><ArrowLeft className="mr-2 h-4 w-4" />Volver</Button>
-      <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d4029]">Nueva solicitud</p><h1 className="mt-1 text-3xl font-semibold text-[#35150c]">Preparar acta de entrega</h1><p className="mt-2 text-muted-foreground">Tu empresa se tomará automáticamente del perfil y quedará guardada como dato histórico.</p></div>
+      <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7d4029]">Nueva solicitud</p><h1 className="mt-1 text-3xl font-semibold text-[#35150c]">Preparar acta de entrega</h1><p className="mt-2 text-muted-foreground">La empresa se tomará automáticamente del perfil de quien recibe y quedará guardada como dato histórico.</p></div>
 
       <Card className="border-0 shadow-lg">
         <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5 text-[#6b2b16]" />¿Quién recibe?</CardTitle></CardHeader>

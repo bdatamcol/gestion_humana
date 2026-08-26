@@ -312,12 +312,27 @@ export async function downloadActaPdf(acta: any) {
     y += 8;
   }
 
+  if (acta.manifiesto) {
+    const manifestoLines = pdf.splitTextToSize(acta.manifiesto, contentWidth - 16);
+    const manifestoHeight = manifestoLines.length * 4 + 13;
+    ensureSpace(manifestoHeight + 16);
+    sectionTitle("Manifiesto de responsabilidad", "Declaración aceptada por la persona receptora");
+    setFillColor(COLORS.accentSoft);
+    setDrawColor(COLORS.line);
+    pdf.roundedRect(margin, y, contentWidth, manifestoHeight, 2.5, 2.5, "FD");
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.2);
+    setTextColor(COLORS.ink);
+    pdf.text(manifestoLines, margin + 8, y + 7);
+    y += manifestoHeight + 10;
+  }
+
   // Signatures close the document and never appear as orphaned fragments.
-  ensureSpace(71);
+  ensureSpace(77);
   sectionTitle("Constancia y firmas", "Las firmas corresponden a la versión final de esta acta");
   const signatureGap = 6;
   const signatureWidth = (contentWidth - signatureGap) / 2;
-  const signatureHeight = 49;
+  const signatureHeight = 55;
   const signatureY = y;
   const signatures = ["entregante", "receptor"].map((role) =>
     acta.actas_entrega_firmas.find((signature: any) => signature.rol_firmante === role),
@@ -344,12 +359,14 @@ export async function downloadActaPdf(acta: any) {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8.2);
     setTextColor(COLORS.ink);
+    const personDocument = index === 0 ? acta.entregante_documento : acta.receptor_documento;
     pdf.text(pdf.splitTextToSize(personName, signatureWidth - 10).slice(0, 1), x + 5, signatureY + 36);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(7.2);
     setTextColor(COLORS.muted);
-    pdf.text(index === 0 ? "Entregante" : "Receptor", x + 5, signatureY + 41);
-    pdf.text(signature?.firmada_at ? formatDate(signature.firmada_at) : "Fecha no registrada", x + 5, signatureY + 45.5);
+    pdf.text(`Cédula: ${personDocument || "No registrada"}`, x + 5, signatureY + 41);
+    pdf.text(index === 0 ? "Entregante" : "Receptor", x + 5, signatureY + 46);
+    pdf.text(signature?.firmada_at ? formatDate(signature.firmada_at) : "Fecha no registrada", x + 5, signatureY + 50.5);
   }
 
   const pages = pdf.getNumberOfPages();

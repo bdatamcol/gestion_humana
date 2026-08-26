@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { relationName, requireActiveUser } from "@/lib/actas-entrega";
+import { ACTA_MANIFIESTO, relationName, requireActiveUser } from "@/lib/actas-entrega";
 
 const itemSchema = z.object({
   descripcion: z.string().trim().min(2).max(500),
@@ -53,12 +53,15 @@ export async function POST(request: NextRequest) {
 
   const { data: receptor, error: receptorError } = await ctx.admin
     .from("usuario_nomina")
-    .select("auth_user_id, colaborador, cedula, estado, correo_electronico, cargos:cargo_id(nombre)")
+    .select("auth_user_id, colaborador, cedula, estado, correo_electronico, empresa_id, cargos:cargo_id(nombre), empresas:empresa_id(nombre)")
     .eq("auth_user_id", parsed.data.receptor_id)
     .eq("estado", "activo")
     .single();
   if (receptorError || !receptor) {
     return NextResponse.json({ error: "El receptor no existe, está inactivo o no tiene acceso" }, { status: 400 });
+  }
+  if (!receptor.empresa_id || relationName((receptor as any).empresas) === "Sin información") {
+    return NextResponse.json({ error: "El receptor debe tener una empresa asignada antes de crear el acta" }, { status: 400 });
   }
 
   const { data: acta, error: actaError } = await ctx.admin
@@ -66,14 +69,15 @@ export async function POST(request: NextRequest) {
     .insert({
       entregante_id: ctx.authUserId,
       receptor_id: receptor.auth_user_id,
-      empresa_id: ctx.profile.empresa_id,
+      empresa_id: receptor.empresa_id,
       entregante_nombre: ctx.profile.colaborador,
       entregante_documento: ctx.profile.cedula || null,
       entregante_cargo: relationName(ctx.profile.cargos),
       receptor_nombre: receptor.colaborador,
       receptor_documento: receptor.cedula || null,
       receptor_cargo: relationName((receptor as any).cargos),
-      empresa_nombre: relationName(ctx.profile.empresas),
+      empresa_nombre: relationName((receptor as any).empresas),
+      manifiesto: ACTA_MANIFIESTO,
     })
     .select()
     .single();

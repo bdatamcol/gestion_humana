@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS actas_entrega (
   receptor_documento TEXT,
   receptor_cargo TEXT,
   empresa_nombre TEXT NOT NULL,
+  manifiesto TEXT,
   estado TEXT NOT NULL DEFAULT 'borrador' CHECK (
     estado IN ('borrador', 'pendiente_recepcion', 'completada', 'aceptada_con_novedades', 'rechazada', 'anulada')
   ),

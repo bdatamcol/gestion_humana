@@ -5,12 +5,23 @@ import { Button } from "@/components/ui/button";
 
 interface SignaturePadProps {
   onChange: (dataUrl: string | null) => void;
+  signerName: string;
+  signerDocument: string | null;
 }
 
-export function SignaturePad({ onChange }: SignaturePadProps) {
+function configureContext(context: CanvasRenderingContext2D, ratio: number) {
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.lineWidth = 2.2;
+  context.strokeStyle = "#2f211d";
+}
+
+export function SignaturePad({ onChange, signerName, signerDocument }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const inked = useRef(false);
+  const ratioRef = useRef(1);
   const [hasSignature, setHasSignature] = useState(false);
 
   useEffect(() => {
@@ -19,16 +30,11 @@ export function SignaturePad({ onChange }: SignaturePadProps) {
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const ratio = window.devicePixelRatio || 1;
+      ratioRef.current = ratio;
       canvas.width = Math.max(1, Math.floor(rect.width * ratio));
       canvas.height = Math.max(1, Math.floor(rect.height * ratio));
       const context = canvas.getContext("2d");
-      if (context) {
-        context.scale(ratio, ratio);
-        context.lineCap = "round";
-        context.lineJoin = "round";
-        context.lineWidth = 2.2;
-        context.strokeStyle = "#2f211d";
-      }
+      if (context) configureContext(context, ratio);
     };
     resize();
   }, []);
@@ -67,7 +73,12 @@ export function SignaturePad({ onChange }: SignaturePadProps) {
   const clear = () => {
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
-    if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
+    if (canvas && context) {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      configureContext(context, ratioRef.current);
+    }
+    drawing.current = false;
     inked.current = false;
     setHasSignature(false);
     onChange(null);
@@ -87,8 +98,12 @@ export function SignaturePad({ onChange }: SignaturePadProps) {
         />
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Firma dentro del recuadro usando el mouse o el dedo.</span>
+        <span>Realiza una firma legible dentro del recuadro usando el mouse o el dedo.</span>
         <Button type="button" variant="ghost" size="sm" onClick={clear}>Limpiar</Button>
+      </div>
+      <div className="grid gap-2 rounded-lg border bg-stone-50 px-4 py-3 text-sm sm:grid-cols-2">
+        <div><span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">Nombre del firmante</span><strong>{signerName}</strong></div>
+        <div><span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">Cédula</span><strong>{signerDocument || "No registrada"}</strong></div>
       </div>
     </div>
   );

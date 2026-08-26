@@ -20,6 +20,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!acta || acta.entregante_id !== ctx.authUserId || acta.estado !== "borrador") {
     return NextResponse.json({ error: "El acta no puede enviarse" }, { status: 403 });
   }
+  if (!acta.entregante_documento?.trim()) {
+    return NextResponse.json({ error: "Debes tener una cédula registrada para firmar el acta" }, { status: 400 });
+  }
   const { data: items } = await ctx.admin.from("actas_entrega_items").select("*").eq("acta_id", id).order("orden");
   if (!items?.length) return NextResponse.json({ error: "El acta debe tener al menos un ítem" }, { status: 400 });
 

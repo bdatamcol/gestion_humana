@@ -14,6 +14,12 @@ export const ACTA_ESTADOS = [
 
 export type ActaEstado = (typeof ACTA_ESTADOS)[number];
 
+export const ACTA_MANIFIESTO = `Al firmar la presente acta, la persona receptora manifiesta:
+
+1. Que es responsable del bien y/o suministro que recibe mediante esta acta, así como de su adecuado y buen uso a partir de la fecha.
+2. Que, en caso de daño, deterioro o pérdida, se hará responsable del mismo.
+3. Que, si el bien y/o suministro es entregado posteriormente a otro colaborador, deberá formalizar dicha entrega mediante una nueva acta, incluyendo las recomendaciones adicionales a que haya lugar.`;
+
 export interface ActaItemInput {
   id?: string;
   descripcion: string;
@@ -69,6 +75,7 @@ export function hashActaPayload(acta: any, items: any[]): string {
     entregante_id: acta.entregante_id,
     receptor_id: acta.receptor_id,
     empresa_nombre: acta.empresa_nombre,
+    ...(acta.manifiesto ? { manifiesto: acta.manifiesto } : {}),
     items: items.map((item) => ({
       id: item.id,
       descripcion: item.descripcion,

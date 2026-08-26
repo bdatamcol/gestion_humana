@@ -85,7 +85,8 @@ export default function PerfilLayout({
           const path = window.location.pathname
           const isPerfilRoot = path === '/perfil'
           const isCapacitaciones = path === '/perfil/capacitaciones' || path.startsWith('/perfil/capacitaciones/')
-          if (!isPerfilRoot && !isCapacitaciones) {
+          const isActasEntrega = path === '/perfil/actas-entrega' || path.startsWith('/perfil/actas-entrega/')
+          if (!isPerfilRoot && !isCapacitaciones && !isActasEntrega) {
             router.replace('/perfil/capacitaciones')
             return
           }

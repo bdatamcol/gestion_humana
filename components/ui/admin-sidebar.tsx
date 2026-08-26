@@ -3,7 +3,7 @@ import * as React from "react"
 import { useState, useEffect } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings, Search } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings, Search, ClipboardCheck } from "lucide-react"
 import { FaUser, FaBuilding, FaFileAlt, FaCalendarAlt, FaIdCard, FaChartPie, FaHeart, FaRunning, FaHardHat, FaBalanceScale, FaGraduationCap } from 'react-icons/fa'
 import { useRouter } from "next/navigation"
 
@@ -272,6 +272,13 @@ export function AdminSidebar({ userName = "Administrador" }: AdminSidebarProps) 
             current: currentPath === "/administracion/capacitaciones/nuevo"
           },
         ],
+      });
+
+      items.push({
+        name: "Actas de entrega",
+        href: "/administracion/actas-entrega",
+        icon: ClipboardCheck,
+        current: currentPath.includes("/administracion/actas-entrega")
       });
 
       // 11. Feed360

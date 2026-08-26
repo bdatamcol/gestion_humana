@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle, Users } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle, Users, ClipboardCheck } from "lucide-react"
 import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard, FaGraduationCap } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -213,6 +213,12 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
       ],
     },
     {
+      name: "Actas de entrega",
+      href: "/perfil/actas-entrega",
+      icon: ClipboardCheck,
+      current: currentPath.startsWith("/perfil/actas-entrega")
+    },
+    {
       name: "Comunicados",
       href: "/perfil/comunicados",
       icon: Newspaper,
@@ -265,6 +271,12 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
           href: "/perfil/capacitaciones",
           icon: FaGraduationCap,
           current: currentPath.startsWith("/perfil/capacitaciones"),
+        },
+        {
+          name: "Actas de entrega",
+          href: "/perfil/actas-entrega",
+          icon: ClipboardCheck,
+          current: currentPath.startsWith("/perfil/actas-entrega"),
         },
       ]
     : menuItems

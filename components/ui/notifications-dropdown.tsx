@@ -17,6 +17,7 @@ interface Notificacion {
   titulo: string
   mensaje: string
   solicitud_id?: string
+  enlace?: string
   leida: boolean
   created_at: string
 }
@@ -244,6 +245,11 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
         return '📝'
       case 'incapacidades':
         return '🏥'
+      case 'acta_entrega_asignada':
+      case 'acta_entrega_aceptada':
+      case 'acta_entrega_aceptada_novedades':
+      case 'acta_entrega_rechazada':
+        return '📋'
       default:
         return '📢'
     }
@@ -376,7 +382,7 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
                         setIsOpen(false)
                         
                         // Redirigir a la sección correspondiente
-                        const url = obtenerUrlRedireccion(notificacion.tipo)
+                        const url = notificacion.enlace || obtenerUrlRedireccion(notificacion.tipo)
                         
                         // Usar router.replace para forzar la navegación
                         router.replace(url)

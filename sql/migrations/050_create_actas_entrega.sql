@@ -1,5 +1,3 @@
--- Modulo de actas de entrega de puesto de trabajo
-
 CREATE SEQUENCE IF NOT EXISTS actas_entrega_numero_seq START 1;
 
 CREATE TABLE IF NOT EXISTS actas_entrega (

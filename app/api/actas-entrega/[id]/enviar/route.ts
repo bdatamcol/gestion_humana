@@ -8,7 +8,6 @@ const CONSENTIMIENTO = "Declaro que los elementos relacionados corresponden a la
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
-  if (ctx.isActasManager) return NextResponse.json({ error: "Acceso de solo consulta" }, { status: 403 });
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const signature = decodeSignature(body?.firma);
@@ -19,9 +18,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: acta } = await ctx.admin.from("actas_entrega").select("*").eq("id", id).single();
   if (!acta || acta.entregante_id !== ctx.authUserId || acta.estado !== "borrador") {
     return NextResponse.json({ error: "El acta no puede enviarse" }, { status: 403 });
-  }
-  if (!acta.entregante_documento?.trim()) {
-    return NextResponse.json({ error: "Debes tener una cédula registrada para firmar el acta" }, { status: 400 });
   }
   const { data: items } = await ctx.admin.from("actas_entrega_items").select("*").eq("acta_id", id).order("orden");
   if (!items?.length) return NextResponse.json({ error: "El acta debe tener al menos un ítem" }, { status: 400 });

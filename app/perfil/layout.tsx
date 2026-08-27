@@ -75,7 +75,10 @@ export default function PerfilLayout({
         }
 
         if (normRol(currentUser.rol) === 'gestor_actas') {
-          router.replace('/administracion/actas-entrega')
+          const path = typeof window !== 'undefined' ? window.location.pathname : ''
+          const profileBase = '/perfil/actas-entrega'
+          const suffix = path.startsWith(profileBase) ? path.slice(profileBase.length) : ''
+          router.replace(`/administracion/actas-entrega${suffix}`)
           return
         }
 

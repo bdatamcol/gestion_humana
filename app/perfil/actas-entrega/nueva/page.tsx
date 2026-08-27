@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, PackagePlus, Search, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { authFetch } from "@/lib/authenticated-fetch";
@@ -20,8 +20,10 @@ interface ItemDraft {
 
 const emptyItem = (): ItemDraft => ({ descripcion: "", cantidad: 1, serial_identificador: "", observaciones_entrega: "" });
 
-export default function NuevaActaEntregaPage() {
+export function NuevaActaEntregaPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const detailBase = pathname.startsWith("/administracion") ? "/administracion/actas-entrega" : "/perfil/actas-entrega";
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<any[]>([]);
   const [receptor, setReceptor] = useState<any>(null);
@@ -52,7 +54,7 @@ export default function NuevaActaEntregaPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No fue posible crear el acta");
       toast.success("Borrador creado. Revisa y firma el acta.");
-      router.push(`/perfil/actas-entrega/${body.id}`);
+      router.push(`${detailBase}/${body.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error inesperado");
     } finally {
@@ -93,3 +95,5 @@ export default function NuevaActaEntregaPage() {
     </div>
   );
 }
+
+export default NuevaActaEntregaPage;

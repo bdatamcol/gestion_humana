@@ -7,7 +7,6 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
-  if (ctx.isActasManager) return NextResponse.json({ error: "Acceso de solo consulta" }, { status: 403 });
   const { id } = await params;
   const form = await request.formData();
   const itemId = form.get("item_id");
@@ -52,7 +51,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
-  if (ctx.isActasManager) return NextResponse.json({ error: "Acceso de solo consulta" }, { status: 403 });
   const { id } = await params;
   const evidenceId = new URL(request.url).searchParams.get("evidencia_id");
   const { data: acta } = await ctx.admin.from("actas_entrega").select("receptor_id, estado").eq("id", id).single();

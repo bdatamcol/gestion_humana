@@ -39,9 +39,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
-  if (ctx.isActasManager) {
-    return NextResponse.json({ error: "El rol Gestor de actas es de solo consulta" }, { status: 403 });
-  }
 
   const parsed = createSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

@@ -70,7 +70,7 @@ export function ActasList({ admin = false }: { admin?: boolean }) {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Actas de entrega</h1>
           <p className="mt-1 text-sm text-muted-foreground">Registra, revisa y conserva la evidencia de cada entrega de puesto de trabajo.</p>
         </div>
-        {!admin && <Button asChild><Link href="/perfil/actas-entrega/nueva"><FilePlus2 className="mr-2 h-4 w-4" />Nueva acta</Link></Button>}
+        <Button asChild><Link href={admin ? "/administracion/actas-entrega/nueva" : "/perfil/actas-entrega/nueva"}><FilePlus2 className="mr-2 h-4 w-4" />Nueva acta</Link></Button>
       </div>
 
       <Card className="border-0 shadow-lg">

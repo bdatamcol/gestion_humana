@@ -19,7 +19,6 @@ const CONSENTIMIENTO_ANTERIOR = "Declaro que revisé los elementos relacionados,
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
-  if (ctx.isActasManager) return NextResponse.json({ error: "Acceso de solo consulta" }, { status: 403 });
   const { id } = await params;
   const parsed = schema.safeParse(await request.json().catch(() => null));
   const signature = parsed.success ? decodeSignature(parsed.data.firma) : null;
@@ -28,9 +27,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { data: acta } = await ctx.admin.from("actas_entrega").select("*").eq("id", id).single();
   if (!acta || acta.receptor_id !== ctx.authUserId || acta.estado !== "pendiente_recepcion") {
     return NextResponse.json({ error: "El acta no está disponible para recepción" }, { status: 403 });
-  }
-  if (!acta.receptor_documento?.trim()) {
-    return NextResponse.json({ error: "Debes tener una cédula registrada para firmar el acta" }, { status: 400 });
   }
   const { data: storedItems } = await ctx.admin.from("actas_entrega_items").select("*").eq("acta_id", id).order("orden");
   if (!storedItems || storedItems.length !== parsed.data.items.length || storedItems.some((item: any) => !parsed.data.items.some((input) => input.id === item.id))) {

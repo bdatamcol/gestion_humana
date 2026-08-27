@@ -4,7 +4,6 @@ import { requireActiveUser, relationName } from "@/lib/actas-entrega";
 export async function GET(request: NextRequest) {
   const ctx = await requireActiveUser(request);
   if ("error" in ctx) return ctx.error;
-  if (ctx.isActasManager) return NextResponse.json({ error: "Acceso de solo consulta" }, { status: 403 });
   const term = new URL(request.url).searchParams.get("buscar")?.trim() || "";
 
   let query = ctx.admin

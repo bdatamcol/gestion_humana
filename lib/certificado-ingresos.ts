@@ -17,6 +17,13 @@ export const CERTIFICADO_INGRESOS_PDF_MAX_BYTES = 20 * 1024 * 1024;
 
 export const CERTIFICADO_INGRESOS_ANIO_MINIMO = 2000;
 
+/**
+ * El certificado de ingresos y retenciones solo puede expedirse por año
+ * gravable vencido, por lo que el año en curso nunca es seleccionable.
+ */
+export const CERTIFICADO_INGRESOS_NOTA_ANIO_VENCIDO =
+  "El certificado de ingresos y retenciones solo puede generarse por año gravable vencido. El año en curso no está disponible.";
+
 export interface CertificadoIngresosUsuario {
   colaborador: string;
   cedula: string | null;
@@ -48,9 +55,17 @@ export function usuarioDeSolicitud(valor: unknown): CertificadoIngresosUsuario |
   return (relacion as CertificadoIngresosUsuario | undefined) ?? null
 }
 
-/** Años gravables disponibles para solicitar, del más reciente al más antiguo. */
+/** Último año gravable vencido: siempre el anterior al año en curso. */
+export function ultimoAnioGravableVencido(): number {
+  return new Date().getFullYear() - 1;
+}
+
+/**
+ * Años gravables disponibles para solicitar, del más reciente al más antiguo.
+ * Solo incluye años vencidos; el año en curso queda excluido.
+ */
 export function aniosGravablesDisponibles(cantidad = 5): number[] {
-  const ultimoAnio = new Date().getFullYear();
+  const ultimoAnio = ultimoAnioGravableVencido();
   return Array.from({ length: cantidad }, (_, indice) => ultimoAnio - indice).filter(
     (anio) => anio >= CERTIFICADO_INGRESOS_ANIO_MINIMO,
   );
@@ -61,7 +76,7 @@ export function esAnioGravableValido(anio: unknown): anio is number {
     typeof anio === "number" &&
     Number.isInteger(anio) &&
     anio >= CERTIFICADO_INGRESOS_ANIO_MINIMO &&
-    anio <= new Date().getFullYear()
+    anio <= ultimoAnioGravableVencido()
   );
 }
 

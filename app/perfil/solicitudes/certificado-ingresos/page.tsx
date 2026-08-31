@@ -30,13 +30,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CheckCircle2, Download, Eye, Loader2, Plus } from "lucide-react"
+import { AlertCircle, CheckCircle2, Download, Eye, Info, Loader2, Plus } from "lucide-react"
 import { formatLocalDate } from "@/lib/date-utils"
 import {
   aniosGravablesDisponibles,
+  CERTIFICADO_INGRESOS_NOTA_ANIO_VENCIDO,
   etiquetaEstadoCertificadoIngresos,
   getCertificadoIngresosDownloadUrl,
   nombreArchivoCertificado,
+  ultimoAnioGravableVencido,
   type SolicitudCertificadoIngresos,
 } from "@/lib/certificado-ingresos"
 
@@ -50,7 +52,7 @@ export default function CertificadoIngresosRetenciones() {
 
   const aniosDisponibles = useMemo(() => aniosGravablesDisponibles(), [])
   const [formData, setFormData] = useState({
-    anioGravable: String(aniosDisponibles[0] ?? new Date().getFullYear()),
+    anioGravable: String(aniosDisponibles[0] ?? ultimoAnioGravableVencido()),
     observaciones: "",
   })
 
@@ -96,7 +98,7 @@ export default function CertificadoIngresosRetenciones() {
       }
       setSuccess("Solicitud enviada correctamente. Te notificaremos cuando el certificado esté listo.")
       setFormData({
-        anioGravable: String(aniosDisponibles[0] ?? new Date().getFullYear()),
+        anioGravable: String(aniosDisponibles[0] ?? ultimoAnioGravableVencido()),
         observaciones: "",
       })
       setShowNewModal(false)
@@ -172,6 +174,12 @@ export default function CertificadoIngresosRetenciones() {
           </Button>
         </div>
       </div>
+
+      {/* Nota: solo años gravables vencidos */}
+      <Alert className="bg-blue-50 text-blue-900 border-blue-200">
+        <Info className="h-4 w-4 text-blue-600" />
+        <AlertDescription>{CERTIFICADO_INGRESOS_NOTA_ANIO_VENCIDO}</AlertDescription>
+      </Alert>
 
       {/* Alerts */}
       {error && (
@@ -267,6 +275,10 @@ export default function CertificadoIngresosRetenciones() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
+            <Alert className="bg-blue-50 text-blue-900 border-blue-200">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription>{CERTIFICADO_INGRESOS_NOTA_ANIO_VENCIDO}</AlertDescription>
+            </Alert>
             <div className="space-y-2">
               <Label htmlFor="anioGravable">Año gravable</Label>
               <Select
@@ -284,6 +296,9 @@ export default function CertificadoIngresosRetenciones() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Último año gravable disponible: {ultimoAnioGravableVencido()}.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="observaciones">Observaciones (opcional)</Label>

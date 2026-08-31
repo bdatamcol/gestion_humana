@@ -3,6 +3,7 @@ import {
   CERTIFICADO_INGRESOS_ESTADOS,
   CERTIFICADO_INGRESOS_NOTIFICACION_TIPO,
   esAnioGravableValido,
+  ultimoAnioGravableVencido,
   type CertificadoIngresosEstado,
 } from "@/lib/certificado-ingresos";
 import {
@@ -56,7 +57,12 @@ export async function POST(request: NextRequest) {
 
   const anioGravable = Number(body.anio_gravable);
   if (!esAnioGravableValido(anioGravable)) {
-    return NextResponse.json({ error: "El año gravable seleccionado no es válido" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: `El certificado solo se expide por año gravable vencido. El último año disponible es ${ultimoAnioGravableVencido()}`,
+      },
+      { status: 400 },
+    );
   }
 
   const observaciones =

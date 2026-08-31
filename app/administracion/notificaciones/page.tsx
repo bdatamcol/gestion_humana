@@ -173,6 +173,8 @@ export default function NotificacionesPage() {
     switch (tipo) {
       case 'certificacion_laboral':
         return '📄'
+      case 'certificado_ingresos':
+        return '🧾'
       case 'vacaciones':
         return '🏖️'
       case 'permisos':
@@ -189,6 +191,8 @@ export default function NotificacionesPage() {
     switch (tipo) {
       case 'certificacion_laboral':
         return 'Certificación Laboral'
+      case 'certificado_ingresos':
+        return 'Certificado de Ingresos y Retenciones'
       case 'vacaciones':
         return 'Vacaciones'
       case 'permisos':
@@ -263,6 +267,7 @@ export default function NotificacionesPage() {
                 <SelectContent>
                   <SelectItem value="todos">Todos los tipos</SelectItem>
                   <SelectItem value="certificacion_laboral">Certificación Laboral</SelectItem>
+                  <SelectItem value="certificado_ingresos">Certificado de Ingresos y Retenciones</SelectItem>
                   <SelectItem value="vacaciones">Vacaciones</SelectItem>
                   <SelectItem value="permisos">Permisos</SelectItem>
                   <SelectItem value="incapacidades">Incapacidades</SelectItem>

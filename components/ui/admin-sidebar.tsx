@@ -3,7 +3,7 @@ import * as React from "react"
 import { useState, useEffect } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings, Search, ClipboardCheck } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, User, Home, Info, FileText, Newspaper, Calendar, ChevronDown, Plus, BarChart3, Heart, Activity, Shield, Scale, AlertTriangle, Briefcase, Settings, Search, ClipboardCheck, Receipt } from "lucide-react"
 import { FaUser, FaBuilding, FaFileAlt, FaCalendarAlt, FaIdCard, FaChartPie, FaHeart, FaRunning, FaHardHat, FaBalanceScale, FaGraduationCap } from 'react-icons/fa'
 import { useRouter } from "next/navigation"
 
@@ -127,6 +127,12 @@ export function AdminSidebar({ userName = "Administrador", role = "administrador
             href: "/administracion/solicitudes/permisos",
             icon: FileText,
             current: currentPath === "/administracion/solicitudes/permisos"
+          },
+          {
+            name: "Certificado de ingresos y retenciones",
+            href: "/administracion/solicitudes/certificado-ingresos",
+            icon: Receipt,
+            current: currentPath === "/administracion/solicitudes/certificado-ingresos"
           },
         ],
       });

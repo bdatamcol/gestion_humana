@@ -233,6 +233,8 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
     switch (tipo) {
       case 'certificacion_laboral':
         return '📄'
+      case 'certificado_ingresos':
+        return '🧾'
       case 'vacaciones':
         return '🏖️'
       case 'comentario_vacaciones':
@@ -259,6 +261,8 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
   const obtenerUrlRedireccion = (tipo: string) => {
     if (context === 'jefe') {
       switch (tipo) {
+        case 'certificado_ingresos':
+          return '/perfil/solicitudes/certificado-ingresos'
         case 'permisos':
         case 'comentario_permisos':
           return '/perfil/solicitudes/permisos'
@@ -270,6 +274,8 @@ export function NotificationsDropdown({ className, context = 'admin' }: Notifica
     switch (tipo) {
       case 'certificacion_laboral':
         return '/administracion/solicitudes/certificacion-laboral'
+      case 'certificado_ingresos':
+        return '/administracion/solicitudes/certificado-ingresos'
       case 'vacaciones':
         return '/administracion/solicitudes/vacaciones'
       case 'comentario_vacaciones':

@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle, Users, ClipboardCheck } from "lucide-react"
+import { PanelLeft, Menu, X, LogOut, Newspaper, Info, FileText, Calendar, Shield, ChevronDown, AlertTriangle, Users, ClipboardCheck, Receipt } from "lucide-react"
 import { FaUser, FaFileAlt, FaCalendarAlt, FaSignOutAlt, FaIdCard, FaGraduationCap } from 'react-icons/fa'
 
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -194,6 +194,12 @@ export const Sidebar = ({ userName = "Usuario" }: SidebarProps) => {
           href: "/perfil/solicitudes/permisos",
           icon: FaIdCard,
           current: currentPath === "/perfil/solicitudes/permisos"
+        },
+        {
+          name: "Certificado de ingresos y retenciones",
+          href: "/perfil/solicitudes/certificado-ingresos",
+          icon: Receipt,
+          current: currentPath === "/perfil/solicitudes/certificado-ingresos"
         },
         // Add more sub-items here if needed
       ],

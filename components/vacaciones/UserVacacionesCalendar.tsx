@@ -175,7 +175,7 @@ export default function UserVacacionesCalendar({ onDateRangeSelect, selectedRang
               month={currentMonth}
               onMonthChange={setCurrentMonth}
               locale={es}
-              disabled={[...blockedDays, { before: new Date() }, isSunday]}
+              disabled={[...blockedDays, isSunday]}
               modifiers={modifiers}
               modifiersClassNames={modifiersClassNames}
               className="rdp-custom"

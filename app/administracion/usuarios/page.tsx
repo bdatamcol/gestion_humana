@@ -1811,9 +1811,9 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                     <SelectContent>
                        <SelectItem value="usuario">Usuario</SelectItem>
                        <SelectItem value="jefe">Jefe</SelectItem>
-                       <SelectItem value="administrador">Administrador</SelectItem>
-                              <SelectItem value="gestor_actas">Gestor de actas</SelectItem>
-                              <SelectItem value="gestor_certificados">Gestor de certificados</SelectItem>
+                          <SelectItem value="administrador">Administrador</SelectItem>
+                          <SelectItem value="gestor_actas">Gestor de actas</SelectItem>
+                          <SelectItem value="gestor_certificados">Gestor de certificados</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2179,9 +2179,10 @@ const handleAddUserSubmit = async (e: React.FormEvent) => {
                       <SelectContent>
                          <SelectItem value="usuario">Usuario</SelectItem>
                          <SelectItem value="jefe">Jefe</SelectItem>
-                         <SelectItem value="administrador">Administrador</SelectItem>
-                         <SelectItem value="gestor_actas">Gestor de actas</SelectItem>
-                      </SelectContent>
+                          <SelectItem value="administrador">Administrador</SelectItem>
+                          <SelectItem value="gestor_actas">Gestor de actas</SelectItem>
+                          <SelectItem value="gestor_certificados">Gestor de certificados</SelectItem>
+                        </SelectContent>
                     </Select>
                   </div>
 

@@ -49,7 +49,6 @@ import {
   CERTIFICADO_INGRESOS_NOTA_ANIO_VENCIDO,
   etiquetaEstadoCertificadoIngresos,
   formatearTamanoArchivo,
-  getCertificadoIngresosDownloadUrl,
   nombreArchivoCertificado,
   usuarioDeSolicitud,
   type SolicitudCertificadoIngresos,
@@ -252,19 +251,26 @@ export default function AdminCertificadoIngresos() {
     }
   }
 
-  const verCertificado = (solicitud: SolicitudCertificadoIngresos) => {
-    if (solicitud.pdf_url) {
-      window.open(solicitud.pdf_url, "_blank", "noopener,noreferrer")
+  const abrirDocumento = async (solicitud: SolicitudCertificadoIngresos, descargar = false) => {
+    const ventana = descargar ? null : window.open("about:blank", "_blank")
+    if (ventana) ventana.opener = null
+    try {
+      const response = await authFetch(`/api/certificado-ingresos/${solicitud.id}/documento?descargar=${descargar ? "1" : "0"}`)
+      if (!response.ok) throw new Error((await response.json()).error || "No fue posible abrir el documento")
+      const url = URL.createObjectURL(await response.blob())
+      if (descargar) {
+        const enlace = document.createElement("a")
+        enlace.href = url
+        enlace.download = `${nombreArchivoCertificado(solicitud.anio_gravable)}.pdf`
+        enlace.click()
+      } else if (ventana) {
+        ventana.location.href = url
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (documentError) {
+      ventana?.close()
+      setError(documentError instanceof Error ? documentError.message : "No fue posible abrir el documento")
     }
-  }
-
-  const descargarCertificado = (solicitud: SolicitudCertificadoIngresos) => {
-    if (!solicitud.pdf_url) return
-    const url = getCertificadoIngresosDownloadUrl(
-      solicitud.pdf_url,
-      nombreArchivoCertificado(solicitud.anio_gravable),
-    )
-    window.open(url, "_blank", "noopener,noreferrer")
   }
 
   const revisarSolicitud = async (solicitud: SolicitudCertificadoIngresos, accion: "aprobar" | "rechazar") => {
@@ -459,14 +465,14 @@ export default function AdminCertificadoIngresos() {
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() => verCertificado(solicitud)}
+                                          onClick={() => abrirDocumento(solicitud)}
                                         >
                                           <Eye className="h-4 w-4 mr-1" /> Ver
                                         </Button>
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() => descargarCertificado(solicitud)}
+                                          onClick={() => abrirDocumento(solicitud, true)}
                                         >
                                           <Download className="h-4 w-4 mr-1" /> Descargar
                                         </Button>

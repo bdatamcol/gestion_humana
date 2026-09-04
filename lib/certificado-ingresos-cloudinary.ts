@@ -53,3 +53,19 @@ export async function deleteCertificadoIngresosPdf(publicId: string): Promise<vo
     invalidate: true,
   });
 }
+
+/** Obtiene un PDF mediante una URL privada firmada cuando Cloudinary bloquea su entrega pública. */
+export async function descargarCertificadoIngresosPdf(publicId: string): Promise<Buffer> {
+  ensureCloudinaryConfig();
+  const url = cloudinary.utils.private_download_url(publicId, "pdf", {
+    resource_type: "raw",
+    type: "upload",
+    attachment: false,
+    expires_at: Math.floor(Date.now() / 1000) + 60,
+  });
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Cloudinary rechazó la descarga (${response.status})`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}

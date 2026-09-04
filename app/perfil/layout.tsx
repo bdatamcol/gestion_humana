@@ -82,6 +82,11 @@ export default function PerfilLayout({
           return
         }
 
+        if (normRol(currentUser.rol) === 'gestor_certificados') {
+          router.replace('/administracion/solicitudes/certificado-ingresos')
+          return
+        }
+
         // Empresa restringida (ej. BOLSA): solo /perfil (Mis datos) y
         // /perfil/capacitaciones. Cualquier otra ruta bajo /perfil se
         // redirige a /perfil/capacitaciones.

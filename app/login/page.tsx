@@ -56,6 +56,8 @@ export default function Login() {
             router.push("/administracion/bienvenido")
           } else if (normRol(currentUser.rol) === "gestor_actas") {
             router.push("/administracion/actas-entrega")
+          } else if (normRol(currentUser.rol) === "gestor_certificados") {
+            router.push("/administracion/solicitudes/certificado-ingresos")
           } else {
             router.push("/perfil/bienvenido")
           }
@@ -140,6 +142,8 @@ export default function Login() {
           router.push("/administracion/bienvenido")
         } else if (normRol(currentUser.rol) === "gestor_actas") {
           router.push("/administracion/actas-entrega")
+        } else if (normRol(currentUser.rol) === "gestor_certificados") {
+          router.push("/administracion/solicitudes/certificado-ingresos")
         } else {
           router.push("/perfil/bienvenido")
         }

@@ -55,7 +55,8 @@ import {
   type SolicitudCertificadoIngresos,
 } from "@/lib/certificado-ingresos"
 
-type FiltroEstado = "all" | "pendiente" | "certificado_creado"
+type FiltroEstado = "all" | "pendiente" | "certificado_cargado" | "aprobado" | "rechazado"
+type Access = "admin" | "manager" | "user"
 
 export default function AdminCertificadoIngresos() {
   const [solicitudes, setSolicitudes] = useState<SolicitudCertificadoIngresos[]>([])
@@ -66,6 +67,7 @@ export default function AdminCertificadoIngresos() {
   // — Filtros
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedEstado, setSelectedEstado] = useState<FiltroEstado>("pendiente")
+  const [access, setAccess] = useState<Access>("user")
 
   // — Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -89,6 +91,9 @@ export default function AdminCertificadoIngresos() {
         throw new Error(data?.error || "Error al cargar las solicitudes")
       }
       setSolicitudes(data.solicitudes as SolicitudCertificadoIngresos[])
+      const nextAccess = data.access as Access
+      setAccess(nextAccess)
+      setSelectedEstado(nextAccess === "admin" ? "certificado_cargado" : "pendiente")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar las solicitudes")
     } finally {
@@ -233,7 +238,7 @@ export default function AdminCertificadoIngresos() {
 
       const tamanoFinal = formatearTamanoArchivo(data?.optimizacion?.tamano_final)
       setSuccess(
-        `Certificado cargado correctamente (${tamanoFinal}). El colaborador fue notificado.`,
+        `Certificado cargado correctamente (${tamanoFinal}). Quedó pendiente de aprobación.`,
       )
       setShowUploadModal(false)
       setSolicitudSeleccionada(null)
@@ -262,6 +267,24 @@ export default function AdminCertificadoIngresos() {
     window.open(url, "_blank", "noopener,noreferrer")
   }
 
+  const revisarSolicitud = async (solicitud: SolicitudCertificadoIngresos, accion: "aprobar" | "rechazar") => {
+    const motivo = accion === "rechazar" ? window.prompt("Motivo del rechazo:")?.trim() : ""
+    if (accion === "rechazar" && !motivo) return
+    try {
+      const response = await authFetch(`/api/certificado-ingresos/${solicitud.id}/${accion}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: accion === "rechazar" ? JSON.stringify({ motivo }) : undefined,
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || "No se pudo actualizar la solicitud")
+      setSuccess(accion === "aprobar" ? "Certificado aprobado y notificado al colaborador." : "Certificado rechazado; el gestor debe cargar una nueva versión.")
+      await cargarSolicitudes()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo actualizar la solicitud")
+    }
+  }
+
   return (
     <div className="min-h-screen py-6">
       <div className="flex flex-col flex-1">
@@ -270,7 +293,7 @@ export default function AdminCertificadoIngresos() {
             <div>
               <h1 className="text-2xl font-bold">Certificado de ingresos y retenciones</h1>
               <p className="text-muted-foreground">
-                Adjunta el certificado en PDF para cerrar cada solicitud.
+                {access === "manager" ? "Adjunta o reemplaza certificados en PDF para que administración los revise." : "Revisa y aprueba los certificados anexados por el gestor."}
               </p>
             </div>
 
@@ -342,7 +365,9 @@ export default function AdminCertificadoIngresos() {
                       <SelectContent>
                         <SelectItem value="all">Todos los estados</SelectItem>
                         <SelectItem value="pendiente">Pendiente</SelectItem>
-                        <SelectItem value="certificado_creado">Certificado creado</SelectItem>
+                        <SelectItem value="certificado_cargado">Documento anexado</SelectItem>
+                        <SelectItem value="aprobado">Aprobado</SelectItem>
+                        <SelectItem value="rechazado">Rechazado</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -418,7 +443,7 @@ export default function AdminCertificadoIngresos() {
                               <TableCell>
                                 <Badge
                                   variant={
-                                    solicitud.estado === "certificado_creado"
+                                    solicitud.estado === "aprobado"
                                       ? "secondary"
                                       : "default"
                                   }
@@ -428,8 +453,8 @@ export default function AdminCertificadoIngresos() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  {solicitud.estado === "certificado_creado" &&
-                                    solicitud.pdf_url && (
+                                   {["certificado_cargado", "aprobado", "rechazado"].includes(solicitud.estado) &&
+                                     solicitud.pdf_url && (
                                       <>
                                         <Button
                                           size="sm"
@@ -447,12 +472,18 @@ export default function AdminCertificadoIngresos() {
                                         </Button>
                                       </>
                                     )}
-                                  <Button size="sm" onClick={() => abrirModalCarga(solicitud)}>
-                                    <Upload className="h-4 w-4 mr-1" />
-                                    {solicitud.estado === "certificado_creado"
-                                      ? "Reemplazar"
-                                      : "Adjuntar PDF"}
-                                  </Button>
+                                   {access === "manager" && ["pendiente", "certificado_cargado", "rechazado"].includes(solicitud.estado) && (
+                                     <Button size="sm" onClick={() => abrirModalCarga(solicitud)}>
+                                       <Upload className="h-4 w-4 mr-1" />
+                                       {solicitud.pdf_url ? "Reemplazar" : "Adjuntar PDF"}
+                                     </Button>
+                                   )}
+                                   {access === "admin" && solicitud.estado === "certificado_cargado" && (
+                                     <>
+                                       <Button size="sm" onClick={() => revisarSolicitud(solicitud, "aprobar")}><CheckCircle2 className="h-4 w-4 mr-1" /> Aprobar</Button>
+                                       <Button size="sm" variant="destructive" onClick={() => revisarSolicitud(solicitud, "rechazar")}><X className="h-4 w-4 mr-1" /> Rechazar</Button>
+                                     </>
+                                   )}
                                 </div>
                               </TableCell>
                             </TableRow>

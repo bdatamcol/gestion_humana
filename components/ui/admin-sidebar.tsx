@@ -57,6 +57,14 @@ export function AdminSidebar({ userName = "Administrador", role = "administrador
         current: currentPath.includes("/administracion/actas-entrega")
       }];
     }
+    if (role.toLowerCase().trim() === 'gestor_certificados') {
+      return [{
+        name: "Certificados de ingresos",
+        href: "/administracion/solicitudes/certificado-ingresos",
+        icon: Receipt,
+        current: currentPath.includes("/administracion/solicitudes/certificado-ingresos")
+      }];
+    }
     
     // 1. Escritorio - Siempre incluir
     items.push({ 

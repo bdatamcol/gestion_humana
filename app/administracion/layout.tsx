@@ -101,7 +101,7 @@ export default function AdministracionLayout({
         // #endregion
 
         const role = normRol(currentUser.rol)
-        if (!['administrador', 'gestor_actas'].includes(role)) {
+        if (!['administrador', 'gestor_actas', 'gestor_certificados'].includes(role)) {
           router.push("/")
           return
         }
@@ -114,6 +114,10 @@ export default function AdministracionLayout({
 
         if (role === 'gestor_actas' && !pathname.startsWith('/administracion/actas-entrega')) {
           router.replace('/administracion/actas-entrega')
+          return
+        }
+        if (role === 'gestor_certificados' && !pathname.startsWith('/administracion/solicitudes/certificado-ingresos')) {
+          router.replace('/administracion/solicitudes/certificado-ingresos')
           return
         }
 
@@ -155,6 +159,7 @@ export default function AdministracionLayout({
   if (!userData) return null
 
   const isActasManager = normRol(userData.rol) === 'gestor_actas'
+  const isLimitedManager = isActasManager || normRol(userData.rol) === 'gestor_certificados'
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -189,14 +194,14 @@ export default function AdministracionLayout({
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <h1 className="text-lg font-semibold text-gray-900">
-                 {isActasManager ? 'Gestión de Actas' : 'Panel de Administración'}
+                 {isActasManager ? 'Gestión de Actas' : isLimitedManager ? 'Gestión de Certificados' : 'Panel de Administración'}
               </h1>
             </div>
             <div className="flex items-center gap-4">
-              {!isActasManager && <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors">
+               {!isLimitedManager && <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors">
                 <NotificationsDropdown />
               </div>}
-              {isActasManager ? <div className="flex items-center font-medium text-base gap-2 text-sm text-gray-800">
+               {isLimitedManager ? <div className="flex items-center font-medium text-base gap-2 text-sm text-gray-800">
                 <div className="rounded-full border border-gray-300 bg-gray-100 hover:bg-gray-200 transition-colors p-1">
                   <Avatar className="h-8 w-8">
                   <AvatarImage 

@@ -13,6 +13,11 @@ export const CERTIFICADO_INGRESOS_SELECT = `
   observaciones,
   fecha_solicitud,
   fecha_certificado,
+  cargado_por,
+  fecha_carga,
+  revisado_por,
+  fecha_revision,
+  motivo_rechazo,
   pdf_url,
   pdf_public_id,
   pdf_nombre_original,
@@ -32,6 +37,7 @@ export interface CertificadoIngresosContext {
     estado: string | null;
   };
   isAdmin: boolean;
+  isCertificateManager: boolean;
 }
 
 /**
@@ -65,11 +71,14 @@ export async function requireCertificadoIngresosUser(
     return { error: NextResponse.json({ error: "Usuario inexistente o inactivo" }, { status: 403 }) };
   }
 
+  const role = normRol(profile.rol);
+
   return {
     admin,
     authUserId: authData.user.id,
     profile: profile as CertificadoIngresosContext["profile"],
-    isAdmin: ["administrador", "moderador"].includes(normRol(profile.rol)),
+    isAdmin: ["administrador", "moderador"].includes(role),
+    isCertificateManager: role === "gestor_certificados",
   };
 }
 

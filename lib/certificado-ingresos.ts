@@ -7,7 +7,12 @@
  * vive en `lib/certificado-ingresos-server.ts`.
  */
 
-export const CERTIFICADO_INGRESOS_ESTADOS = ["pendiente", "certificado_creado"] as const;
+export const CERTIFICADO_INGRESOS_ESTADOS = [
+  "pendiente",
+  "certificado_cargado",
+  "aprobado",
+  "rechazado",
+] as const;
 
 export type CertificadoIngresosEstado = (typeof CERTIFICADO_INGRESOS_ESTADOS)[number];
 
@@ -39,6 +44,11 @@ export interface SolicitudCertificadoIngresos {
   observaciones: string | null;
   fecha_solicitud: string;
   fecha_certificado: string | null;
+  cargado_por: string | null;
+  fecha_carga: string | null;
+  revisado_por: string | null;
+  fecha_revision: string | null;
+  motivo_rechazo: string | null;
   pdf_url: string | null;
   pdf_public_id: string | null;
   pdf_nombre_original: string | null;
@@ -81,7 +91,16 @@ export function esAnioGravableValido(anio: unknown): anio is number {
 }
 
 export function etiquetaEstadoCertificadoIngresos(estado: CertificadoIngresosEstado | string): string {
-  return estado === "certificado_creado" ? "Certificado creado" : "Pendiente";
+  switch (estado) {
+    case "certificado_cargado":
+      return "Documento anexado";
+    case "aprobado":
+      return "Aprobado";
+    case "rechazado":
+      return "Rechazado";
+    default:
+      return "Pendiente";
+  }
 }
 
 export function nombreArchivoCertificado(anioGravable: number): string {

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     .select(CERTIFICADO_INGRESOS_SELECT)
     .order("fecha_solicitud", { ascending: false });
 
-  if (!ctx.isAdmin) {
+  if (!ctx.isAdmin && !ctx.isCertificateManager) {
     query = query.eq("usuario_id", ctx.authUserId);
   }
   if (estadoParam) {
@@ -40,13 +40,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Error al obtener las solicitudes" }, { status: 500 });
   }
 
-  return NextResponse.json({ solicitudes: data ?? [] });
+  const solicitudes = (data ?? []).map((solicitud) => {
+    if (!ctx.isAdmin && !ctx.isCertificateManager && solicitud.estado !== "aprobado") {
+      return {
+        ...solicitud,
+        pdf_url: null,
+        pdf_public_id: null,
+        pdf_nombre_original: null,
+        pdf_tamano: null,
+      };
+    }
+    return solicitud;
+  });
+
+  return NextResponse.json({
+    solicitudes,
+    access: ctx.isAdmin ? "admin" : ctx.isCertificateManager ? "manager" : "user",
+  });
 }
 
 // POST - Crear una nueva solicitud en estado pendiente y notificar a los administradores
 export async function POST(request: NextRequest) {
   const ctx = await requireCertificadoIngresosUser(request);
   if ("error" in ctx) return ctx.error;
+  if (ctx.isCertificateManager) {
+    return NextResponse.json({ error: "El gestor de certificados no puede crear solicitudes" }, { status: 403 });
+  }
 
   let body: { anio_gravable?: unknown; observaciones?: unknown };
   try {

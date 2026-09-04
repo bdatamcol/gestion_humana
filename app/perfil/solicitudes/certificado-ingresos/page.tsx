@@ -226,14 +226,17 @@ export default function CertificadoIngresosRetenciones() {
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={solicitud.estado === "certificado_creado" ? "secondary" : "default"}
+                        variant={solicitud.estado === "aprobado" ? "secondary" : "default"}
                       >
                         {etiquetaEstadoCertificadoIngresos(solicitud.estado)}
                       </Badge>
+                      {solicitud.estado === "rechazado" && solicitud.motivo_rechazo && (
+                        <p className="mt-1 max-w-xs text-xs text-destructive">{solicitud.motivo_rechazo}</p>
+                      )}
                     </TableCell>
                     <TableCell>{formatDate(solicitud.fecha_certificado)}</TableCell>
                     <TableCell>
-                      {solicitud.estado === "certificado_creado" && solicitud.pdf_url ? (
+                      {solicitud.estado === "aprobado" && solicitud.pdf_url ? (
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
@@ -247,9 +250,7 @@ export default function CertificadoIngresosRetenciones() {
                           </Button>
                         </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">
-                          En proceso
-                        </span>
+                        <span className="text-sm text-muted-foreground">{solicitud.estado === "rechazado" ? "Requiere corrección" : "En proceso"}</span>
                       )}
                     </TableCell>
                   </TableRow>

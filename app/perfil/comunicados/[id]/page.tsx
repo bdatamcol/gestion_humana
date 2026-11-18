@@ -92,18 +92,21 @@ export default function DetalleComunicadoPage() {
             } else {
                 const empresas_destinatarias = Array.isArray(data.comunicados_empresas) 
                     ? data.comunicados_empresas
-                        .map(item => item.empresas)
-                        .filter((empresa): empresa is { nombre: string } => Boolean(empresa && empresa.nombre))
+                        .flatMap(item => item.empresas ?? [])
+                        .filter((empresa): empresa is { nombre: string } =>
+                            typeof empresa?.nombre === "string" && empresa.nombre.trim().length > 0)
                     : []
                 const usuarios_destinatarios = Array.isArray(data.comunicados_usuarios)
                     ? data.comunicados_usuarios
-                        .map(item => item.usuario_nomina)
-                        .filter((usuario): usuario is { colaborador: string } => Boolean(usuario && usuario.colaborador))
+                        .flatMap(item => item.usuario_nomina ?? [])
+                        .filter((usuario): usuario is { colaborador: string } =>
+                            typeof usuario?.colaborador === "string" && usuario.colaborador.trim().length > 0)
                     : []
                 const cargos_destinatarios = Array.isArray(data.comunicados_cargos)
                     ? data.comunicados_cargos
-                        .map(item => item.cargos)
-                        .filter((cargo): cargo is { nombre: string } => Boolean(cargo && cargo.nombre))
+                        .flatMap(item => item.cargos ?? [])
+                        .filter((cargo): cargo is { nombre: string } =>
+                            typeof cargo?.nombre === "string" && cargo.nombre.trim().length > 0)
                     : []
                 const comunicadoData: ComunicadoDetalle = {
                     id: data.id as string,
@@ -220,7 +223,7 @@ export default function DetalleComunicadoPage() {
                     {leido ? (
                         <Badge variant="secondary" className="px-3 sm:px-4 py-2 text-sm font-medium bg-green-50 text-green-700 border border-green-200 w-full sm:w-auto flex items-center justify-center">
                             <CheckIcon className="h-4 w-4 mr-2 flex-shrink-0" /> 
-                            <span className="whitespace-nowrap">Leído</span>
+                            <span className="whitespace-nowrap">Leído y aprobado</span>
                         </Badge>
                     ) : (
                         <Button
@@ -229,7 +232,7 @@ export default function DetalleComunicadoPage() {
                             onClick={() => setConfirmDialogOpen(true)}
                         >
                             <CheckIcon className="h-4 w-4 flex-shrink-0" /> 
-                            <span className="whitespace-nowrap">Marcar como leído</span>
+                            <span className="whitespace-nowrap">Leer y aprobar</span>
                         </Button>
                     )}
                     {comunicado.fecha_publicacion && (
@@ -245,16 +248,16 @@ export default function DetalleComunicadoPage() {
             <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
                 <DialogContent>
                     <DialogHeader className="gap-2">
-                        <DialogTitle>⚠️¡Atención!</DialogTitle>
+                        <DialogTitle>Confirmar lectura y aprobación</DialogTitle>
                         <DialogDescription>
-                            Confirmo lectura y aprobación del comunicado.
+                            ¿Confirmas que has leído y apruebas este comunicado?
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex gap-2">
                         <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
                             Cancelar
                         </Button>
-                        <Button onClick={handleConfirmRead}>Confirmar</Button>
+                        <Button onClick={handleConfirmRead}>Sí, lo he leído y lo apruebo</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

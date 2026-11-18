@@ -268,7 +268,7 @@ export default function ComunicadosPage() {
                           </span>
                         </div>
                         <div className="text-sm text-green-600 text-center mt-1">
-                          leídos
+                          leídos y aprobados
                         </div>
                       </div>
                       
@@ -390,12 +390,12 @@ export default function ComunicadosPage() {
                                {c.leido ? (
                                  <>
                                    <Eye className="w-3 h-3" />
-                                   Leído
+                                   Leído y aprobado
                                  </>
                                ) : (
                                  <>
                                    <EyeOff className="w-3 h-3" />
-                                   No leído
+                                   Pendiente de aprobación
                                  </>
                                )}
                              </Badge>
@@ -423,7 +423,7 @@ export default function ComunicadosPage() {
                             className="w-full"
                             onClick={() => window.location.href = `/perfil/comunicados/${c.id}`}
                           >
-                            Ver comunicado
+                            {c.leido ? "Ver comunicado" : "Leer y aprobar"}
                           </Button>
                         </div>
                       </div>

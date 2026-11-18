@@ -111,15 +111,18 @@ export default function DetallesComunicadoPage() {
       
       // Procesar lecturas
       const leData = lecturasResult.data || []
-      const lecturas: Lectura[] = leData.map(item => ({
-          usuario_id: item.usuario_id as string,
-          usuario_nomina: item.usuario_nomina && typeof item.usuario_nomina === 'object' ? {
-            colaborador: (item.usuario_nomina as { colaborador: string | null; avatar_path: string | null; genero: string | null }).colaborador || "Usuario desconocido",
-            avatar_path: (item.usuario_nomina as { colaborador: string | null; avatar_path: string | null; genero: string | null }).avatar_path,
-            genero: (item.usuario_nomina as { colaborador: string | null; avatar_path: string | null; genero: string | null }).genero
+      const lecturas: Lectura[] = leData.map(item => {
+        const perfil = Array.isArray(item.usuario_nomina) ? item.usuario_nomina[0] : item.usuario_nomina
+        return {
+          usuario_id: item.usuario_id,
+          usuario_nomina: perfil ? {
+            colaborador: perfil.colaborador || "Usuario desconocido",
+            avatar_path: perfil.avatar_path ?? null,
+            genero: perfil.genero ?? null,
           } : null,
-          leido_at: item.leido_at as string
-        }))
+          leido_at: item.leido_at,
+        }
+      })
       setUsuariosLeidos(lecturas)
 
       // Ejecutar consultas dependientes en paralelo si hay cargos
@@ -232,13 +235,13 @@ export default function DetallesComunicadoPage() {
                   : comunicadoInfo?.titulo || "Detalles"}
               </h1>
               <p className="text-muted-foreground mt-1">
-                Estadísticas y seguimiento
+                Seguimiento de lectura y aprobación
               </p>
             </div>
             <div className="flex items-center gap-2 self-end md:self-auto">
               <Badge variant="outline" className="px-3 py-1 bg-white">
                 <BookOpenCheckIcon className="h-3.5 w-3.5 mr-1" />{" "}
-                {usuariosLeidos.length} lecturas
+                {usuariosLeidos.length} {usuariosLeidos.length === 1 ? "confirmación" : "confirmaciones"}
               </Badge>
               <Badge variant="outline" className="px-3 py-1 bg-white">
                 <UsersIcon className="h-3.5 w-3.5 mr-1" />{" "}
@@ -254,7 +257,7 @@ export default function DetallesComunicadoPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
-                      Lecturas
+                      Lectura y aprobación confirmadas
                     </p>
                     <h3 className="text-2xl font-bold">
                       {usuariosLeidos.length}
@@ -269,7 +272,7 @@ export default function DetallesComunicadoPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
-                      Porcentaje
+                      Porcentaje de destinatarios que confirmaron
                     </p>
                     <h3 className="text-2xl font-bold">
                       {porcentajeLecturas}%
@@ -284,12 +287,12 @@ export default function DetallesComunicadoPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
-                      Última lectura
+                      Última confirmación
                     </p>
                     <h3 className="text-lg font-bold">
                       {usuariosLeidos.length > 0
                         ? formatDate(usuariosLeidos[0].leido_at).split(" a las")[0]
-                        : "Sin lecturas"}
+                        : "Sin confirmaciones"}
                     </h3>
                   </div>
                   <ClockIcon className="h-6 w-6 text-primary" />
@@ -302,10 +305,10 @@ export default function DetallesComunicadoPage() {
           <Tabs defaultValue="lecturas" className="w-full">
             <TabsList className="mb-4">
               <TabsTrigger value="lecturas">
-                <BookOpenCheckIcon className="h-4 w-4 mr-1" /> Lecturas
+                <BookOpenCheckIcon className="h-4 w-4 mr-1" /> Confirmaron
               </TabsTrigger>
               <TabsTrigger value="faltantes">
-                <UserRoundX className="h-4 w-4 mr-1" /> Faltantes
+                <UserRoundX className="h-4 w-4 mr-1" /> Pendientes
               </TabsTrigger>
             </TabsList>
 
@@ -316,10 +319,10 @@ export default function DetallesComunicadoPage() {
                   <div>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
                       <BookOpenCheckIcon className="h-5 w-5 text-primary" />
-                      Registro de Lecturas
+                      Registro de lectura y aprobación
                     </CardTitle>
                     <CardDescription>
-                      Colaboradores que han leído
+                      Colaboradores que confirmaron haber leído y aprobado este comunicado.
                     </CardDescription>
                   </div>
                   <Input
@@ -350,7 +353,7 @@ export default function DetallesComunicadoPage() {
                       <p className="text-muted-foreground">
                         {searchTerm
                           ? "No se encontraron resultados."
-                          : "Aún no hay lecturas."}
+                          : "Aún no hay confirmaciones de lectura y aprobación."}
                       </p>
                     </div>
                   ) : (
@@ -402,10 +405,10 @@ export default function DetallesComunicadoPage() {
                   <div>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
                       <UserRoundX className="h-5 w-5 text-destructive" />
-                      Usuarios sin leer
+                      Pendientes de confirmación
                     </CardTitle>
                     <CardDescription>
-                      Destinatarios que no han leído
+                      Destinatarios que aún no han confirmado la lectura y aprobación de este comunicado.
                     </CardDescription>
                   </div>
                   <Input
@@ -430,7 +433,7 @@ export default function DetallesComunicadoPage() {
                       <p className="text-muted-foreground">
                         {searchTerm
                           ? "No se encontraron resultados."
-                          : "Todos han leído."}
+                          : "No hay destinatarios pendientes de confirmación."}
                       </p>
                     </div>
                   ) : (

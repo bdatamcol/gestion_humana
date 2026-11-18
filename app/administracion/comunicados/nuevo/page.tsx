@@ -207,7 +207,7 @@ export default function NuevoComunicado() {
       setUploadingFiles(true);
       setError(null);
       const supabase = createSupabaseClient();
-      const nuevos = [...adjuntos];
+      const nuevos: typeof adjuntos = [];
 
       for (const f of Array.from(files)) {
         if (f.size > 10 * 1024 * 1024) {
@@ -219,7 +219,10 @@ export default function NuevoComunicado() {
         const { error: upErr } = await supabase.storage
           .from("comunicados")
           .upload(path, f, { cacheControl: "3600", upsert: false });
-        if (upErr) continue;
+        if (upErr) {
+          setError(`No se pudo subir «${f.name}». Vuelve a intentarlo.`);
+          continue;
+        }
 
         const { data: urlData } = supabase.storage
           .from("comunicados")
@@ -227,7 +230,7 @@ export default function NuevoComunicado() {
 
         nuevos.push({ name: f.name, url: urlData.publicUrl, size: f.size });
       }
-      setAdjuntos(nuevos);
+      setAdjuntos(prev => [...prev, ...nuevos]);
     } catch (err: any) {
       setError("Error al subir archivos: " + (err.message || ""));
     } finally {
@@ -251,9 +254,11 @@ export default function NuevoComunicado() {
   // Guardar o publicar comunicado + tablas puente
   const handleSubmit = async (e: React.FormEvent, publicar = false) => {
     e.preventDefault();
+    if (saving || uploadingFiles || uploadingImage) return;
     if (!formData.titulo.trim()) return setError("El título es obligatorio");
     if (!formData.descripcion.trim()) return setError("La descripción es obligatoria");
     if (!formData.categoria_id) return setError("Debe seleccionar una categoría");
+    if (adjuntos.length === 0) return setError("Adjunta al menos un archivo para publicar el comunicado.");
 
     try {
       setSaving(true);
@@ -274,7 +279,7 @@ export default function NuevoComunicado() {
           autor_id: session.user.id,
           area_responsable: formData.area_responsable,
           estado: publicar ? "publicado" : "borrador",
-          archivos_adjuntos: adjuntos.length > 0 ? adjuntos : null,
+          archivos_adjuntos: adjuntos,
         })
         .select("id");
       if (insertError || !insertData?.length) throw insertError;
@@ -567,7 +572,7 @@ export default function NuevoComunicado() {
 
                   {/* Archivos adjuntos */}
                   <div className="space-y-2">
-                    <Label htmlFor="adjuntos">Archivos adjuntos (opcional)</Label>
+                    <Label htmlFor="adjuntos">Archivos adjuntos (al menos uno obligatorio)</Label>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
                       <div className="flex flex-col items-center gap-4">
                         <Button
@@ -587,6 +592,7 @@ export default function NuevoComunicado() {
                         <p className="text-xs text-gray-500">Máx. 10MB por archivo</p>
                       </div>
                       <input
+                        id="adjuntos"
                         ref={fileInputRef}
                         type="file"
                         multiple
